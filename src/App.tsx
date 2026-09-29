@@ -219,6 +219,7 @@ export default function App() {
   });
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -1043,14 +1044,19 @@ export default function App() {
               )}
             </button>
           ) : (
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              title="Sign In or Create Account"
-              className="px-2.5 py-1.5 text-xs text-[#6B5A4E] hover:text-[#2B1D14] bg-[#FAF7F2] hover:bg-[#EFE8DD] rounded-lg transition-colors cursor-pointer border border-[#E5DACD] flex items-center gap-1.5 shadow-2xs font-medium whitespace-nowrap"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Account</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setAuthModalMode('login');
+                  setIsAuthModalOpen(true);
+                }}
+                title="Log In to your Goodbeans account"
+                className="px-3 py-1.5 text-xs text-[#FAF7F2] bg-[#3A291E] hover:bg-[#2B1D14] rounded-lg transition-colors cursor-pointer shadow-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <LogIn className="w-3.5 h-3.5 text-[#ECA357]" />
+                <span>Log In</span>
+              </button>
+            </div>
           )}
           {/* Dark View Palette & Background Customizer Button */}
           {theme === 'dark' && (
@@ -1201,16 +1207,22 @@ export default function App() {
                 )}
               </>
             ) : (
-              <button
-                onClick={() => {
-                  setIsAuthModalOpen(true);
-                  setIsMobileMenuOpen(false);
-                }}
-                className="w-full text-left font-medium py-1.5 px-2 rounded-md bg-[#FAF7F2] border border-[#E5DACD] flex items-center gap-2 text-xs text-[#2B1D14]"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-[#C87D32]" />
-                Sign In / Create Account
-              </button>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => {
+                    setAuthModalMode('login');
+                    setIsAuthModalOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left font-semibold py-2 px-3 rounded-lg bg-[#3A291E] text-white flex items-center justify-between text-xs cursor-pointer shadow-xs"
+                >
+                  <span className="flex items-center gap-2">
+                    <LogIn className="w-3.5 h-3.5 text-[#ECA357]" />
+                    Log In
+                  </span>
+                  <span className="text-[10px] text-[#D5C7B8] font-normal">Account & Sync</span>
+                </button>
+              </div>
             )}
           </div>
           <div className="pt-2 border-t border-[#E5DACD] flex flex-col gap-2">
@@ -1692,6 +1704,7 @@ export default function App() {
       {/* 9c. Authentication Modal (Register / Login) */}
       <AuthModal
         isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
         initialDataToSave={{
