@@ -56,11 +56,20 @@ app.post('/api/ai/populate', async (req, res) => {
   }
 });
 
-// Production static file serving
-app.use(express.static(path.resolve(__dirname, 'dist')));
-app.get('*', (_req, res) => {
-  res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
-});
+// Serve frontend: Vite middlewares in dev, static dist/ in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.resolve(__dirname, 'dist')));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+  });
+} else {
+  const { createServer: createViteServer } = await import('vite');
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: 'spa',
+  });
+  app.use(vite.middlewares);
+}
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server listening on http://0.0.0.0:${port}`);

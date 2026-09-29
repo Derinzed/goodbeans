@@ -1,4 +1,4 @@
-import { Coffee, Equipment, Shelf, BrewMethod, CustomVariable, RecipeStep, Cafe, CustomNote } from '../types/coffee';
+import type { Coffee, Equipment, Shelf, BrewMethod, CustomVariable, RecipeStep, Cafe, CustomNote } from '../types/coffee.ts';
 
 export const DEFAULT_SHELVES: Shelf[] = [
   {
