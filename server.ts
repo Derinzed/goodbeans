@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { populateItemOnline } from './src/server/aiPopulate';
+import { populateItemOnline } from './src/server/aiPopulate.ts';
 
 dotenv.config();
 
@@ -10,9 +10,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+// Nginx listens on 8080 and reverse-proxies to port 3000 (DEFAULT_APP_PORT).
+// The backend server must always listen on port 3000.
 const port = 3000;
 
 app.use(express.json());
+
+// Health check endpoints for container readiness probes
+app.get('/health', (_req, res) => res.status(200).send('OK'));
+app.get('/healthz', (_req, res) => res.status(200).send('OK'));
 
 // Endpoint: Auto-populate coffee, equipment, cafe, or note from web information
 app.post('/api/ai/populate', async (req, res) => {

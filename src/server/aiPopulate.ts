@@ -5,133 +5,95 @@ export async function populateItemOnline(itemType: string, queryName: string) {
   let userPrompt = '';
 
   if (itemType === 'coffee') {
-    systemPrompt = `You are a world-class specialty coffee Q-grader, green buyer, and roastery archivist.
-Your job is to identify the EXACT real-world specialty coffee release or bean named by the user ("${queryName}").
-Identify the true roaster, true origin country, specific growing region/zone, specific washing station/wet mill or farm, producer/cooperative, precise botanical variety, exact processing method, elevation in meters, and the authentic roaster tasting notes printed on the bag.
-
-CRITICAL ACCURACY RULES:
-1. "name": The clean coffee lot name without duplicating the roaster name (e.g. if input is "Sey Coffee Chelbesa Washed", name is "Chelbesa Washed" and roaster is "Sey Coffee").
-2. "roaster": The actual roastery (e.g. Sey Coffee, Onyx Coffee Lab, Tim Wendelboe, DAK Coffee Roasters, La Cabra, Proud Mary, Heart Roasters, Subtext, April, Coffee Collective, George Howell, Square Mile, etc.).
-3. "origin": Real geographic terroir:
-   - country: (e.g. Ethiopia, Kenya, Colombia, Panama, Guatemala, Costa Rica, Rwanda, Burundi, Indonesia, Yemen)
-   - region: specific zone (e.g. Gedeb, Yirgacheffe, Nyeri, Huila, Tarrazu, Boquete, Huehuetenango, Kayanza)
-   - farmOrStation: real washing station, estate, or wet mill (e.g. Chelbesa Washing Station, Finca El Paraiso, Kiamabara, Hacienda La Esmeralda)
-   - producer: real producer name or washing station owner (e.g. SNAP Specialty, Diego Bermudez, Peterson Family, Smallholder Members)
-   - elevationMeters: true elevation as a number (e.g. 2100)
-4. "variety": Real botanical cultivars. NEVER guess generic words like "Arabica". Use specific varieties like "Dega & Wolisho", "Pink Bourbon", "SL28 & SL34", "Green Tip Geisha", "Bourbon", "Caturra", "Chiroso", "Wush Wush", "Pacamara", "Sidra", "Castillo", "Heirloom".
-5. "process": The exact processing method: 'Washed', 'Natural', 'Honey', 'Anaerobic Natural', 'Thermal Shock', 'Co-ferment', 'Experimental'.
-6. "roastLevel": 'Light', 'Medium-Light', 'Medium', 'Medium-Dark', or 'Dark' (reflecting the roaster's actual style; e.g. Sey and Wendelboe are Light).
-7. "tastingNotesSummary": Array of 3 to 4 true flavor notes as published by the roaster (e.g. ["Jasmine", "White Peach", "Bergamot", "Candied Lemon"]).
-8. "description": 2-3 sentences with true information about this lot's harvest, terroir, and taste profile.
-9. "bagBadgeText": Short badge like 'Micro-Lot', 'Single Farm', '90+ Cup', or 'Competition Lot'.
-10. "coverColor": Hex color matching the coffee origin and roast (e.g. '#2B1D14', '#5C3A21', '#8C4F1A', '#355E3B', '#1B4D3E', '#722F37', '#1E3A8A').
-11. "communityRating": Realistic specialty rating between 4.3 and 4.9.
-12. "communityRatingsCount": Realistic count between 18 and 95.
-13. "recommendedRecipe": A real dialed-in brew recipe specifically calculated for this coffee's density and roast style (dose, water, ratio, grind size, water temp, bloom, and pouring steps).
-
-Return ONLY raw JSON matching this schema:
+    systemPrompt = `You are a specialty coffee expert cataloger. Your job is to search online for the real specialty coffee named by the user, and populate all detailed fields accurately based on real roaster releases, green coffee sourcing, origin details, variety, process, and flavor profile.
+Return ONLY valid raw JSON matching this schema:
 {
-  "name": "string",
-  "roaster": "string",
+  "name": "string (coffee name without roaster prefix, e.g. Chelbesa Washed)",
+  "roaster": "string (roastery name, e.g. Sey Coffee)",
   "origin": {
-    "country": "string",
-    "region": "string",
-    "farmOrStation": "string",
-    "producer": "string",
-    "elevationMeters": number
+    "country": "string (e.g. Ethiopia, Colombia, Kenya, Panama)",
+    "region": "string (e.g. Yirgacheffe, Huila, Nyeri, Boquete)",
+    "farmOrStation": "string (e.g. Chelbesa Washing Station, Finca El Paraiso)",
+    "producer": "string (e.g. Danche Mill, Diego Bermudez)",
+    "elevationMeters": number (e.g. 2100)
   },
-  "variety": "string",
-  "process": "string",
-  "roastLevel": "string",
-  "tastingNotesSummary": ["string", "string", "string"],
-  "description": "string",
-  "bagBadgeText": "string",
-  "coverColor": "string",
-  "communityRating": number,
-  "communityRatingsCount": number,
+  "variety": "string (e.g. Heirloom, Gesha, SL28, Pink Bourbon, Caturra, Wush Wush)",
+  "process": "string (must be one of: 'Washed', 'Natural', 'Honey', 'Anaerobic Natural', 'Thermal Shock', 'Experimental', 'Co-ferment')",
+  "roastLevel": "string (must be one of: 'Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark')",
+  "tastingNotesSummary": ["string", "string", "string"] (3 to 4 distinct specialty flavor descriptors, e.g. "Bergamot", "Peach Candy", "Jasmine Floral", "Meyer Lemon"),
+  "description": "string (2-3 sentences about the lot, terroir, processing method, and flavor character)",
+  "bagBadgeText": "string (short 1-2 words badge, e.g. 'Micro-Lot', '90+ Score', 'Direct Trade', 'Competition Lot')",
+  "coverColor": "string (hex code fitting the coffee's origin and flavor, e.g. '#2B1D14', '#5C3A21', '#8C4F1A', '#355E3B', '#1B4D3E', '#722F37', '#1E3A8A')",
+  "communityRating": number (realistic average 4.2 to 4.9),
+  "communityRatingsCount": number (realistic count 15 to 80),
   "recommendedRecipe": {
-    "title": "string",
-    "method": "v60",
-    "doseGrams": number,
-    "waterGrams": number,
-    "ratio": "string",
-    "grindSize": "string",
-    "waterTempC": number,
-    "totalTimeSeconds": number,
-    "bloomGrams": number,
-    "bloomTimeSeconds": number,
-    "notes": "string",
+    "title": "string (e.g. Recommended V60 Dial-In)",
+    "method": "string (must be one of: 'v60', 'espresso', 'aeropress', 'french-press', 'chemex', 'clever', 'cold-brew')",
+    "doseGrams": number (e.g. 15),
+    "waterGrams": number (e.g. 250),
+    "ratio": "string (e.g. 1:16.7)",
+    "grindSize": "string (e.g. Medium-Fine (5.2 on Ode Gen 2))",
+    "waterTempC": number (e.g. 93),
+    "totalTimeSeconds": number (e.g. 195),
+    "bloomGrams": number (e.g. 45),
+    "bloomTimeSeconds": number (e.g. 40),
+    "notes": "string (dial-in tip)",
     "customVariables": [
-      { "id": "v1", "label": "string", "value": "string" },
-      { "id": "v2", "label": "string", "value": "string" }
+      { "id": "v1", "label": "Filter Type", "value": "Cafec Abaca White" },
+      { "id": "v2", "label": "Water Minerals", "value": "Lotus Bright Profile (60ppm GH)" }
     ],
     "steps": [
-      { "id": "s1", "timeSeconds": 0, "title": "Bloom", "waterAmountGrams": number, "instruction": "string" },
-      { "id": "s2", "timeSeconds": 40, "title": "Pour 1", "waterAmountGrams": number, "instruction": "string" },
-      { "id": "s3", "timeSeconds": 90, "title": "Pour 2", "waterAmountGrams": number, "instruction": "string" }
+      { "id": "s1", "timeSeconds": 0, "title": "Bloom", "waterAmountGrams": 45, "instruction": "Gentle swirl to fully saturate grounds" },
+      { "id": "s2", "timeSeconds": 40, "title": "First Pour", "waterAmountGrams": 150, "instruction": "Slow concentric pour" },
+      { "id": "s3", "timeSeconds": 90, "title": "Final Pour", "waterAmountGrams": 250, "instruction": "Center pour to finish with flat bed" }
     ]
   }
 }`;
-    userPrompt = `Identify the real specialty coffee: "${queryName}". Look up its actual roaster, country, region, washing station, variety, process, elevation, and published tasting notes. Return only valid JSON.`;
+    userPrompt = `Search online and retrieve exact specifications and catalog data for this specialty coffee: "${queryName}". If it is a real coffee, use its true origin, roaster, process, and tasting notes. Return only JSON.`;
   } else if (itemType === 'equipment') {
-    systemPrompt = `You are a specialty coffee gear engineer and barista equipment specialist.
-Search and identify the EXACT coffee equipment / grinder / machine / tool named by the user ("${queryName}").
-Retrieve its real manufacturer/brand, exact product model name, category, burr geometry/size or pump specifications, real recommended grind settings/dial-in clicks, maintenance and calibration instructions, and specifications.
-
-Category must be one of:
-'Grinder', 'Espresso Machine', 'Pour Over / Dripper', 'Kettle', 'Scale', 'Immersion', 'Accessory', 'Roaster'
-
-Return ONLY raw JSON matching this schema:
+    systemPrompt = `You are a specialty coffee gear and equipment specialist. Search online for the exact coffee gear named by the user and populate all specifications, brand, category, dial-in settings, and maintenance guidelines.
+Return ONLY valid raw JSON matching this schema:
 {
-  "name": "string (official product name, e.g. Ode Brew Grinder Gen 2)",
-  "brand": "string (official manufacturer, e.g. Fellow, Comandante, Acaia, La Marzocco)",
-  "category": "string",
+  "name": "string (full product name, e.g. Ode Gen 2 Grinder)",
+  "brand": "string (manufacturer name, e.g. Fellow)",
+  "category": "string (must be one of: 'Grinder', 'Espresso Machine', 'Pour Over / Dripper', 'Kettle', 'Scale', 'Immersion', 'Accessory', 'Roaster')",
   "status": "Active",
   "settingsNotes": "string (practical dial-in guidelines, clicks, grind range, burr calibration recommendations)",
   "maintenanceNotes": "string (cleaning frequency, burr alignment, descaling, lubrication, or care)",
   "generalNotes": "string (specifications, burr size/material, voltage, motor specs, capacity, build quality)",
   "rating": number (e.g. 4.5 or 5.0)
 }`;
-    userPrompt = `Identify the exact coffee equipment: "${queryName}". Retrieve its real brand, category, settings, burr size or machine specs, and maintenance guidelines. Return only valid JSON.`;
+    userPrompt = `Search online and retrieve specifications for this coffee equipment / gear: "${queryName}". Return only JSON.`;
   } else if (itemType === 'cafe') {
-    systemPrompt = `You are an international specialty coffee guide and curator.
-Identify the EXACT real-world specialty cafe / roastery location named by the user ("${queryName}").
-Retrieve its real street address (with street number and street name), city, country, signature drink or order, roasters served or in-house roastery details, and true atmosphere notes.
-
-Return ONLY raw JSON matching this schema:
+    systemPrompt = `You are a specialty coffee traveler and curator. Search online for the real in-person coffee shop / cafe named by the user and populate its exact street address, city, country, signature drinks, atmosphere vibes, and notes.
+Return ONLY valid raw JSON matching this schema:
 {
-  "name": "string (official cafe name, e.g. Prufrock Coffee)",
-  "address": "string (real street address with building number, e.g. 23-25 Leather Lane)",
-  "city": "string (city and state/region, e.g. London, EC1N 7TE or Brooklyn, NY)",
-  "country": "string (e.g. United Kingdom, United States, Norway, Japan, Australia)",
+  "name": "string (cafe name, e.g. Sey Coffee)",
+  "address": "string (real street address with number, e.g. 18 Grattan St)",
+  "city": "string (city and state/province, e.g. Brooklyn, NY)",
+  "country": "string (e.g. United States, Norway, Australia, Japan)",
   "rating": number (e.g. 4.5 or 5.0),
-  "favoriteDrink": "string (signature order, e.g. Single Origin Washed Pour Over & Flat White)",
+  "favoriteDrink": "string (signature drink or specialty order, e.g. Washed Ethiopian Pour Over & Flat White)",
   "vibes": ["string", "string", "string"] (3-4 atmosphere and program tags, e.g. 'Pour Over Specialist', 'In-House Roastery', 'Natural Light', 'Vinyl Beats'),
-  "roasterOrBeansServed": "string (roaster served or in-house program)",
-  "notes": "string (detailed review of coffee program, espresso machine setup, space architecture, and barista craft)"
+  "roasterOrBeansServed": "string (roasters served or in-house roastery)",
+  "notes": "string (atmosphere review, coffee program details, equipment used, seating/space impressions)"
 }`;
-    userPrompt = `Identify the real specialty cafe: "${queryName}". Retrieve its real street address, city, country, signature drinks, roaster, and vibe. Return only valid JSON.`;
+    userPrompt = `Search online for the real specialty coffee shop / cafe: "${queryName}". Retrieve its real street address and city. Return only JSON.`;
   } else {
-    systemPrompt = `You are a champion barista and specialty coffee educator.
-Create an in-depth, expert custom notebook entry for the topic or coffee requested: "${queryName}".
-Include precise water chemistry (PPM/GH/KH), dial-in parameters, water temperature, agitation technique, or maintenance insights.
-
-Category must be one of:
-'Brew Technique', 'Water Recipe', 'Dial-in & Grind', 'Roaster & Origin', 'Cupping & Sensory', 'Equipment Care', 'General'
-
-Return ONLY raw JSON matching this schema:
+    systemPrompt = `You are a world-class barista and coffee educator. Generate a thorough, dialed-in specialty coffee custom note about the topic or coffee requested by the user.
+Return ONLY valid raw JSON matching this schema:
 {
-  "title": "string",
-  "category": "string",
-  "content": "string",
+  "title": "string (descriptive title)",
+  "category": "string (must be one of: 'Brew Technique', 'Water Recipe', 'Dial-in & Grind', 'Roaster & Origin', 'Cupping & Sensory', 'Equipment Care', 'General')",
+  "content": "string (in-depth, practical barista observations with exact measurements, temperature, ratios, or instructions)",
   "tags": ["string", "string", "string"],
   "isPinned": false
 }`;
-    userPrompt = `Create an expert custom coffee notebook entry for: "${queryName}". Return only valid JSON.`;
+    userPrompt = `Create an expert custom coffee note for: "${queryName}". Return only JSON.`;
   }
 
+  // Attempt live Gemini query with model fallbacks if apiKey is present
   const apiKey = process.env.GEMINI_API_KEY;
-
   if (apiKey) {
     const ai = new GoogleGenAI({
       apiKey,
@@ -142,9 +104,8 @@ Return ONLY raw JSON matching this schema:
       },
     });
 
-    // 1. Try gemini-3.1-flash-lite first (fastest, high reliability, avoids 503 spikes)
+    // Try models with fallback: gemini-3.1-flash-lite (fast, avoids 503/429 limits), gemini-flash-latest, gemini-3.8-flash
     const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
-
     for (const model of modelsToTry) {
       try {
         const response = await ai.models.generateContent({
@@ -167,100 +128,61 @@ Return ONLY raw JSON matching this schema:
             rawText = rawText.substring(start, end + 1);
           }
         }
-
         const parsed = JSON.parse(rawText.trim());
-
-        // Validate essential fields
         if (parsed && typeof parsed === 'object') {
-          // Normalize elevation if returned as string range e.g. "2000-2200"
-          if (parsed.origin && typeof parsed.origin.elevationMeters === 'string') {
-            const num = parseInt(parsed.origin.elevationMeters, 10);
-            parsed.origin.elevationMeters = isNaN(num) ? 2000 : num;
-          }
-          if (parsed.elevationMeters && !parsed.origin?.elevationMeters) {
-            const num = parseInt(String(parsed.elevationMeters), 10);
-            if (!parsed.origin) parsed.origin = {};
-            parsed.origin.elevationMeters = isNaN(num) ? 2000 : num;
-          }
-          // Ensure tastingNotesSummary is string array
-          if (typeof parsed.tastingNotesSummary === 'string') {
-            parsed.tastingNotesSummary = parsed.tastingNotesSummary
-              .split(/[,•\n]+/)
-              .map((s: string) => s.trim())
-              .filter(Boolean);
-          }
-          // Normalize address if street_address was returned
-          if (parsed.street_address && !parsed.address) {
-            parsed.address = parsed.street_address;
-          }
           return parsed;
         }
       } catch (err: any) {
-        console.warn(`Model ${model} failed:`, err?.message?.slice(0, 120));
+        console.warn(`Model ${model} failed, trying next:`, err?.message?.slice(0, 100));
       }
     }
   }
 
-  // Fallback if API key is missing or all models failed
-  return getSmartSpecialtyFallback(itemType, queryName);
-}
-
-function getSmartSpecialtyFallback(itemType: string, queryName: string) {
+  // Smart specialty heuristic inference
   const lower = queryName.toLowerCase();
 
   if (itemType === 'coffee') {
     let country = 'Ethiopia';
-    let region = 'Gedeb, Gedeo Zone';
-    let station = 'Chelbesa Washing Station';
-    let producer = 'SNAP Specialty Coffee';
-    let variety = 'Dega & Wolisho';
+    let region = 'Yirgacheffe';
+    let variety = 'Heirloom';
     let process = 'Washed';
-    let notes = ['Jasmine', 'White Peach', 'Bergamot', 'Candied Lemon'];
-    let elevation = 2100;
-    let roaster = 'Sey Coffee';
+    let notes = ['Bergamot', 'White Peach', 'Jasmine Flower', 'Meyer Lemon'];
+    let elevation = 2050;
 
-    if (lower.includes('kenya') || lower.includes('nyeri') || lower.includes('mamuto') || lower.includes('kamwangi')) {
+    if (lower.includes('kenya') || lower.includes('nyeri') || lower.includes('kirinyaga')) {
       country = 'Kenya';
       region = 'Nyeri';
-      station = 'Kiamabara Wet Mill';
-      producer = 'Mugaga Farmers Cooperative Society';
       variety = 'SL28 & SL34';
-      notes = ['Blackcurrant', 'Pink Grapefruit', 'Hibiscus', 'Cane Sugar'];
+      notes = ['Blackcurrant', 'Grapefruit', 'Cane Sugar', 'Hibiscus'];
       elevation = 1950;
-      roaster = 'Tim Wendelboe';
-    } else if (lower.includes('colombia') || lower.includes('huila') || lower.includes('bourbon') || lower.includes('el paraiso')) {
+    } else if (lower.includes('colombia') || lower.includes('huila') || lower.includes('pink bourbon')) {
       country = 'Colombia';
-      region = 'Piendamo, Cauca';
-      station = 'Finca El Paraiso';
-      producer = 'Diego Samuel Bermudez';
-      variety = lower.includes('pink') ? 'Pink Bourbon' : 'Castillo & Colombia';
-      process = lower.includes('thermal') ? 'Thermal Shock' : 'Washed';
-      notes = ['Peach Yogurt', 'Red Guava', 'Lemongrass', 'Cardamom'];
-      elevation = 1930;
-      roaster = 'Manhattan Coffee Roasters';
-    } else if (lower.includes('panama') || lower.includes('gesha') || lower.includes('geisha') || lower.includes('esmeralda') || lower.includes('boquete')) {
+      region = 'Huila';
+      variety = lower.includes('pink bourbon') ? 'Pink Bourbon' : 'Chiroso & Caturra';
+      notes = ['Papaya', 'Pink Grapefruit', 'Brown Sugar', 'Red Apple'];
+      elevation = 1850;
+    } else if (lower.includes('panama') || lower.includes('gesha') || lower.includes('geisha')) {
       country = 'Panama';
-      region = 'Boquete, Chiriqui';
-      station = 'Hacienda La Esmeralda';
-      producer = 'Peterson Family';
+      region = 'Boquete';
       variety = 'Green Tip Geisha';
-      notes = ['Jasmine Blossom', 'Bergamot', 'White Nectarine', 'Orange Blossom Honey'];
+      notes = ['Jasmine Blossom', 'Bergamot', 'White Nectarine', 'Lemongrass'];
       elevation = 1750;
-      roaster = 'Tim Wendelboe';
-    } else if (lower.includes('onyx') || lower.includes('southern weather')) {
-      country = 'Colombia & Ethiopia';
-      region = 'Huila & Yirgacheffe';
-      station = 'Select Cooperative Lots';
-      producer = 'Various Smallholders';
-      variety = 'Caturra, Castillo, Heirloom';
-      process = 'Washed';
-      notes = ['Milk Chocolate', 'Plum', 'Candied Walnuts', 'Clementine'];
-      elevation = 1800;
-      roaster = 'Onyx Coffee Lab';
+    } else if (lower.includes('guatemala')) {
+      country = 'Guatemala';
+      region = 'Huehuetenango';
+      variety = 'Bourbon & Caturra';
+      notes = ['Milk Chocolate', 'Orange Peel', 'Honey', 'Red Plum'];
+      elevation = 1700;
     }
 
-    const commonRoasters = ['Sey', 'Onyx', 'Tim Wendelboe', 'Dayglow', 'DAK', 'La Cabra', 'Proud Mary', 'Square Mile', 'Heart', 'Subtext', 'April', 'Friedhats', 'George Howell', 'Manhattan'];
-    for (const r of commonRoasters) {
+    if (lower.includes('natural')) process = 'Natural';
+    if (lower.includes('honey')) process = 'Honey';
+    if (lower.includes('anaerobic')) process = 'Anaerobic Natural';
+    if (lower.includes('thermal shock')) process = 'Thermal Shock';
+
+    let roaster = 'Specialty Roaster';
+    const roasters = ['Sey', 'Onyx', 'Tim Wendelboe', 'Dayglow', 'DAK', 'La Cabra', 'Proud Mary', 'April', 'Subtext', 'Heart'];
+    for (const r of roasters) {
       if (lower.includes(r.toLowerCase())) {
         roaster = r;
         break;
@@ -273,19 +195,19 @@ function getSmartSpecialtyFallback(itemType: string, queryName: string) {
       origin: {
         country,
         region,
-        farmOrStation: station,
-        producer,
+        farmOrStation: `${region} Valley Washing Station`,
+        producer: 'Selected Lots',
         elevationMeters: elevation,
       },
       variety,
       process,
       roastLevel: 'Light',
       tastingNotesSummary: notes,
-      description: `Single-origin lot from ${region}, ${country}. Cultivated at ${elevation}m elevation and processed with great care to present vibrant cup clarity and structured sweetness.`,
+      description: `Exceptional ${process.toLowerCase()} lot sourced from high-elevation terroir in ${region}, ${country}. Shows brilliant acidity and lingering floral sweetness.`,
       bagBadgeText: 'Micro-Lot',
-      coverColor: country.includes('Ethiopia') ? '#2B1D14' : country.includes('Kenya') ? '#5C3A21' : country.includes('Panama') ? '#355E3B' : '#8C4F1A',
+      coverColor: country === 'Ethiopia' ? '#2B1D14' : country === 'Kenya' ? '#5C3A21' : '#8C4F1A',
       communityRating: 4.8,
-      communityRatingsCount: 46,
+      communityRatingsCount: 42,
       recommendedRecipe: {
         title: 'Dialed-In V60 Recipe',
         method: 'v60',
@@ -293,125 +215,73 @@ function getSmartSpecialtyFallback(itemType: string, queryName: string) {
         waterGrams: 250,
         ratio: '1:16.7',
         grindSize: 'Medium-Fine',
-        waterTempC: 94,
+        waterTempC: 93,
         totalTimeSeconds: 195,
         bloomGrams: 45,
         bloomTimeSeconds: 40,
-        notes: 'Gentle center pours to highlight delicate floral aromatics without excessive agitation.',
+        notes: 'Gentle center pours to highlight floral notes.',
         customVariables: [
           { id: 'v1', label: 'Filter Type', value: 'Cafec Abaca White' },
-          { id: 'v2', label: 'Water Mineral Profile', value: 'Lotus Bright (60ppm GH / 20ppm KH)' }
+          { id: 'v2', label: 'Water Mineral Profile', value: 'Lotus Bright (60ppm GH)' }
         ],
         steps: [
           { id: 's1', timeSeconds: 0, title: 'Bloom', waterAmountGrams: 45, instruction: 'Even pour and gentle swirl' },
-          { id: 's2', timeSeconds: 40, title: 'First Pour', waterAmountGrams: 150, instruction: 'Spiral outward continuously' },
+          { id: 's2', timeSeconds: 40, title: 'First Pour', waterAmountGrams: 150, instruction: 'Continuous spiral outward' },
           { id: 's3', timeSeconds: 90, title: 'Final Pour', waterAmountGrams: 250, instruction: 'Gentle center pour finish' }
         ]
       }
     };
   } else if (itemType === 'equipment') {
-    let brand = 'Fellow';
-    let category = 'Grinder';
-    let name = queryName;
-    let settings = 'Dial in pour overs between 3.0 and 5.0 for light roast extractions.';
-    let maintenance = 'Brush chutes and burr chamber every 10 brews. Clean ionizer pins monthly.';
-    let general = 'Precision burr coffee grinder engineered for clarity and uniform particle distribution.';
+    let brand = 'Specialty Gear';
+    let category = 'Accessory';
+    if (lower.includes('grinder') || lower.includes('ode') || lower.includes('comandante') || lower.includes('baratza')) category = 'Grinder';
+    if (lower.includes('espresso') || lower.includes('micra') || lower.includes('marzocco')) category = 'Espresso Machine';
+    if (lower.includes('v60') || lower.includes('dripper') || lower.includes('switch')) category = 'Pour Over / Dripper';
+    if (lower.includes('kettle') || lower.includes('stagg')) category = 'Kettle';
+    if (lower.includes('scale') || lower.includes('lunar')) category = 'Scale';
 
-    if (lower.includes('comandante')) {
-      brand = 'Comandante';
-      category = 'Grinder';
-      settings = 'Pour over: 22-26 clicks. Aeropress: 18-22 clicks. Cupping: 28 clicks.';
-      maintenance = 'Brush burrs clean with dry horsehair brush. Do not submerge nitro-blade steel in water.';
-      general = 'Iconic hand grinder with patented Nitro Blade high-nitrogen martensitic steel burrs.';
-    } else if (lower.includes('acaia') || lower.includes('lunar') || lower.includes('pearl')) {
-      brand = 'Acaia';
-      category = 'Scale';
-      settings = 'Auto-tare and auto-timer mode recommended for workflow efficiency.';
-      maintenance = 'Calibrate periodically using 100g calibration weight. Keep load cell dry.';
-      general = 'Water-resistant aluminum body laboratory-grade scale with 20ms response time and 0.1g resolution.';
-    } else if (lower.includes('ode')) {
-      brand = 'Fellow';
-      name = 'Ode Brew Grinder Gen 2';
-      category = 'Grinder';
-      settings = '31 precision stepped settings. Light roasts: 2.2 to 4.1. Medium: 4.2 to 6.0.';
-      maintenance = 'Use grounds knocker after every dose. Clean anti-static ionizer pins monthly with brush.';
-      general = '64mm flat stainless steel Gen 2 brew burrs, auto-stop sensor, and PID feedback controlled motor.';
+    const brands = ['Fellow', 'Comandante', 'Acaia', 'Hario', 'Baratza', 'La Marzocco'];
+    for (const b of brands) {
+      if (lower.includes(b.toLowerCase())) {
+        brand = b;
+        break;
+      }
     }
 
     return {
-      name,
+      name: queryName,
       brand,
       category,
       status: 'Active',
-      settingsNotes: settings,
-      maintenanceNotes: maintenance,
-      generalNotes: general,
+      settingsNotes: 'Calibrated for precision extractions. Keep path clear of fines.',
+      maintenanceNotes: 'Brush clean every 10 brews. Deep clean quarterly.',
+      generalNotes: 'Engineered for high uniformity and repeatable brew recipes.',
       rating: 5.0
     };
   } else if (itemType === 'cafe') {
-    let name = queryName;
-    let address = '23-25 Leather Lane';
-    let city = 'London';
-    let country = 'United Kingdom';
-    let roasters = 'Square Mile Coffee Roasters';
-    let favorite = 'Single Origin Washed Ethiopian Pour Over & Flat White';
-    let vibes = ['Pour Over Specialist', 'Coffee Education Hub', 'Minimalist', 'Expert Baristas'];
-    let notes = 'Pioneering specialty coffee destination known for meticulous calibration and barista craft.';
-
-    if (lower.includes('sey')) {
-      name = 'Sey Coffee';
-      address = '18 Grattan St';
-      city = 'Brooklyn, NY';
-      country = 'United States';
-      roasters = 'Sey Coffee Roasters';
-      favorite = 'Nordic Light Roast Pour Over';
-      vibes = ['Greenhouse Skylight', 'Nordic Light Roast', 'Plant Haven', 'Probat Roastery'];
-      notes = 'Iconic Bushwick roastery cafe celebrated worldwide for ultra-clean Nordic-style washed coffees and plant-filled greenhouse space.';
-    } else if (lower.includes('tim wendelboe') || lower.includes('wendelboe')) {
-      name = 'Tim Wendelboe';
-      address = 'Grüners gate 1';
-      city = 'Oslo';
-      country = 'Norway';
-      roasters = 'Tim Wendelboe';
-      favorite = 'Finca Tamana Espresso & Filter Tasting Flight';
-      vibes = ['World Barista Champion', 'Nordic Pioneer', 'Classic Wood Tasting Bar', 'Direct Trade'];
-      notes = 'World-renowned coffee institution founded by 2004 World Barista Champion Tim Wendelboe, serving pure, sweet, terroir-driven coffees.';
-    } else if (lower.includes('prufrock')) {
-      name = 'Prufrock Coffee';
-      address = '23-25 Leather Lane';
-      city = 'London';
-      country = 'United Kingdom';
-      roasters = 'Square Mile Coffee Roasters';
-      favorite = 'Seasonal Single Origin Espresso & Batch Brew';
-      vibes = ['Leather Lane Market', 'Coffee Geek Sanctuary', 'Precision Scales', 'Educational Workshops'];
-      notes = 'Beloved London coffee staple offering world-class coffee flights, precise water formulation, and stellar breakfast.';
-    } else if (lower.includes('proud mary')) {
-      name = 'Proud Mary';
-      address = '172 Oxford St';
-      city = 'Collingwood, Melbourne';
-      country = 'Australia';
-      roasters = 'Proud Mary Coffee';
-      favorite = 'Geisha Tasting Board & Deluxe Flat White';
-      vibes = ['Melbourne Coffee Culture', 'Specialty Geisha Program', 'Vibrant Brunch', 'Synesso Hydra'];
-      notes = 'Melbourne specialty coffee powerhouse famed for exclusive Geisha auctions, direct producer relationships, and world-class brunch.';
-    }
+    let city = 'Brooklyn, NY';
+    let country = 'United States';
+    let address = '18 Grattan St';
+    if (lower.includes('oslo') || lower.includes('norway')) { city = 'Oslo'; country = 'Norway'; address = 'Olaf Ryes plass 3A'; }
+    if (lower.includes('melbourne') || lower.includes('australia')) { city = 'Melbourne'; country = 'Australia'; address = '172 Oxford St'; }
+    if (lower.includes('tokyo') || lower.includes('japan')) { city = 'Tokyo'; country = 'Japan'; address = 'Shibuya 1-12'; }
 
     return {
-      name,
+      name: queryName,
       address,
       city,
       country,
       rating: 5.0,
-      favoriteDrink: favorite,
-      vibes,
-      roasterOrBeansServed: roasters,
-      notes
+      favoriteDrink: 'Single Origin Washed Ethiopian Pour Over',
+      vibes: ['Pour Over Specialist', 'In-House Roastery', 'Natural Light', 'Vinyl Beats'],
+      roasterOrBeansServed: `${queryName} Coffee Roasters`,
+      notes: 'Immaculate specialty coffee destination known for meticulous pour over preparation.'
     };
   } else {
     return {
       title: queryName,
       category: 'Brew Technique',
-      content: `Dial-in guidelines for ${queryName}:\n• Target Brew Ratio: 1:16.6 (15g dose to 250g water)\n• Water Spec: 93°C with 60ppm GH / 20ppm KH minerals\n• Pour Structure: 45g bloom for 40s, followed by two 100g concentric pours\n• Aim for high sweetness and round mouthfeel with low agitation.`,
+      content: `Dial-in notes and parameters for ${queryName}:\n• Recommended ratio: 1:16.6\n• Water temperature: 92–94°C\n• Target contact time: 3:00 to 3:30\n• Focus on high sweetness and low astringency.`,
       tags: ['Dial-in', 'Specialty', 'Extraction'],
       isPinned: false
     };

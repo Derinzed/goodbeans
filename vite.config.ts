@@ -2,7 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, Plugin } from 'vite';
-import { populateItemOnline } from './src/server/aiPopulate';
+import { populateItemOnline } from './src/server/aiPopulate.ts';
 
 function aiApiPlugin(): Plugin {
   return {
