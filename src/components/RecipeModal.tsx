@@ -64,26 +64,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   );
   const [notes, setNotes] = useState(initialRecipe?.notes || '');
 
-  // Custom variables array
+  // Custom variables array: empty to start when adding a new recipe
   const [customVariables, setCustomVariables] = useState<CustomVariable[]>(
-    initialRecipe?.customVariables ||
-      METHOD_DEFAULTS[method].defaultCustomVariables.map((cv, idx) => ({
-        id: `cv-init-${idx}`,
-        label: cv.label,
-        value: cv.value,
-      }))
+    initialRecipe?.customVariables || []
   );
 
-  // Steps array
+  // Steps array: empty to start when adding a new recipe
   const [steps, setSteps] = useState<RecipeStep[]>(
-    initialRecipe?.steps ||
-      METHOD_DEFAULTS[method].defaultSteps.map((st, idx) => ({
-        id: `step-${idx}`,
-        timeSeconds: st.timeSeconds,
-        title: st.title,
-        waterAmountGrams: st.waterAmountGrams,
-        instruction: st.instruction,
-      }))
+    initialRecipe?.steps || []
   );
 
   // Quick state for new custom variable form
@@ -93,7 +81,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   // Auto calculate ratio
   const ratio = doseGrams > 0 ? `1:${(waterGrams / doseGrams).toFixed(1)}` : '1:16.7';
 
-  // Handle changing brew method: offer to reset default variables
+  // Handle changing brew method: updates defaults for core parameters, leaving custom variables and steps as chosen
   const handleMethodChange = (newMethod: BrewMethod) => {
     setMethod(newMethod);
     const defaults = METHOD_DEFAULTS[newMethod];
@@ -106,22 +94,6 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
       setTotalTimeSeconds(defaults.totalTimeSeconds);
       setBloomGrams(defaults.bloomGrams);
       setBloomTimeSeconds(defaults.bloomTimeSeconds);
-      setCustomVariables(
-        defaults.defaultCustomVariables.map((cv, idx) => ({
-          id: `cv-load-${Date.now()}-${idx}`,
-          label: cv.label,
-          value: cv.value,
-        }))
-      );
-      setSteps(
-        defaults.defaultSteps.map((st, idx) => ({
-          id: `st-load-${Date.now()}-${idx}`,
-          timeSeconds: st.timeSeconds,
-          title: st.title,
-          waterAmountGrams: st.waterAmountGrams,
-          instruction: st.instruction,
-        }))
-      );
     }
   };
 
@@ -450,8 +422,27 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-[#8C7A6D] italic py-2 text-center">
-                No custom variables added yet. Use the suggestions above or add one below!
+              <div className="py-2.5 px-3 text-center bg-[#FAF7F2] rounded-lg border border-dashed border-[#DACDC0] space-y-1.5">
+                <p className="text-xs text-[#8C7A6D] italic">
+                  No custom variables added yet. Add one below or use the quick-add chips above if desired.
+                </p>
+                {METHOD_DEFAULTS[method].defaultCustomVariables.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomVariables(
+                        METHOD_DEFAULTS[method].defaultCustomVariables.map((cv, idx) => ({
+                          id: `cv-load-${Date.now()}-${idx}`,
+                          label: cv.label,
+                          value: cv.value,
+                        }))
+                      )
+                    }
+                    className="text-[11px] px-2.5 py-0.5 rounded bg-[#F2E9DE] hover:bg-[#E8DCCF] text-[#4A392D] transition-colors border border-[#E2D5C7] font-medium"
+                  >
+                    + Load {METHOD_DEFAULTS[method].name} Default Variables
+                  </button>
+                )}
               </div>
             )}
 
@@ -514,65 +505,106 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
           {/* Step Timeline Editor */}
           <div className="p-4 bg-[#F5ECE1] rounded-xl border border-[#E5DACD] space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#553E2F] uppercase tracking-wider">
-                Brew Steps Timeline
-              </span>
+              <div>
+                <span className="text-xs font-bold text-[#553E2F] uppercase tracking-wider block">
+                  Brew Steps Timeline
+                </span>
+                <span className="text-[11px] text-[#7D6B5D]">
+                  Timed steps for guided timer brewing (optional)
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={handleAddStep}
-                className="text-xs text-[#8C4F1A] hover:text-[#5E320E] font-semibold flex items-center gap-1"
+                className="text-xs text-[#8C4F1A] hover:text-[#5E320E] font-semibold flex items-center gap-1 px-2.5 py-1 bg-white rounded-md border border-[#D5C7B8] shadow-xs transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Step
               </button>
             </div>
 
-            <div className="space-y-2">
-              {steps.map((st, idx) => (
-                <div
-                  key={st.id}
-                  className="flex items-center gap-2 p-2 bg-white rounded-lg border border-[#DECFC0]"
-                >
-                  <span className="text-xs font-mono font-bold text-[#8C4F1A] w-5 text-center">
-                    {idx + 1}
-                  </span>
-                  <div className="w-20">
+            {steps.length > 0 ? (
+              <div className="space-y-2">
+                {steps.map((st, idx) => (
+                  <div
+                    key={st.id}
+                    className="flex items-center gap-2 p-2 bg-white rounded-lg border border-[#DECFC0]"
+                  >
+                    <span className="text-xs font-mono font-bold text-[#8C4F1A] w-5 text-center">
+                      {idx + 1}
+                    </span>
+                    <div className="w-20">
+                      <input
+                        type="number"
+                        step="5"
+                        min="0"
+                        value={st.timeSeconds}
+                        onChange={(e) =>
+                          handleUpdateStep(st.id, 'timeSeconds', parseInt(e.target.value) || 0)
+                        }
+                        className="w-full px-2 py-1 bg-[#FAF7F2] rounded border border-[#D5C7B8] text-xs font-mono"
+                        title="Time in seconds"
+                      />
+                      <span className="text-[9px] text-[#8C7A6D] block text-center">sec</span>
+                    </div>
                     <input
-                      type="number"
-                      step="5"
-                      min="0"
-                      value={st.timeSeconds}
-                      onChange={(e) =>
-                        handleUpdateStep(st.id, 'timeSeconds', parseInt(e.target.value) || 0)
-                      }
-                      className="w-full px-2 py-1 bg-[#FAF7F2] rounded border border-[#D5C7B8] text-xs font-mono"
-                      title="Time in seconds"
+                      type="text"
+                      value={st.title}
+                      onChange={(e) => handleUpdateStep(st.id, 'title', e.target.value)}
+                      placeholder="Step title"
+                      className="w-28 px-2 py-1 bg-[#FAF7F2] rounded border border-[#D5C7B8] text-xs font-medium"
                     />
-                    <span className="text-[9px] text-[#8C7A6D] block text-center">sec</span>
+                    <input
+                      type="text"
+                      value={st.instruction}
+                      onChange={(e) => handleUpdateStep(st.id, 'instruction', e.target.value)}
+                      placeholder="Instructions..."
+                      className="flex-1 px-2 py-1 bg-[#FAF7F2] rounded border border-[#D5C7B8] text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveStep(st.id)}
+                      className="p-1 text-[#9E8B7D] hover:text-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <input
-                    type="text"
-                    value={st.title}
-                    onChange={(e) => handleUpdateStep(st.id, 'title', e.target.value)}
-                    placeholder="Step title"
-                    className="w-28 px-2 py-1 bg-[#FAF7F2] rounded border border-[#D5C7B8] text-xs font-medium"
-                  />
-                  <input
-                    type="text"
-                    value={st.instruction}
-                    onChange={(e) => handleUpdateStep(st.id, 'instruction', e.target.value)}
-                    placeholder="Instructions..."
-                    className="flex-1 px-2 py-1 bg-[#FAF7F2] rounded border border-[#D5C7B8] text-xs"
-                  />
+                ))}
+              </div>
+            ) : (
+              <div className="py-3.5 px-3 text-center bg-white/60 rounded-lg border border-dashed border-[#D5C7B8] space-y-2">
+                <p className="text-xs text-[#8C7A6D] italic">
+                  No brew steps added yet. Add timed steps if you want a step-by-step guided brew timeline.
+                </p>
+                <div className="flex items-center justify-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleRemoveStep(st.id)}
-                    className="p-1 text-[#9E8B7D] hover:text-red-700 transition-colors"
+                    onClick={handleAddStep}
+                    className="text-xs px-2.5 py-1 bg-[#4A392D] text-white rounded-md hover:bg-[#34261C] font-semibold inline-flex items-center gap-1 transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" /> Add Step
                   </button>
+                  {METHOD_DEFAULTS[method].defaultSteps.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSteps(
+                          METHOD_DEFAULTS[method].defaultSteps.map((st, idx) => ({
+                            id: `st-load-${Date.now()}-${idx}`,
+                            timeSeconds: st.timeSeconds,
+                            title: st.title,
+                            waterAmountGrams: st.waterAmountGrams,
+                            instruction: st.instruction,
+                          }))
+                        )
+                      }
+                      className="text-xs px-2.5 py-1 bg-[#F2E9DE] text-[#4A392D] rounded-md hover:bg-[#E8DCCF] border border-[#E2D5C7] font-semibold inline-flex items-center gap-1 transition-colors"
+                    >
+                      Load {METHOD_DEFAULTS[method].name} Default Steps
+                    </button>
+                  )}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Barista Notes */}
