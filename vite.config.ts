@@ -3,11 +3,28 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, Plugin } from 'vite';
 import { populateItemOnline } from './src/server/aiPopulate.ts';
+import { handleAuthRoutes } from './src/server/authHandler.ts';
 
-function aiApiPlugin(): Plugin {
+function apiPlugin(): Plugin {
   return {
-    name: 'ai-api-plugin',
+    name: 'api-plugin',
     configureServer(server) {
+      // Auth, User Data, and Admin routes
+      server.middlewares.use(async (req, res, next) => {
+        const url = req.url || '';
+        if (
+          url.startsWith('/api/auth') ||
+          url.startsWith('/api/user') ||
+          url.startsWith('/api/admin') ||
+          url.startsWith('/api/community')
+        ) {
+          const handled = await handleAuthRoutes(req, res, next);
+          if (handled) return;
+        }
+        next();
+      });
+
+      // AI Populate endpoint
       server.middlewares.use('/api/ai/populate', async (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -46,7 +63,7 @@ function aiApiPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), aiApiPlugin()],
+    plugins: [react(), tailwindcss(), apiPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

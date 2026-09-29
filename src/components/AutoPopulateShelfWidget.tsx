@@ -12,6 +12,7 @@ import {
   ArrowRight,
   ExternalLink,
   Edit3,
+  Info,
 } from 'lucide-react';
 import {
   Coffee as CoffeeType,
@@ -19,13 +20,20 @@ import {
   Cafe,
   CustomNote,
   BrewRecipe,
+  RegisteredCoffee,
+  RegisteredEquipment,
+  RegisteredCafe,
 } from '../types/coffee';
+import { authApi } from '../services/authApi';
 
 type ShelfItemType = 'coffee' | 'equipment' | 'cafe' | 'note';
 
 interface AutoPopulateShelfWidgetProps {
   currentView: 'shelves' | 'coffee-detail' | 'equipment' | 'cafes' | 'notes';
   activeShelfId: string;
+  registeredCoffees?: RegisteredCoffee[];
+  registeredEquipment?: RegisteredEquipment[];
+  registeredCafes?: RegisteredCafe[];
   onAddCoffee: (coffee: CoffeeType) => void;
   onAddEquipment: (equipment: Equipment) => void;
   onAddCafe: (cafe: Cafe) => void;
@@ -39,6 +47,9 @@ interface AutoPopulateShelfWidgetProps {
 export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = ({
   currentView,
   activeShelfId,
+  registeredCoffees = [],
+  registeredEquipment = [],
+  registeredCafes = [],
   onAddCoffee,
   onAddEquipment,
   onAddCafe,
@@ -55,6 +66,8 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
   const [error, setError] = useState<string | null>(null);
   const [generatedResult, setGeneratedResult] = useState<any | null>(null);
   const [addedSuccess, setAddedSuccess] = useState(false);
+  const [unificationMatch, setUnificationMatch] = useState<any | null>(null);
+  const [useUnifiedName, setUseUnifiedName] = useState<boolean>(true);
 
   // Automatically sync item type with whichever shelf tab the user is on!
   useEffect(() => {
@@ -103,20 +116,32 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
     setError(null);
     setGeneratedResult(null);
     setAddedSuccess(false);
+    setUnificationMatch(null);
+    setUseUnifiedName(true);
 
     try {
-      const response = await fetch('/api/ai/populate', {
+      // 1. Check unification against registered items
+      const unifyPromise = authApi.unifyItem(queryName.trim(), itemType as any).catch(() => null);
+
+      // 2. Query AI/heuristic specifications
+      const popPromise = fetch('/api/ai/populate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemType, name: queryName.trim() }),
-      });
+      }).then((r) => r.json());
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to auto-populate item specifications');
+      const [unifyData, popData] = await Promise.all([unifyPromise, popPromise]);
+
+      if (unifyData?.isConfidentMatch && unifyData.matchedItem) {
+        setUnificationMatch(unifyData.matchedItem);
+        setUseUnifiedName(true);
       }
 
-      setGeneratedResult(data.item);
+      if (!popData || !popData.success) {
+        throw new Error(popData?.error || 'Failed to auto-populate item specifications');
+      }
+
+      setGeneratedResult(popData.item);
     } catch (err: any) {
       console.error(err);
       setError(
@@ -132,13 +157,21 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
 
     const idSuffix = Date.now().toString();
 
+    // Determine final name and attributes based on user's choice: unified vs custom name
+    const finalName = useUnifiedName && unificationMatch ? unificationMatch.name : (generatedResult.name || queryName);
+    const isUnified = Boolean(useUnifiedName && unificationMatch);
+
     if (itemType === 'coffee') {
+      const finalRoaster = isUnified && unificationMatch?.roaster ? unificationMatch.roaster : (generatedResult.roaster || 'Specialty Roaster');
+      const finalGeneralRating = isUnified && unificationMatch?.generalRating ? unificationMatch.generalRating : 4.5;
+      const finalRatingsCount = isUnified && unificationMatch?.ratingsCount ? unificationMatch.ratingsCount : 1;
+
       const coffeeObj: CoffeeType = {
         id: `coffee-ai-${idSuffix}`,
-        name: generatedResult.name || queryName,
-        roaster: generatedResult.roaster || 'Specialty Roaster',
+        name: finalName,
+        roaster: finalRoaster,
         origin: {
-          country: generatedResult.origin?.country || 'Single Origin',
+          country: isUnified && unificationMatch?.origin?.country ? unificationMatch.origin.country : (generatedResult.origin?.country || 'Single Origin'),
           region: generatedResult.origin?.region,
           farmOrStation: generatedResult.origin?.farmOrStation,
           producer: generatedResult.origin?.producer,
@@ -149,14 +182,16 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
         roastLevel: generatedResult.roastLevel || 'Light',
         tastingNotesSummary: generatedResult.tastingNotesSummary || ['Citrus', 'Floral', 'Sweet'],
         description: generatedResult.description || '',
-        bagBadgeText: generatedResult.bagBadgeText || 'Specialty',
+        bagBadgeText: generatedResult.bagBadgeText || (isUnified ? 'Community' : 'Specialty'),
         coverColor: generatedResult.coverColor || '#3B291E',
         userRating: 0,
-        communityRating: generatedResult.communityRating || 4.5,
-        communityRatingsCount: generatedResult.communityRatingsCount || 24,
+        generalRating: finalGeneralRating,
+        communityRating: finalGeneralRating,
+        communityRatingsCount: finalRatingsCount,
         shelfIds: [activeShelfId === 'all' ? 'currently-drinking' : activeShelfId],
         dateAdded: new Date().toISOString().split('T')[0],
         isFavorite: false,
+        isRegistered: isUnified,
         tastingLogs: [],
         recipes: generatedResult.recommendedRecipe
           ? [
@@ -184,38 +219,55 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
           : [],
       };
       onAddCoffee(coffeeObj);
+      authApi.registerCommunityItem('coffee', coffeeObj).catch(() => {});
     } else if (itemType === 'equipment') {
+      const finalBrand = isUnified && unificationMatch?.brand ? unificationMatch.brand : (generatedResult.brand || 'Gear Brand');
+      const finalGeneralRating = isUnified && unificationMatch?.generalRating ? unificationMatch.generalRating : 4.5;
+      const finalRatingsCount = isUnified && unificationMatch?.ratingsCount ? unificationMatch.ratingsCount : 1;
+
       const eqObj: Equipment = {
         id: `eq-ai-${idSuffix}`,
-        name: generatedResult.name || queryName,
-        brand: generatedResult.brand || 'Gear Brand',
-        category: generatedResult.category || 'Accessory',
+        name: finalName,
+        brand: finalBrand,
+        category: generatedResult.category || (isUnified ? unificationMatch.category : 'Accessory'),
         status: 'Active',
-        settingsNotes: generatedResult.settingsNotes || '',
+        settingsNotes: generatedResult.settingsNotes || (isUnified ? unificationMatch.settingsNotes : ''),
         maintenanceNotes: generatedResult.maintenanceNotes || '',
         generalNotes: generatedResult.generalNotes || '',
-        rating: generatedResult.rating || 5,
+        rating: 5,
+        generalRating: finalGeneralRating,
+        generalRatingsCount: finalRatingsCount,
+        isRegistered: isUnified,
         dateAcquired: new Date().toISOString().split('T')[0],
       };
       onAddEquipment(eqObj);
+      authApi.registerCommunityItem('equipment', eqObj, 5).catch(() => {});
     } else if (itemType === 'cafe') {
+      const finalCity = isUnified && unificationMatch?.city ? unificationMatch.city : (generatedResult.city || 'City');
+      const finalGeneralRating = isUnified && unificationMatch?.generalRating ? unificationMatch.generalRating : 4.5;
+      const finalRatingsCount = isUnified && unificationMatch?.ratingsCount ? unificationMatch.ratingsCount : 1;
+
       const cafeObj: Cafe = {
         id: `cafe-ai-${idSuffix}`,
-        name: generatedResult.name || queryName,
-        address: generatedResult.address || 'Address unlisted',
-        city: generatedResult.city || 'City',
+        name: finalName,
+        address: generatedResult.address || (isUnified ? unificationMatch.address : 'Address unlisted'),
+        city: finalCity,
         country: generatedResult.country || 'Country',
-        rating: generatedResult.rating || 4.5,
+        rating: 4.5,
+        generalRating: finalGeneralRating,
+        generalRatingsCount: finalRatingsCount,
         favoriteDrink: generatedResult.favoriteDrink,
-        vibes: generatedResult.vibes || ['Specialty Coffee'],
+        vibes: generatedResult.vibes || (isUnified ? unificationMatch.vibes : ['Specialty Coffee']),
         notes: generatedResult.notes || '',
         roasterOrBeansServed: generatedResult.roasterOrBeansServed,
         dateVisited: new Date().toISOString().split('T')[0],
         googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          `${generatedResult.name} ${generatedResult.address || ''} ${generatedResult.city || ''}`
+          `${finalName} ${generatedResult.address || ''} ${finalCity}`
         )}`,
+        isRegistered: isUnified,
       };
       onAddCafe(cafeObj);
+      authApi.registerCommunityItem('cafe', cafeObj, 4.5).catch(() => {});
     } else {
       const noteObj: CustomNote = {
         id: `note-ai-${idSuffix}`,
@@ -232,6 +284,7 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
     setAddedSuccess(true);
     setTimeout(() => {
       setGeneratedResult(null);
+      setUnificationMatch(null);
       setQueryName('');
       setAddedSuccess(false);
       setIsOpen(false);
@@ -328,6 +381,65 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
                     <p className="text-[10px] text-[#8C7A6D] mt-1">
                       Specifications, origin details, flavor notes, and recipes will be gathered online.
                     </p>
+
+                    {/* Recommended items to Auto-Add */}
+                    {itemType === 'coffee' && registeredCoffees.length > 0 && (
+                      <div className="pt-2">
+                        <span className="text-[9px] uppercase font-bold text-[#8C7A6D] block mb-1">
+                          Recommended from Community Catalog:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {registeredCoffees.slice(0, 3).map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => setQueryName(`${c.roaster} ${c.name}`)}
+                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E8DCCF] text-[#4A3728] rounded-md transition-colors truncate max-w-[170px] cursor-pointer"
+                            >
+                              ★ {c.generalRating.toFixed(1)} {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {itemType === 'equipment' && registeredEquipment.length > 0 && (
+                      <div className="pt-2">
+                        <span className="text-[9px] uppercase font-bold text-[#8C7A6D] block mb-1">
+                          Recommended Gear:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {registeredEquipment.slice(0, 3).map((e) => (
+                            <button
+                              key={e.id}
+                              type="button"
+                              onClick={() => setQueryName(`${e.brand} ${e.name}`)}
+                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E8DCCF] text-[#4A3728] rounded-md transition-colors truncate max-w-[170px] cursor-pointer"
+                            >
+                              ★ {e.generalRating.toFixed(1)} {e.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {itemType === 'cafe' && registeredCafes.length > 0 && (
+                      <div className="pt-2">
+                        <span className="text-[9px] uppercase font-bold text-[#8C7A6D] block mb-1">
+                          Recommended Cafes:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {registeredCafes.slice(0, 3).map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => setQueryName(`${c.name} ${c.city}`)}
+                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E8DCCF] text-[#4A3728] rounded-md transition-colors truncate max-w-[170px] cursor-pointer"
+                            >
+                              ★ {c.generalRating.toFixed(1)} {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {error && (
@@ -369,6 +481,50 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
                       Search Another
                     </button>
                   </div>
+
+                  {/* Name Unification Card if confident match was found */}
+                  {unificationMatch && (
+                    <div className="p-3 bg-amber-50/95 border border-amber-200/90 rounded-xl space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                        <Sparkles className="w-3.5 h-3.5 text-[#C87D32]" />
+                        <span>Name Unification Match Detected</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-snug">
+                        Another user has already added this item before:
+                        <strong> {unificationMatch.name}</strong> ({unificationMatch.roaster || unificationMatch.brand || unificationMatch.city}).
+                        General community rating: <strong>★ {unificationMatch.generalRating?.toFixed(1) || '4.8'}</strong> ({unificationMatch.ratingsCount || unificationMatch.userCount || 1} baristas).
+                      </p>
+                      <div className="flex flex-col gap-1.5 pt-1 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => setUseUnifiedName(true)}
+                          className={`py-1.5 px-2.5 rounded-md font-semibold text-center transition-all cursor-pointer ${
+                            useUnifiedName
+                              ? 'bg-[#3A291E] text-white shadow-xs'
+                              : 'bg-white text-[#5B473A] border border-amber-300 hover:bg-amber-100'
+                          }`}
+                        >
+                          ✓ Use Unified Name ({unificationMatch.name})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUseUnifiedName(false)}
+                          className={`py-1.5 px-2.5 rounded-md font-semibold text-center transition-all cursor-pointer ${
+                            !useUnifiedName
+                              ? 'bg-[#C87D32] text-white shadow-xs'
+                              : 'bg-white text-[#5B473A] border border-amber-300 hover:bg-amber-100'
+                          }`}
+                        >
+                          Keep My Custom Name ("{queryName}")
+                        </button>
+                      </div>
+                      {!useUnifiedName && (
+                        <p className="text-[10px] text-[#7A6757] italic leading-tight">
+                          * Will be tracked as a new distinct item in the library with your custom name.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Summary Card based on Type */}
                   <div className="p-3 bg-white rounded-xl border border-[#DACDC0] space-y-2 text-xs">

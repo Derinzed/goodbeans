@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, MapPin, Sparkles, Plus, ExternalLink } from 'lucide-react';
-import { Cafe } from '../types/coffee';
-import { StarRatingInput } from './StarRating';
+import { X, MapPin, Sparkles, Plus, ExternalLink, Search, Check, Info } from 'lucide-react';
+import { Cafe, RegisteredCafe } from '../types/coffee';
+import { StarRatingInput, StarRatingDisplay } from './StarRating';
 
 interface CafeModalProps {
   initialCafe?: Cafe | null;
+  registeredCafes?: RegisteredCafe[];
   onSave: (cafe: Cafe) => void;
   onClose: () => void;
 }
@@ -26,6 +27,7 @@ const COMMON_VIBES = [
 
 export const CafeModal: React.FC<CafeModalProps> = ({
   initialCafe,
+  registeredCafes = [],
   onSave,
   onClose,
 }) => {
@@ -48,6 +50,32 @@ export const CafeModal: React.FC<CafeModalProps> = ({
     initialCafe?.vibes || ['Pour Over Specialist', 'Natural Light']
   );
   const [customVibeInput, setCustomVibeInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAllRegistered, setShowAllRegistered] = useState(false);
+
+  // Match against registered items by clean name and city
+  const matchingRegistered = registeredCafes.find(
+    (rc) =>
+      rc.name.toLowerCase() === name.trim().toLowerCase() &&
+      (!city.trim() || rc.city.toLowerCase() === city.trim().toLowerCase())
+  );
+
+  const effectiveGeneralRating = matchingRegistered
+    ? matchingRegistered.generalRating
+    : initialCafe?.generalRating || rating || 4.5;
+  const effectiveRatingsCount = matchingRegistered
+    ? matchingRegistered.ratingsCount
+    : initialCafe?.generalRatingsCount || (rating > 0 ? 1 : 0);
+
+  const handleSelectRegistered = (rc: RegisteredCafe) => {
+    setName(rc.name);
+    setCity(rc.city);
+    if (rc.country) setCountry(rc.country);
+    if (rc.address) setAddress(rc.address);
+    if (rc.vibes && rc.vibes.length > 0) setVibes(rc.vibes);
+    if (rc.favoriteDrink) setFavoriteDrink(rc.favoriteDrink);
+    if (rc.notes) setNotes(rc.notes);
+  };
 
   const toggleVibe = (tag: string) => {
     if (vibes.includes(tag)) {
@@ -79,6 +107,8 @@ export const CafeModal: React.FC<CafeModalProps> = ({
       city: city.trim(),
       country: country.trim(),
       rating,
+      generalRating: effectiveGeneralRating,
+      generalRatingsCount: effectiveRatingsCount,
       favoriteDrink: favoriteDrink.trim() || undefined,
       roasterOrBeansServed: roasterOrBeansServed.trim() || undefined,
       dateVisited: dateVisited || undefined,
@@ -86,9 +116,17 @@ export const CafeModal: React.FC<CafeModalProps> = ({
       vibes,
       googleMapsUrl: getGoogleMapsSearchUrl(),
       isFavorite: initialCafe?.isFavorite || false,
+      isRegistered: Boolean(matchingRegistered),
     };
     onSave(data);
   };
+
+  const recommendedItems = registeredCafes.filter((rc) => rc.isRecommended || rc.generalRating >= 4.5);
+  const filteredRegistered = registeredCafes.filter((rc) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return rc.name.toLowerCase().includes(q) || rc.city.toLowerCase().includes(q) || rc.country.toLowerCase().includes(q);
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -115,6 +153,92 @@ export const CafeModal: React.FC<CafeModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* Running List of Registered Cafes & Recommendations */}
+          {!isEditing && registeredCafes.length > 0 && (
+            <div className="p-3 bg-[#FAF3EC] rounded-xl border border-[#E8DACB] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#C87D32]" />
+                  <span className="text-xs font-bold text-[#2B1D14] uppercase tracking-wider">
+                    Community Registered Cafes & Picks
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAllRegistered(!showAllRegistered)}
+                  className="text-[11px] font-semibold text-[#C87D32] hover:text-[#9E5D1D] transition-colors cursor-pointer"
+                >
+                  {showAllRegistered ? 'Show Recommendations' : `Browse All (${registeredCafes.length})`}
+                </button>
+              </div>
+
+              {showAllRegistered && (
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-[#8C7A6D] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search cafes by name, city, or country..."
+                    className="w-full pl-8 pr-3 py-1.5 bg-white rounded-lg border border-[#DACDC0] text-xs text-[#2C2118] focus:outline-none focus:ring-1 focus:ring-[#C87D32]"
+                  />
+                </div>
+              )}
+
+              {/* Cafe chips/cards */}
+              <div className="flex gap-2 overflow-x-auto pb-1 max-h-40 flex-wrap">
+                {(showAllRegistered ? filteredRegistered : recommendedItems).map((rc) => {
+                  const isCurrent = name.trim().toLowerCase() === rc.name.toLowerCase();
+                  return (
+                    <button
+                      key={rc.id}
+                      type="button"
+                      onClick={() => handleSelectRegistered(rc)}
+                      className={`text-left p-2 rounded-lg border transition-all cursor-pointer flex-1 min-w-[190px] max-w-[260px] ${
+                        isCurrent
+                          ? 'bg-white border-[#C87D32] shadow-xs ring-1 ring-[#C87D32]'
+                          : 'bg-white/90 hover:bg-white border-[#E0D5C7]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-[10px] uppercase font-bold text-[#8C4F1A] truncate">
+                          {rc.city}, {rc.country}
+                        </span>
+                        {rc.isRecommended && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded-full flex items-center gap-0.5">
+                            ★ Recommended
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-serif text-xs font-bold text-[#2B1D14] truncate">
+                        {rc.name}
+                      </div>
+                      <div className="text-[10px] text-[#7A6757] mt-0.5 font-semibold text-[#8C4F1A] font-mono">
+                        General Rating: ★ {rc.generalRating.toFixed(1)} ({rc.ratingsCount} visits)
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {matchingRegistered ? (
+                <div className="flex items-start gap-1.5 text-[11px] text-[#3B5A3E] bg-emerald-50/80 p-2 rounded-lg border border-emerald-200">
+                  <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600" />
+                  <span>
+                    Linked with registered cafe: <strong>{matchingRegistered.name}</strong> ({matchingRegistered.city}). General rating averaged from all coffee travelers.
+                  </span>
+                </div>
+              ) : name.trim() ? (
+                <div className="flex items-start gap-1.5 text-[11px] text-[#6B5A4E] bg-white/70 p-2 rounded-lg border border-[#E5DACD]">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#C87D32]" />
+                  <span>
+                    Custom spot: <strong>"{name}"</strong> will be added to the community registry as a new spot to track.
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {/* Cafe Name */}
           <div>
             <label className="block text-xs font-semibold text-[#5B473A] uppercase tracking-wider mb-1">
@@ -187,14 +311,39 @@ export const CafeModal: React.FC<CafeModalProps> = ({
             </div>
           </div>
 
-          {/* Rating (Half-star selector) */}
-          <div className="p-3 bg-white rounded-lg border border-[#E0D5C7]">
+          {/* Dual Rating: Personal & General */}
+          <div className="p-3.5 bg-white rounded-lg border border-[#E0D5C7] space-y-3">
             <StarRatingInput
               value={rating}
               onChange={setRating}
-              label="Cafe Rating (Half-stars supported)"
+              label="Personal Cafe Rating (Your Experience)"
               size="md"
             />
+
+            <div className="pt-2.5 border-t border-[#F0E6DB]">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider">
+                  General Rating (Average Across All Visits)
+                </span>
+                <span className="font-mono text-[11px] font-bold text-[#8C4F1A]">
+                  {effectiveGeneralRating.toFixed(1)} ★
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <StarRatingDisplay
+                  rating={effectiveGeneralRating}
+                  count={effectiveRatingsCount}
+                  size="sm"
+                />
+                <span className="text-[10px] text-[#7A6757]">
+                  {matchingRegistered
+                    ? `Live average across ${effectiveRatingsCount} barista visits`
+                    : rating > 0
+                    ? `Starts at your personal rating (${rating.toFixed(1)} ★)`
+                    : 'Community average across all user-added cafes'}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Favorite Drink & Roastery info */}

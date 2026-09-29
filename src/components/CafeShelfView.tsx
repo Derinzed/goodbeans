@@ -251,14 +251,22 @@ export const CafeShelfView: React.FC<CafeShelfViewProps> = ({
                     </div>
                   )}
 
-                  {/* Star Rating */}
-                  <div className="py-2.5 mt-2 border-t border-[#F2EAE0]">
+                  {/* Star Rating: Personal & General */}
+                  <div className="py-2.5 mt-2 border-t border-[#F2EAE0] space-y-1.5">
                     <StarRatingInput
                       value={cafe.rating}
                       onChange={(newRating) => onQuickRate(cafe.id, newRating)}
                       size="sm"
                       label="Your Cafe Rating"
                     />
+                    {cafe.generalRating && (
+                      <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
+                        <span className="text-[#8C7A6D]">General Rating:</span>
+                        <span className="font-semibold text-[#8C4F1A] font-mono">
+                          ★ {cafe.generalRating.toFixed(1)} {cafe.generalRatingsCount ? `(${cafe.generalRatingsCount} visits)` : ''}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Favorite Drink */}

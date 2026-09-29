@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { populateItemOnline } from './src/server/aiPopulate.ts';
+import { handleAuthRoutes } from './src/server/authHandler.ts';
 
 dotenv.config();
 
@@ -19,6 +20,21 @@ app.use(express.json());
 // Health check endpoints for container readiness probes
 app.get('/health', (_req, res) => res.status(200).send('OK'));
 app.get('/healthz', (_req, res) => res.status(200).send('OK'));
+
+// Auth, User Accounts, and Admin endpoints
+app.use(async (req, res, next) => {
+  const url = req.url || '';
+  if (
+    url.startsWith('/api/auth') ||
+    url.startsWith('/api/user') ||
+    url.startsWith('/api/admin') ||
+    url.startsWith('/api/community')
+  ) {
+    const handled = await handleAuthRoutes(req, res, next);
+    if (handled) return;
+  }
+  next();
+});
 
 // Endpoint: Auto-populate coffee, equipment, cafe, or note from web information
 app.post('/api/ai/populate', async (req, res) => {

@@ -109,9 +109,10 @@ export interface Coffee {
   process: ProcessType;
   roastLevel: RoastLevel;
   roastDate?: string;
-  userRating: number; // 0 to 5 (increments of 0.5)
-  communityRating: number; // e.g. 4.65
+  userRating: number; // 0 to 5 personal rating
+  communityRating: number; // General rating across all users
   communityRatingsCount: number;
+  generalRating?: number; // General rating across all users
   shelfIds: string[];
   tastingNotesSummary: string[];
   tastingLogs: TastingEntry[];
@@ -123,6 +124,7 @@ export interface Coffee {
   dateAdded: string;
   dateFinished?: string;
   isFavorite: boolean;
+  isRegistered?: boolean;
 }
 
 export type EquipmentCategory =
@@ -145,7 +147,10 @@ export interface Equipment {
   settingsNotes: string;
   maintenanceNotes: string;
   generalNotes: string;
-  rating?: number;
+  rating?: number; // Personal rating
+  generalRating?: number; // General rating across all user-added equipment
+  generalRatingsCount?: number;
+  isRegistered?: boolean;
 }
 
 export interface Shelf {
@@ -167,7 +172,9 @@ export interface Cafe {
   address: string;
   city: string;
   country: string;
-  rating: number; // 0.5 to 5.0
+  rating: number; // Personal rating (0.5 to 5.0)
+  generalRating?: number; // General rating across all user-added cafes
+  generalRatingsCount?: number;
   favoriteDrink?: string;
   vibes: string[];
   dateVisited?: string;
@@ -175,6 +182,53 @@ export interface Cafe {
   roasterOrBeansServed?: string;
   googleMapsUrl?: string;
   isFavorite?: boolean;
+  isRegistered?: boolean;
+}
+
+export interface RegisteredCoffee {
+  id: string;
+  name: string;
+  roaster: string;
+  origin?: CoffeeOrigin;
+  variety?: string;
+  process?: ProcessType;
+  roastLevel?: RoastLevel;
+  generalRating: number;
+  ratingsCount: number;
+  userCount: number;
+  isRecommended: boolean;
+  tastingNotesSummary?: string[];
+  description?: string;
+  coverColor?: string;
+}
+
+export interface RegisteredEquipment {
+  id: string;
+  name: string;
+  brand: string;
+  category: EquipmentCategory;
+  generalRating: number;
+  ratingsCount: number;
+  userCount: number;
+  isRecommended: boolean;
+  generalNotes?: string;
+  settingsNotes?: string;
+  maintenanceNotes?: string;
+}
+
+export interface RegisteredCafe {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  generalRating: number;
+  ratingsCount: number;
+  userCount: number;
+  isRecommended: boolean;
+  notes?: string;
+  address?: string;
+  vibes?: string[];
+  favoriteDrink?: string;
 }
 
 export type NoteCategory =

@@ -362,22 +362,30 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Star Rating Section (Interactive Half-Stars directly on Card!) */}
+                  {/* Dual Rating Section: Personal Rating & General Rating */}
                   <div
-                    className="py-2 border-t border-[#F2EAE0]"
+                    className="py-2 border-t border-[#F2EAE0] space-y-1.5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center justify-between text-xs">
-                      <StarRatingInput
-                        value={coffee.userRating}
-                        onChange={(newRating) => onQuickRate(coffee.id, newRating)}
-                        size="sm"
-                        showTextLabel={false}
-                      />
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] uppercase font-semibold text-[#8C7A6D]">Personal:</span>
+                        <StarRatingInput
+                          value={coffee.userRating}
+                          onChange={(newRating) => onQuickRate(coffee.id, newRating)}
+                          size="sm"
+                          showTextLabel={false}
+                        />
+                      </div>
                       <span className="text-[10px] font-mono text-[#8C7A6D]">
-                        {coffee.userRating > 0
-                          ? `${coffee.userRating.toFixed(1)} ★`
-                          : `Avg ${coffee.communityRating.toFixed(1)}`}
+                        {coffee.userRating > 0 ? `${coffee.userRating.toFixed(1)} ★` : 'Unrated'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
+                      <span className="text-[#8C7A6D]">General Rating:</span>
+                      <span className="font-semibold text-[#8C4F1A] font-mono">
+                        ★ {(coffee.generalRating || coffee.communityRating || 4.5).toFixed(1)} {coffee.communityRatingsCount ? `(${coffee.communityRatingsCount} baristas)` : ''}
                       </span>
                     </div>
                   </div>

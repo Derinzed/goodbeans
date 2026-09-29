@@ -196,12 +196,23 @@ export const EquipmentShelfView: React.FC<EquipmentShelfViewProps> = ({
                 </h3>
                 <div className="text-xs text-[#7D6B5D] font-medium mb-2">{item.brand}</div>
 
-                {/* Rating */}
-                {item.rating && (
-                  <div className="mb-3">
-                    <StarRatingDisplay rating={item.rating} size="sm" />
-                  </div>
-                )}
+                {/* Dual Rating: Personal & General */}
+                <div className="mb-3 space-y-1">
+                  {item.rating && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-[#8C7A6D] text-[10px] uppercase font-semibold">Personal:</span>
+                      <StarRatingDisplay rating={item.rating} size="sm" />
+                    </div>
+                  )}
+                  {item.generalRating && (
+                    <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
+                      <span className="text-[#8C7A6D]">General Rating:</span>
+                      <span className="font-semibold text-[#8C4F1A] font-mono">
+                        ★ {item.generalRating.toFixed(1)} {item.generalRatingsCount ? `(${item.generalRatingsCount} baristas)` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
                 {/* Calibration / Settings Notes */}
                 {item.settingsNotes && (

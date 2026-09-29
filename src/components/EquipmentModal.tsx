@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, Wrench, Sparkles } from 'lucide-react';
-import { Equipment, EquipmentCategory } from '../types/coffee';
-import { StarRatingInput } from './StarRating';
+import { X, Wrench, Sparkles, Search, Check, Info } from 'lucide-react';
+import { Equipment, EquipmentCategory, RegisteredEquipment } from '../types/coffee';
+import { StarRatingInput, StarRatingDisplay } from './StarRating';
 
 interface EquipmentModalProps {
   initialEquipment?: Equipment | null;
+  registeredEquipment?: RegisteredEquipment[];
   onSave: (equipment: Equipment) => void;
   onClose: () => void;
 }
@@ -22,6 +23,7 @@ const CATEGORIES: EquipmentCategory[] = [
 
 export const EquipmentModal: React.FC<EquipmentModalProps> = ({
   initialEquipment,
+  registeredEquipment = [],
   onSave,
   onClose,
 }) => {
@@ -44,6 +46,31 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
   );
   const [generalNotes, setGeneralNotes] = useState(initialEquipment?.generalNotes || '');
   const [rating, setRating] = useState<number>(initialEquipment?.rating || 4.5);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAllRegistered, setShowAllRegistered] = useState(false);
+
+  // Match against registered items by clean name and brand/category
+  const matchingRegistered = registeredEquipment.find(
+    (re) =>
+      re.name.toLowerCase() === name.trim().toLowerCase() &&
+      (!brand.trim() || re.brand.toLowerCase() === brand.trim().toLowerCase())
+  );
+
+  const effectiveGeneralRating = matchingRegistered
+    ? matchingRegistered.generalRating
+    : initialEquipment?.generalRating || rating || 4.5;
+  const effectiveRatingsCount = matchingRegistered
+    ? matchingRegistered.ratingsCount
+    : initialEquipment?.generalRatingsCount || (rating > 0 ? 1 : 0);
+
+  const handleSelectRegistered = (re: RegisteredEquipment) => {
+    setName(re.name);
+    setBrand(re.brand);
+    setCategory(re.category);
+    if (re.settingsNotes) setSettingsNotes(re.settingsNotes);
+    if (re.maintenanceNotes) setMaintenanceNotes(re.maintenanceNotes);
+    if (re.generalNotes) setGeneralNotes(re.generalNotes);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,9 +85,19 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
       maintenanceNotes: maintenanceNotes.trim(),
       generalNotes: generalNotes.trim(),
       rating,
+      generalRating: effectiveGeneralRating,
+      generalRatingsCount: effectiveRatingsCount,
+      isRegistered: Boolean(matchingRegistered),
     };
     onSave(data);
   };
+
+  const recommendedItems = registeredEquipment.filter((re) => re.isRecommended || re.generalRating >= 4.5);
+  const filteredRegistered = registeredEquipment.filter((re) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return re.name.toLowerCase().includes(q) || re.brand.toLowerCase().includes(q) || re.category.toLowerCase().includes(q);
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -87,6 +124,92 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* Running List of Registered Gear & Recommendations */}
+          {!isEditing && registeredEquipment.length > 0 && (
+            <div className="p-3 bg-[#FAF3EC] rounded-xl border border-[#E8DACB] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#C87D32]" />
+                  <span className="text-xs font-bold text-[#2B1D14] uppercase tracking-wider">
+                    Community Registered Gear & Recommendations
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAllRegistered(!showAllRegistered)}
+                  className="text-[11px] font-semibold text-[#C87D32] hover:text-[#9E5D1D] transition-colors cursor-pointer"
+                >
+                  {showAllRegistered ? 'Show Recommendations' : `Browse All (${registeredEquipment.length})`}
+                </button>
+              </div>
+
+              {showAllRegistered && (
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-[#8C7A6D] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search gear by name, brand, or category..."
+                    className="w-full pl-8 pr-3 py-1.5 bg-white rounded-lg border border-[#DACDC0] text-xs text-[#2C2118] focus:outline-none focus:ring-1 focus:ring-[#C87D32]"
+                  />
+                </div>
+              )}
+
+              {/* Gear chips/cards */}
+              <div className="flex gap-2 overflow-x-auto pb-1 max-h-40 flex-wrap">
+                {(showAllRegistered ? filteredRegistered : recommendedItems).map((re) => {
+                  const isCurrent = name.trim().toLowerCase() === re.name.toLowerCase();
+                  return (
+                    <button
+                      key={re.id}
+                      type="button"
+                      onClick={() => handleSelectRegistered(re)}
+                      className={`text-left p-2 rounded-lg border transition-all cursor-pointer flex-1 min-w-[190px] max-w-[260px] ${
+                        isCurrent
+                          ? 'bg-white border-[#C87D32] shadow-xs ring-1 ring-[#C87D32]'
+                          : 'bg-white/90 hover:bg-white border-[#E0D5C7]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-[10px] uppercase font-bold text-[#8C4F1A] truncate">
+                          {re.brand} · {re.category}
+                        </span>
+                        {re.isRecommended && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded-full flex items-center gap-0.5">
+                            ★ Recommended
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-serif text-xs font-bold text-[#2B1D14] truncate">
+                        {re.name}
+                      </div>
+                      <div className="text-[10px] text-[#7A6757] mt-0.5 font-semibold text-[#8C4F1A] font-mono">
+                        General Rating: ★ {re.generalRating.toFixed(1)} ({re.ratingsCount} baristas)
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {matchingRegistered ? (
+                <div className="flex items-start gap-1.5 text-[11px] text-[#3B5A3E] bg-emerald-50/80 p-2 rounded-lg border border-emerald-200">
+                  <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600" />
+                  <span>
+                    Linked with registered gear: <strong>{matchingRegistered.name}</strong> ({matchingRegistered.brand}). General rating is averaged across all baristas. (You can still use your own custom name if desired).
+                  </span>
+                </div>
+              ) : name.trim() ? (
+                <div className="flex items-start gap-1.5 text-[11px] text-[#6B5A4E] bg-white/70 p-2 rounded-lg border border-[#E5DACD]">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#C87D32]" />
+                  <span>
+                    Custom gear: <strong>"{name}"</strong> will be added as a distinct item to track in the community registry.
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {/* Name & Brand */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -167,14 +290,39 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
             </div>
           </div>
 
-          {/* Rating */}
-          <div className="p-3 bg-white rounded-lg border border-[#E0D5C7]">
+          {/* Dual Rating: Personal & General */}
+          <div className="p-3.5 bg-white rounded-lg border border-[#E0D5C7] space-y-3">
             <StarRatingInput
               value={rating}
               onChange={setRating}
-              label="Personal Gear Rating"
+              label="Personal Gear Rating (Your Evaluation)"
               size="md"
             />
+
+            <div className="pt-2.5 border-t border-[#F0E6DB]">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider">
+                  General Rating (Average Across All User Gear)
+                </span>
+                <span className="font-mono text-[11px] font-bold text-[#8C4F1A]">
+                  {effectiveGeneralRating.toFixed(1)} ★
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <StarRatingDisplay
+                  rating={effectiveGeneralRating}
+                  count={effectiveRatingsCount}
+                  size="sm"
+                />
+                <span className="text-[10px] text-[#7A6757]">
+                  {matchingRegistered
+                    ? `Live average across ${effectiveRatingsCount} barista ratings`
+                    : rating > 0
+                    ? `Starts at your personal rating (${rating.toFixed(1)} ★)`
+                    : 'Community average across all user-added gear'}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Settings & Calibration Notes */}

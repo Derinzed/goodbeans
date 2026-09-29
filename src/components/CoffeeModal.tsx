@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Plus } from 'lucide-react';
-import { Coffee, ProcessType, RoastLevel, Shelf } from '../types/coffee';
-import { StarRatingInput } from './StarRating';
+import { X, Sparkles, Plus, Search, Check, Info } from 'lucide-react';
+import { Coffee, ProcessType, RoastLevel, Shelf, RegisteredCoffee } from '../types/coffee';
+import { StarRatingInput, StarRatingDisplay } from './StarRating';
 import { COMMON_FLAVORS } from '../data/initialData';
 
 interface CoffeeModalProps {
   initialCoffee?: Coffee | null;
   shelves: Shelf[];
+  registeredCoffees?: RegisteredCoffee[];
   onSave: (coffee: Coffee) => void;
   onClose: () => void;
 }
@@ -46,6 +47,7 @@ const COLOR_PALETTES = [
 export const CoffeeModal: React.FC<CoffeeModalProps> = ({
   initialCoffee,
   shelves,
+  registeredCoffees = [],
   onSave,
   onClose,
 }) => {
@@ -78,6 +80,37 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
   const [customTagInput, setCustomTagInput] = useState('');
   const [coverColor, setCoverColor] = useState(initialCoffee?.coverColor || '#E29548');
   const [description, setDescription] = useState(initialCoffee?.description || '');
+  const [registeredSearchQuery, setRegisteredSearchQuery] = useState('');
+  const [showAllRegistered, setShowAllRegistered] = useState(false);
+
+  // Match against registered items by clean name and roaster
+  const matchingRegistered = registeredCoffees.find(
+    (rc) =>
+      rc.name.toLowerCase() === name.trim().toLowerCase() &&
+      (!roaster.trim() || rc.roaster.toLowerCase() === roaster.trim().toLowerCase())
+  );
+
+  const effectiveGeneralRating = matchingRegistered
+    ? matchingRegistered.generalRating
+    : initialCoffee?.generalRating || initialCoffee?.communityRating || (userRating > 0 ? userRating : 4.5);
+  const effectiveRatingsCount = matchingRegistered
+    ? matchingRegistered.ratingsCount
+    : initialCoffee?.communityRatingsCount || (userRating > 0 ? 1 : 0);
+
+  const handleSelectRegistered = (rc: RegisteredCoffee) => {
+    setName(rc.name);
+    setRoaster(rc.roaster);
+    if (rc.origin?.country) setCountry(rc.origin.country);
+    if (rc.origin?.region) setRegion(rc.origin.region);
+    if (rc.variety) setVariety(rc.variety);
+    if (rc.process) setProcess(rc.process);
+    if (rc.roastLevel) setRoastLevel(rc.roastLevel);
+    if (rc.tastingNotesSummary && rc.tastingNotesSummary.length > 0) {
+      setFlavorTags(rc.tastingNotesSummary);
+    }
+    if (rc.description) setDescription(rc.description);
+    if (rc.coverColor) setCoverColor(rc.coverColor);
+  };
 
   const toggleShelf = (shelfId: string) => {
     if (selectedShelfIds.includes(shelfId)) {
@@ -121,8 +154,9 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
       roastLevel,
       roastDate: roastDate || undefined,
       userRating,
-      communityRating: initialCoffee?.communityRating || 4.5,
-      communityRatingsCount: initialCoffee?.communityRatingsCount || 1,
+      generalRating: effectiveGeneralRating,
+      communityRating: effectiveGeneralRating,
+      communityRatingsCount: effectiveRatingsCount,
       shelfIds: selectedShelfIds.length > 0 ? selectedShelfIds : ['currently-drinking'],
       tastingNotesSummary: flavorTags,
       tastingLogs: initialCoffee?.tastingLogs || [],
@@ -132,10 +166,23 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
       description: description.trim(),
       dateAdded: initialCoffee?.dateAdded || new Date().toISOString().split('T')[0],
       isFavorite: initialCoffee?.isFavorite || false,
+      isRegistered: Boolean(matchingRegistered),
     };
 
     onSave(coffeeData);
   };
+
+  // Filter registered coffees for recommendations display
+  const recommendedItems = registeredCoffees.filter((rc) => rc.isRecommended || rc.generalRating >= 4.5);
+  const filteredRegistered = registeredCoffees.filter((rc) => {
+    if (!registeredSearchQuery.trim()) return true;
+    const q = registeredSearchQuery.toLowerCase();
+    return (
+      rc.name.toLowerCase().includes(q) ||
+      rc.roaster.toLowerCase().includes(q) ||
+      (rc.origin?.country || '').toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -162,6 +209,95 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+          {/* Running List of Registered Beans & Recommendations */}
+          {!isEditing && registeredCoffees.length > 0 && (
+            <div className="p-3.5 bg-[#FAF3EC] rounded-xl border border-[#E8DACB] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#C87D32]" />
+                  <span className="text-xs font-bold text-[#2B1D14] uppercase tracking-wider">
+                    Community Registered Beans & Recommendations
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAllRegistered(!showAllRegistered)}
+                  className="text-[11px] font-semibold text-[#C87D32] hover:text-[#9E5D1D] transition-colors cursor-pointer"
+                >
+                  {showAllRegistered ? 'Show Recommendations' : `Browse All (${registeredCoffees.length})`}
+                </button>
+              </div>
+
+              {showAllRegistered && (
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-[#8C7A6D] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={registeredSearchQuery}
+                    onChange={(e) => setRegisteredSearchQuery(e.target.value)}
+                    placeholder="Search registered beans or roaster..."
+                    className="w-full pl-8 pr-3 py-1.5 bg-white rounded-lg border border-[#DACDC0] text-xs text-[#2C2118] focus:outline-none focus:ring-1 focus:ring-[#C87D32]"
+                  />
+                </div>
+              )}
+
+              {/* Items chips/cards */}
+              <div className="flex gap-2 overflow-x-auto pb-1 max-h-48 flex-wrap">
+                {(showAllRegistered ? filteredRegistered : recommendedItems).map((rc) => {
+                  const isCurrent = name.trim().toLowerCase() === rc.name.toLowerCase();
+                  return (
+                    <button
+                      key={rc.id}
+                      type="button"
+                      onClick={() => handleSelectRegistered(rc)}
+                      className={`text-left p-2.5 rounded-lg border transition-all cursor-pointer flex-1 min-w-[200px] max-w-[280px] ${
+                        isCurrent
+                          ? 'bg-white border-[#C87D32] shadow-xs ring-1 ring-[#C87D32]'
+                          : 'bg-white/90 hover:bg-white border-[#E0D5C7]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] uppercase font-bold text-[#8C4F1A] truncate">
+                          {rc.roaster}
+                        </span>
+                        {rc.isRecommended && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-amber-100 text-amber-900 rounded-full flex items-center gap-0.5">
+                            ★ Recommended
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-serif text-xs font-bold text-[#2B1D14] truncate">
+                        {rc.name}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-[#7A6757] mt-1">
+                        <span>{rc.origin?.country || 'Single Origin'} · {rc.process || 'Washed'}</span>
+                        <span className="font-semibold text-[#8C4F1A] font-mono">
+                          ★ {rc.generalRating.toFixed(1)} ({rc.ratingsCount})
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {matchingRegistered ? (
+                <div className="flex items-start gap-1.5 text-[11px] text-[#3B5A3E] bg-emerald-50/80 p-2 rounded-lg border border-emerald-200">
+                  <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600" />
+                  <span>
+                    Linked with registered item: <strong>{matchingRegistered.name}</strong> by <strong>{matchingRegistered.roaster}</strong>. General rating is computed from all baristas. (You may still customize the name below to track as your own distinct item).
+                  </span>
+                </div>
+              ) : name.trim() ? (
+                <div className="flex items-start gap-1.5 text-[11px] text-[#6B5A4E] bg-white/70 p-2 rounded-lg border border-[#E5DACD]">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#C87D32]" />
+                  <span>
+                    Custom bean: <strong>"{name}"</strong> will be registered as a new item in the community library, tracking its own general rating starting from your review.
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {/* Coffee Name & Roaster */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -306,27 +442,62 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
             </div>
           </div>
 
-          {/* Rating & Roast Date */}
+          {/* Rating (Personal Rating & General Rating) & Roast Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-3 bg-white rounded-lg border border-[#E0D5C7]">
-              <StarRatingInput
-                value={userRating}
-                onChange={setUserRating}
-                label="Your Rating (Half-stars supported)"
-                size="md"
-              />
+            <div className="p-3 bg-white rounded-lg border border-[#E0D5C7] space-y-3">
+              <div>
+                <StarRatingInput
+                  value={userRating}
+                  onChange={setUserRating}
+                  label="Personal Rating (Your Score)"
+                  size="md"
+                />
+              </div>
+
+              {/* General Rating hooked to average across all user added beans */}
+              <div className="pt-2.5 border-t border-[#F0E6DB]">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider">
+                    General Rating (Community Avg)
+                  </span>
+                  <span className="font-mono text-[11px] font-bold text-[#8C4F1A]">
+                    {effectiveGeneralRating.toFixed(1)} ★
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StarRatingDisplay
+                    rating={effectiveGeneralRating}
+                    count={effectiveRatingsCount}
+                    size="sm"
+                  />
+                  <span className="text-[10px] text-[#7A6757]">
+                    {matchingRegistered
+                      ? `Avg across all user-added "${matchingRegistered.name}" (${effectiveRatingsCount} ratings)`
+                      : userRating > 0
+                      ? `Starts with your personal score (${userRating.toFixed(1)} ★)`
+                      : 'Will start from your personal rating'}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#5B473A] uppercase tracking-wider mb-1">
-                Roast Date
-              </label>
-              <input
-                type="date"
-                value={roastDate}
-                onChange={(e) => setRoastDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white rounded-lg border border-[#DACDC0] text-sm text-[#2C2118]"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#5B473A] uppercase tracking-wider mb-1">
+                  Roast Date
+                </label>
+                <input
+                  type="date"
+                  value={roastDate}
+                  onChange={(e) => setRoastDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-white rounded-lg border border-[#DACDC0] text-sm text-[#2C2118]"
+                />
+              </div>
+
+              <div className="p-2.5 bg-[#FAF7F2] rounded-lg border border-[#E5DACD] text-[11px] text-[#6B5A4E] leading-relaxed">
+                <span className="font-semibold text-[#2B1D14] block mb-0.5">Rating System:</span>
+                Personal rating is your private review. General rating is the live running average across all baristas' beans on Goodbeans.
+              </div>
             </div>
           </div>
 

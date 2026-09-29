@@ -20,6 +20,11 @@ import {
   Sun,
   Moon,
   Palette,
+  User,
+  UserPlus,
+  LogIn,
+  Shield,
+  CheckCircle,
 } from 'lucide-react';
 import {
   Coffee,
@@ -30,6 +35,9 @@ import {
   ChallengeGoal,
   Cafe,
   CustomNote,
+  RegisteredCoffee,
+  RegisteredEquipment,
+  RegisteredCafe,
 } from './types/coffee';
 import {
   DEFAULT_SHELVES,
@@ -53,6 +61,10 @@ import { ShelfModal } from './components/ShelfModal';
 import { BrewTimerModal } from './components/BrewTimerModal';
 import { StatsModal } from './components/StatsModal';
 import { DarkHueModal } from './components/DarkHueModal';
+import { AuthModal } from './components/AuthModal';
+import { UserAccountModal } from './components/UserAccountModal';
+import { AdminUsersModal } from './components/AdminUsersModal';
+import { authApi, UserProfile } from './services/authApi';
 import { CoffeeChallengeWidget } from './components/CoffeeChallengeWidget';
 import { AutoPopulateShelfWidget } from './components/AutoPopulateShelfWidget';
 
@@ -188,6 +200,254 @@ export default function App() {
 
   const [isHueModalOpen, setIsHueModalOpen] = useState(false);
 
+  // Authentication and Account state
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('goodbeans_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [authToken, setAuthToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('goodbeans_auth_token');
+    } catch {
+      return null;
+    }
+  });
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Running catalog of registered items across all users
+  const [registeredCoffees, setRegisteredCoffees] = useState<RegisteredCoffee[]>([]);
+  const [registeredEquipment, setRegisteredEquipment] = useState<RegisteredEquipment[]>([]);
+  const [registeredCafes, setRegisteredCafes] = useState<RegisteredCafe[]>([]);
+
+  const fetchCommunityCatalog = async () => {
+    try {
+      const res = await authApi.getCommunityItems();
+      if (res && res.success) {
+        if (Array.isArray(res.coffees)) setRegisteredCoffees(res.coffees);
+        if (Array.isArray(res.equipment)) setRegisteredEquipment(res.equipment);
+        if (Array.isArray(res.cafes)) setRegisteredCafes(res.cafes);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchCommunityCatalog();
+  }, []);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
+  // Verify stored session on mount
+  useEffect(() => {
+    const savedToken = localStorage.getItem('goodbeans_auth_token');
+    if (!savedToken) return;
+
+    authApi
+      .getMe(savedToken)
+      .then((res) => {
+        if (res.success && res.user) {
+          setCurrentUser(res.user);
+          setAuthToken(savedToken);
+          if (res.data) {
+            if (Array.isArray(res.data.coffees) && res.data.coffees.length > 0) {
+              setCoffees(res.data.coffees);
+            }
+            if (Array.isArray(res.data.equipment) && res.data.equipment.length > 0) {
+              setEquipment(res.data.equipment);
+            }
+            if (Array.isArray(res.data.cafes) && res.data.cafes.length > 0) {
+              setCafes(res.data.cafes);
+            }
+            if (Array.isArray(res.data.notes) && res.data.notes.length > 0) {
+              setNotes(res.data.notes);
+            }
+            if (Array.isArray(res.data.shelves) && res.data.shelves.length > 0) {
+              setShelves(res.data.shelves);
+            }
+            if (res.data.theme) setTheme(res.data.theme);
+            if (res.data.primaryHue) setPrimaryHue(res.data.primaryHue);
+            if (res.data.secondaryHue) setSecondaryHue(res.data.secondaryHue);
+            if (res.data.backgroundColor) setBackgroundColor(res.data.backgroundColor);
+          }
+        } else {
+          localStorage.removeItem('goodbeans_auth_token');
+          localStorage.removeItem('goodbeans_current_user');
+          setCurrentUser(null);
+          setAuthToken(null);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Debounced auto-sync to server when user is logged in
+  useEffect(() => {
+    if (!authToken || !currentUser) return;
+    setIsSyncing(true);
+    const timeout = setTimeout(async () => {
+      try {
+        await authApi.saveUserData(authToken, {
+          coffees,
+          equipment,
+          cafes,
+          notes,
+          shelves,
+          theme,
+          primaryHue,
+          secondaryHue,
+          backgroundColor,
+        });
+        setLastSyncedAt(new Date().toISOString());
+      } catch (err) {
+        console.error('Server sync error:', err);
+      } finally {
+        setIsSyncing(false);
+      }
+    }, 1200);
+
+    return () => clearTimeout(timeout);
+  }, [
+    coffees,
+    equipment,
+    cafes,
+    notes,
+    shelves,
+    theme,
+    primaryHue,
+    secondaryHue,
+    backgroundColor,
+    authToken,
+    currentUser,
+  ]);
+
+  const handleAuthSuccess = (user: UserProfile, token: string, serverData?: any) => {
+    setCurrentUser(user);
+    setAuthToken(token);
+    try {
+      localStorage.setItem('goodbeans_current_user', JSON.stringify(user));
+      localStorage.setItem('goodbeans_auth_token', token);
+    } catch {
+      // ignore
+    }
+
+    if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
+      if (Array.isArray(serverData.coffees) && serverData.coffees.length > 0) {
+        setCoffees(serverData.coffees);
+      }
+      if (Array.isArray(serverData.equipment) && serverData.equipment.length > 0) {
+        setEquipment(serverData.equipment);
+      }
+      if (Array.isArray(serverData.cafes) && serverData.cafes.length > 0) {
+        setCafes(serverData.cafes);
+      }
+      if (Array.isArray(serverData.notes) && serverData.notes.length > 0) {
+        setNotes(serverData.notes);
+      }
+      if (Array.isArray(serverData.shelves) && serverData.shelves.length > 0) {
+        setShelves(serverData.shelves);
+      }
+      if (serverData.theme) setTheme(serverData.theme);
+      if (serverData.primaryHue) setPrimaryHue(serverData.primaryHue);
+      if (serverData.secondaryHue) setSecondaryHue(serverData.secondaryHue);
+      if (serverData.backgroundColor) setBackgroundColor(serverData.backgroundColor);
+    } else {
+      // Push initial library to newly created account
+      authApi.saveUserData(token, {
+        coffees,
+        equipment,
+        cafes,
+        notes,
+        shelves,
+        theme,
+        primaryHue,
+        secondaryHue,
+        backgroundColor,
+      });
+    }
+
+    setToastMessage(`Welcome back, ${user.username}!`);
+  };
+
+  const handleLogout = async () => {
+    if (authToken) {
+      await authApi.logout(authToken);
+    }
+    setCurrentUser(null);
+    setAuthToken(null);
+    try {
+      localStorage.removeItem('goodbeans_current_user');
+      localStorage.removeItem('goodbeans_auth_token');
+    } catch {
+      // ignore
+    }
+    setIsUserModalOpen(false);
+    setToastMessage('Signed out successfully.');
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!authToken || !currentUser) return;
+    try {
+      const res = await authApi.deleteAccount(authToken);
+      if (res.success) {
+        setCurrentUser(null);
+        setAuthToken(null);
+        try {
+          localStorage.removeItem('goodbeans_current_user');
+          localStorage.removeItem('goodbeans_auth_token');
+        } catch {
+          // ignore
+        }
+        handleResetData();
+        setToastMessage(res.message || 'Your account and data were permanently deleted.');
+      } else {
+        setToastMessage(res.error || 'Failed to delete account.');
+      }
+    } catch {
+      setToastMessage('Network error while deleting account.');
+    }
+  };
+
+  const handleManualSync = async () => {
+    if (!authToken || !currentUser) return;
+    setIsSyncing(true);
+    try {
+      await authApi.saveUserData(authToken, {
+        coffees,
+        equipment,
+        cafes,
+        notes,
+        shelves,
+        theme,
+        primaryHue,
+        secondaryHue,
+        backgroundColor,
+      });
+      setLastSyncedAt(new Date().toISOString());
+      setToastMessage('Saved successfully to your server account!');
+    } catch {
+      setToastMessage('Failed to sync to server.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem('goodbeans_theme', theme);
@@ -272,6 +532,9 @@ export default function App() {
     } else {
       setCoffees((prev) => [coffeeData, ...prev]);
     }
+    // Register with community items to average ratings across all users
+    authApi.registerCommunityItem('coffee', coffeeData, coffeeData.userRating).catch(() => {});
+    fetchCommunityCatalog();
     setIsCoffeeModalOpen(false);
     setEditingCoffee(null);
   };
@@ -284,8 +547,16 @@ export default function App() {
 
   const handleQuickRate = (coffeeId: string, rating: number) => {
     setCoffees((prev) =>
-      prev.map((c) => (c.id === coffeeId ? { ...c, userRating: rating } : c))
+      prev.map((c) => {
+        if (c.id === coffeeId) {
+          const updated = { ...c, userRating: rating };
+          authApi.registerCommunityItem('coffee', updated, rating).catch(() => {});
+          return updated;
+        }
+        return c;
+      })
     );
+    fetchCommunityCatalog();
   };
 
   const handleQuickChangeShelf = (coffeeId: string, shelfId: string) => {
@@ -438,6 +709,9 @@ export default function App() {
     } else {
       setEquipment((prev) => [equipmentData, ...prev]);
     }
+    // Register with community items to average ratings across all users
+    authApi.registerCommunityItem('equipment', equipmentData, equipmentData.rating).catch(() => {});
+    fetchCommunityCatalog();
     setIsEquipmentModalOpen(false);
     setEditingEquipment(null);
   };
@@ -455,6 +729,9 @@ export default function App() {
     } else {
       setCafes((prev) => [cafeData, ...prev]);
     }
+    // Register with community items to average ratings across all users
+    authApi.registerCommunityItem('cafe', cafeData, cafeData.rating).catch(() => {});
+    fetchCommunityCatalog();
     setIsCafeModalOpen(false);
     setEditingCafe(null);
   };
@@ -471,8 +748,16 @@ export default function App() {
 
   const handleQuickRateCafe = (cafeId: string, rating: number) => {
     setCafes((prev) =>
-      prev.map((c) => (c.id === cafeId ? { ...c, rating } : c))
+      prev.map((c) => {
+        if (c.id === cafeId) {
+          const updated = { ...c, rating };
+          authApi.registerCommunityItem('cafe', updated, rating).catch(() => {});
+          return updated;
+        }
+        return c;
+      })
     );
+    fetchCommunityCatalog();
   };
 
   // Handlers for Custom Notes
@@ -527,28 +812,113 @@ export default function App() {
     localStorage.removeItem('goodbeans_cafes');
     localStorage.removeItem('goodbeans_notes');
     localStorage.removeItem('goodbeans_shelves');
+    setToastMessage('Reset library to default catalog.');
   };
 
-  // Import JSON backup
-  const handleImportData = (jsonStr: string) => {
+  // Export JSON backup
+  const handleExportData = () => {
+    const backup = {
+      coffees,
+      equipment,
+      cafes,
+      notes,
+      shelves,
+      theme,
+      primaryHue,
+      secondaryHue,
+      backgroundColor,
+      exportDate: new Date().toISOString(),
+      account: currentUser ? currentUser.username : 'guest',
+      version: '1.3',
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `goodbeans-${currentUser ? currentUser.username : 'backup'}-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setToastMessage('Backup file exported!');
+  };
+
+  // Import JSON backup (and automatically sync to server if logged in!)
+  const handleImportData = async (jsonStr: string) => {
     try {
       const parsed = JSON.parse(jsonStr);
+      let updatedCoffees = coffees;
+      let updatedEquipment = equipment;
+      let updatedCafes = cafes;
+      let updatedNotes = notes;
+      let updatedShelves = shelves;
+
       if (parsed.coffees && Array.isArray(parsed.coffees)) {
-        setCoffees(parsed.coffees);
+        updatedCoffees = parsed.coffees;
+        setCoffees(updatedCoffees);
       }
       if (parsed.equipment && Array.isArray(parsed.equipment)) {
-        setEquipment(parsed.equipment);
+        updatedEquipment = parsed.equipment;
+        setEquipment(updatedEquipment);
       }
       if (parsed.cafes && Array.isArray(parsed.cafes)) {
-        setCafes(parsed.cafes);
+        updatedCafes = parsed.cafes;
+        setCafes(updatedCafes);
       }
       if (parsed.notes && Array.isArray(parsed.notes)) {
-        setNotes(parsed.notes);
+        updatedNotes = parsed.notes;
+        setNotes(updatedNotes);
       }
-      alert('Data restored successfully!');
+      if (parsed.shelves && Array.isArray(parsed.shelves)) {
+        updatedShelves = parsed.shelves;
+        setShelves(updatedShelves);
+      }
+
+      // If logged in, update server account information immediately!
+      if (authToken && currentUser) {
+        await authApi.saveUserData(authToken, {
+          coffees: updatedCoffees,
+          equipment: updatedEquipment,
+          cafes: updatedCafes,
+          notes: updatedNotes,
+          shelves: updatedShelves,
+          theme,
+          primaryHue,
+          secondaryHue,
+          backgroundColor,
+        });
+        setLastSyncedAt(new Date().toISOString());
+        // Also register imported items to the community catalog
+        if (Array.isArray(updatedCoffees)) {
+          updatedCoffees.forEach((c) => authApi.registerCommunityItem('coffee', c, c.userRating).catch(() => {}));
+        }
+        if (Array.isArray(updatedEquipment)) {
+          updatedEquipment.forEach((eq) => authApi.registerCommunityItem('equipment', eq, eq.rating).catch(() => {}));
+        }
+        if (Array.isArray(updatedCafes)) {
+          updatedCafes.forEach((cf) => authApi.registerCommunityItem('cafe', cf, cf.rating).catch(() => {}));
+        }
+        fetchCommunityCatalog();
+        setToastMessage('Data restored and updated in your server account!');
+      } else {
+        setToastMessage('Data restored successfully!');
+      }
     } catch {
-      alert('Failed to parse backup file. Please ensure it is valid JSON.');
+      setToastMessage('Failed to parse backup file. Please ensure it is valid JSON.');
     }
+  };
+
+  // File input change for user account modal
+  const handleImportBackupFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        handleImportData(content);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   // Count coffees per shelf
@@ -641,10 +1011,47 @@ export default function App() {
           >
             Year in Coffee
           </button>
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={() => setIsAdminModalOpen(true)}
+              className="text-[#C87D32] hover:text-[#B06B26] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+              title="View all registered users"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Admin Users</span>
+            </button>
+          )}
         </nav>
 
-        {/* Zone 3: 1-2 primary actions & theme toggle in upper right corner */}
+        {/* Zone 3: 1-2 primary actions & theme toggle & user account */}
         <div className="flex items-center gap-2">
+          {/* User Account / Sign In Button */}
+          {currentUser ? (
+            <button
+              onClick={() => setIsUserModalOpen(true)}
+              title={`Account: ${currentUser.username} (${currentUser.role})`}
+              className="px-2.5 py-1.5 text-xs text-[#2B1D14] bg-[#FAF7F2] hover:bg-[#F2E8DC] rounded-lg transition-colors cursor-pointer border border-[#E5DACD] flex items-center gap-1.5 shadow-2xs font-medium"
+            >
+              <div className="w-5 h-5 rounded-md bg-[#3A291E] text-white flex items-center justify-center text-[10px] font-bold">
+                {currentUser.username.slice(0, 1).toUpperCase()}
+              </div>
+              <span className="max-w-[70px] sm:max-w-[110px] truncate">{currentUser.username}</span>
+              {currentUser.role === 'admin' && (
+                <span className="hidden sm:inline px-1 py-0.2 text-[9px] font-bold bg-[#C87D32] text-white rounded uppercase">
+                  Admin
+                </span>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              title="Sign In or Create Account"
+              className="px-2.5 py-1.5 text-xs text-[#6B5A4E] hover:text-[#2B1D14] bg-[#FAF7F2] hover:bg-[#EFE8DD] rounded-lg transition-colors cursor-pointer border border-[#E5DACD] flex items-center gap-1.5 shadow-2xs font-medium whitespace-nowrap"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Account</span>
+            </button>
+          )}
           {/* Dark View Palette & Background Customizer Button */}
           {theme === 'dark' && (
             <button
@@ -688,41 +1095,6 @@ export default function App() {
               <Moon className="w-4 h-4 text-[#5D4738]" />
             )}
           </button>
-
-          {currentView === 'notes' ? (
-            <button
-              onClick={() => {
-                setEditingNote(null);
-                setIsNoteModalOpen(true);
-              }}
-              className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold text-white bg-[#C87D32] hover:bg-[#B06B26] rounded-lg shadow-sm hover:shadow transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Note</span>
-            </button>
-          ) : currentView === 'cafes' ? (
-            <button
-              onClick={() => {
-                setEditingCafe(null);
-                setIsCafeModalOpen(true);
-              }}
-              className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold text-white bg-[#C87D32] hover:bg-[#B06B26] rounded-lg shadow-sm hover:shadow transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Cafe</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                setEditingCoffee(null);
-                setIsCoffeeModalOpen(true);
-              }}
-              className="px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-semibold text-white bg-[#C87D32] hover:bg-[#B06B26] rounded-lg shadow-sm hover:shadow transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Coffee</span>
-            </button>
-          )}
 
           {/* Mobile Menu Button */}
           <button
@@ -793,6 +1165,54 @@ export default function App() {
           >
             Year in Coffee Analytics
           </button>
+
+          {/* Mobile Account Section */}
+          <div className="pt-2 border-t border-[#E5DACD] space-y-2">
+            {currentUser ? (
+              <>
+                <button
+                  onClick={() => {
+                    setIsUserModalOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-left font-medium py-1.5 px-2 rounded-md bg-[#FAF7F2] border border-[#E5DACD] flex items-center justify-between text-xs text-[#2B1D14]"
+                >
+                  <span className="flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-[#C87D32]" />
+                    Account: <strong>{currentUser.username}</strong>
+                  </span>
+                  {currentUser.role === 'admin' && (
+                    <span className="px-1.5 py-0.5 text-[9px] bg-[#C87D32] text-white rounded font-bold">
+                      Admin
+                    </span>
+                  )}
+                </button>
+                {currentUser.role === 'admin' && (
+                  <button
+                    onClick={() => {
+                      setIsAdminModalOpen(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full text-left font-medium py-1.5 px-2 rounded-md bg-[#FAF3EC] border border-[#EDE2D4] flex items-center gap-2 text-xs text-[#8C4F1A]"
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    Registered Users Directory
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsAuthModalOpen(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full text-left font-medium py-1.5 px-2 rounded-md bg-[#FAF7F2] border border-[#E5DACD] flex items-center gap-2 text-xs text-[#2B1D14]"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-[#C87D32]" />
+                Sign In / Create Account
+              </button>
+            )}
+          </div>
           <div className="pt-2 border-t border-[#E5DACD] flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#6B5A4E]">Appearance</span>
@@ -1265,6 +1685,64 @@ export default function App() {
         onBackgroundColorChange={setBackgroundColor}
         onReset={handleResetHues}
       />
+
+      {/* 9c. Authentication Modal (Register / Login) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        initialDataToSave={{
+          coffees,
+          equipment,
+          cafes,
+          notes,
+          shelves,
+          theme,
+          primaryHue,
+          secondaryHue,
+          backgroundColor,
+        }}
+      />
+
+      {/* 9d. User Account & Data Portability Modal */}
+      {currentUser && (
+        <UserAccountModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          user={currentUser}
+          stats={{
+            coffeesCount: coffees.length,
+            equipmentCount: equipment.length,
+            cafesCount: cafes.length,
+            notesCount: notes.length,
+            shelvesCount: shelves.length,
+          }}
+          isSyncing={isSyncing}
+          lastSyncedAt={lastSyncedAt}
+          onManualSync={handleManualSync}
+          onExportData={handleExportData}
+          onImportBackupFile={handleImportBackupFile}
+          onLogout={handleLogout}
+          onDeleteAccount={handleDeleteAccount}
+          onOpenAdminPanel={() => setIsAdminModalOpen(true)}
+        />
+      )}
+
+      {/* 9e. Admin Users Directory Modal */}
+      <AdminUsersModal
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+        token={authToken}
+        currentUserId={currentUser?.id || ''}
+      />
+
+      {/* Floating In-App Toast Feedback */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#261F1A] text-white px-4 py-2.5 rounded-xl shadow-lg border border-[#3D3128] text-xs flex items-center gap-2 animate-fade-in pointer-events-none">
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
       {/* 10. AI Auto-Populate Shelf Widget (Fixed Bottom-Right) */}
       <AutoPopulateShelfWidget

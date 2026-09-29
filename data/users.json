@@ -1,0 +1,13 @@
+[
+  {
+    "id": "user-admin",
+    "username": "admin",
+    "passwordHash": "97728b02cc599364c09b344aeb240e6cfef9c55d2cfb5e2bf16edc8d95fc13f26b9883f5eb2bae249dc94705d042e7d84e4deb2859b7588672366372cace0187",
+    "salt": "f90b2a2924ca8ac327e80fe44ae280cb",
+    "role": "admin",
+    "createdAt": "2026-09-29T22:50:41.931Z",
+    "lastLoginAt": "2026-09-29T22:51:01.571Z",
+    "updatedAt": "2026-09-29T22:50:41.931Z",
+    "data": {}
+  }
+]
