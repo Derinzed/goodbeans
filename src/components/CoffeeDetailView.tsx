@@ -115,30 +115,38 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
 
   // Toggle coffee in shelf
   const toggleShelf = (shelfId: string) => {
-    if (onRemoveFromShelf && coffee.shelfIds.includes(shelfId)) {
-      onRemoveFromShelf(coffee.id, shelfId);
+    if (coffee.shelfIds.includes(shelfId)) {
+      if (onRemoveFromShelf) {
+        onRemoveFromShelf(coffee.id, shelfId);
+        return;
+      }
+      const newShelfIds = coffee.shelfIds.filter((id) => id !== shelfId);
+      if (newShelfIds.length === 0) {
+        if (onDeleteCoffee) {
+          onDeleteCoffee(coffee.id);
+        } else if (onRemoveFromAllShelves) {
+          onRemoveFromAllShelves(coffee.id);
+        }
+        return;
+      }
+      onUpdateCoffee({
+        ...coffee,
+        shelfIds: newShelfIds,
+      });
       return;
     }
-    let newShelfIds = [...coffee.shelfIds];
-    if (newShelfIds.includes(shelfId)) {
-      newShelfIds = newShelfIds.filter((id) => id !== shelfId);
-    } else {
-      newShelfIds.push(shelfId);
-    }
+
     onUpdateCoffee({
       ...coffee,
-      shelfIds: newShelfIds,
+      shelfIds: [...coffee.shelfIds, shelfId],
     });
   };
 
   const handleRemoveAll = () => {
-    if (onRemoveFromAllShelves) {
+    if (onDeleteCoffee) {
+      onDeleteCoffee(coffee.id);
+    } else if (onRemoveFromAllShelves) {
       onRemoveFromAllShelves(coffee.id);
-    } else {
-      onUpdateCoffee({
-        ...coffee,
-        shelfIds: [],
-      });
     }
     setIsShelfDropdownOpen(false);
   };
@@ -271,9 +279,10 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
                   <div className="pt-1 border-t border-[#EAE0D3]">
                     <button
                       onClick={handleRemoveAll}
-                      className="w-full text-left px-2 py-1.5 rounded text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-1 transition-colors"
+                      className="w-full text-left px-2 py-1.5 rounded text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Remove coffee from all shelves and delete from library"
                     >
-                      <BookmarkMinus className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5" />
                       <span>Remove from all shelves</span>
                     </button>
                   </div>

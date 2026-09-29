@@ -219,33 +219,41 @@ export default function App() {
   };
 
   const handleRemoveFromShelf = (coffeeId: string, shelfId: string) => {
-    setCoffees((prev) =>
-      prev.map((c) => {
-        if (c.id === coffeeId) {
-          return {
-            ...c,
-            shelfIds: c.shelfIds.filter((id) => id !== shelfId),
-          };
+    setCoffees((prev) => {
+      const target = prev.find((c) => c.id === coffeeId);
+      if (!target) return prev;
+      const remainingShelves = target.shelfIds.filter((id) => id !== shelfId);
+      if (remainingShelves.length === 0) {
+        // When coffee is removed from all shelves, remove it entirely from library
+        return prev.filter((c) => c.id !== coffeeId);
+      }
+      return prev.map((c) =>
+        c.id === coffeeId ? { ...c, shelfIds: remainingShelves } : c
+      );
+    });
+
+    if (selectedCoffeeId === coffeeId) {
+      setCoffees((latest) => {
+        if (!latest.some((c) => c.id === coffeeId)) {
+          setSelectedCoffeeId(null);
+          setCurrentView('shelves');
         }
-        return c;
-      })
-    );
+        return latest;
+      });
+    }
   };
 
   const handleRemoveFromAllShelves = (coffeeId: string) => {
-    setCoffees((prev) =>
-      prev.map((c) => {
-        if (c.id === coffeeId) {
-          return { ...c, shelfIds: [] };
-        }
-        return c;
-      })
-    );
+    // When coffee is removed from all shelves, remove it entirely from library
+    setCoffees((prev) => prev.filter((c) => c.id !== coffeeId));
+    if (selectedCoffeeId === coffeeId) {
+      setSelectedCoffeeId(null);
+      setCurrentView('shelves');
+    }
   };
 
   const handleDeleteCoffee = (coffeeId: string) => {
-    if (!confirm('Are you sure you want to completely remove this coffee from your library?'))
-      return;
+    // Remove coffee entirely from library
     setCoffees((prev) => prev.filter((c) => c.id !== coffeeId));
     if (selectedCoffeeId === coffeeId) {
       setSelectedCoffeeId(null);
@@ -288,7 +296,6 @@ export default function App() {
   };
 
   const handleDeleteRecipe = (recipeId: string) => {
-    if (!confirm('Are you sure you want to delete this recipe?')) return;
     setCoffees((prev) =>
       prev.map((coffee) => ({
         ...coffee,
@@ -351,7 +358,6 @@ export default function App() {
   };
 
   const handleDeleteEquipment = (id: string) => {
-    if (!confirm('Are you sure you want to remove this equipment?')) return;
     setEquipment((prev) => prev.filter((eq) => eq.id !== id));
   };
 
@@ -369,8 +375,6 @@ export default function App() {
   };
 
   const handleDeleteCafe = (cafeId: string) => {
-    if (!confirm('Are you sure you want to remove this cafe from your Cafe Shelf?'))
-      return;
     setCafes((prev) => prev.filter((c) => c.id !== cafeId));
   };
 
@@ -400,7 +404,6 @@ export default function App() {
   };
 
   const handleDeleteNote = (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this custom note?')) return;
     setNotes((prev) => prev.filter((n) => n.id !== noteId));
   };
 
@@ -421,8 +424,6 @@ export default function App() {
   };
 
   const handleDeleteShelf = (shelfId: string) => {
-    if (!confirm('Are you sure you want to delete this shelf? Coffees will remain in your library.'))
-      return;
     setShelves((prev) => prev.filter((s) => s.id !== shelfId));
     if (activeShelfId === shelfId) {
       setActiveShelfId('all');
@@ -675,6 +676,13 @@ export default function App() {
             equipmentList={equipment}
             onBack={() => setCurrentView('shelves')}
             onUpdateCoffee={(updated) => {
+              if (!updated.shelfIds || updated.shelfIds.length === 0) {
+                // If coffee has no shelves, remove it entirely from library!
+                setCoffees((prev) => prev.filter((c) => c.id !== updated.id));
+                setSelectedCoffeeId(null);
+                setCurrentView('shelves');
+                return;
+              }
               setCoffees((prev) =>
                 prev.map((c) => (c.id === updated.id ? updated : c))
               );
@@ -947,11 +955,7 @@ export default function App() {
               Cafe Shelf
             </button>
             <button
-              onClick={() => {
-                if (confirm('Reset to curated default sample data?')) {
-                  handleResetData();
-                }
-              }}
+              onClick={handleResetData}
               className="text-[#9E8B7D] hover:text-[#7A3E26] underline transition-colors"
             >
               Reset Sample Catalog

@@ -191,10 +191,8 @@ export const StatsModal: React.FC<StatsModalProps> = ({
 
               <button
                 onClick={() => {
-                  if (confirm('Reset to the initial curated coffee catalog and equipment?')) {
-                    onResetData();
-                    onClose();
-                  }
+                  onResetData();
+                  onClose();
                 }}
                 className="px-3 py-2 text-xs text-[#8C7A6D] hover:text-red-700 underline transition-colors ml-auto flex items-center gap-1"
               >

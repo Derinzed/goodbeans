@@ -302,19 +302,20 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                             {coffee.roaster}
                           </span>
 
-                          {/* Quick Remove from this shelf button */}
-                          {!isAll ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onRemoveFromShelf(coffee.id, activeShelfId);
-                              }}
-                              className="text-[#A8988A] hover:text-rose-700 hover:bg-rose-50 p-1 rounded transition-colors"
-                              title={`Remove from ${activeShelf?.name}`}
-                            >
-                              <BookmarkMinus className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
+                          {/* Quick Remove from this shelf & Delete coffee from library buttons */}
+                          <div className="flex items-center gap-0.5">
+                            {!isAll && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRemoveFromShelf(coffee.id, activeShelfId);
+                                }}
+                                className="text-[#A8988A] hover:text-amber-800 hover:bg-amber-50 p-1 rounded transition-colors"
+                                title={`Remove from ${activeShelf?.name}`}
+                              >
+                                <BookmarkMinus className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -325,7 +326,7 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          )}
+                          </div>
                         </div>
 
                         <h3 className="font-serif font-bold text-base text-[#2B1D14] leading-snug group-hover:text-[#C87D32] transition-colors line-clamp-2 mt-0.5">
@@ -551,25 +552,24 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                         {coffee.recipes.length}
                       </td>
                       <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-1">
-                          {!isAll ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          {!isAll && (
                             <button
                               onClick={() => onRemoveFromShelf(coffee.id, activeShelfId)}
-                              className="px-2 py-1 text-[11px] text-[#8C4F1A] hover:text-rose-700 hover:bg-rose-50 border border-[#DACDC0] rounded transition-colors flex items-center gap-1"
+                              className="px-2 py-1 text-[11px] text-[#8C4F1A] hover:text-amber-800 hover:bg-amber-50 border border-[#DACDC0] rounded transition-colors flex items-center gap-1"
                               title={`Remove from ${activeShelf?.name}`}
                             >
                               <BookmarkMinus className="w-3 h-3" />
                               <span>Remove</span>
                             </button>
-                          ) : (
-                            <button
-                              onClick={() => onDeleteCoffee(coffee.id)}
-                              className="p-1 text-[#9E8B7D] hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
-                              title="Delete from Library"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
                           )}
+                          <button
+                            onClick={() => onDeleteCoffee(coffee.id)}
+                            className="p-1 text-[#9E8B7D] hover:text-rose-700 hover:bg-rose-50 rounded transition-colors"
+                            title="Delete coffee from library"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
