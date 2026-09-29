@@ -1,0 +1,45 @@
+import express from 'express';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { populateItemOnline } from './src/server/aiPopulate';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const port = 3000;
+
+app.use(express.json());
+
+// Endpoint: Auto-populate coffee, equipment, cafe, or note from web information
+app.post('/api/ai/populate', async (req, res) => {
+  try {
+    const { itemType, name } = req.body;
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Item name is required' });
+    }
+
+    const item = await populateItemOnline(itemType, name.trim());
+    return res.json({ success: true, item });
+  } catch (error: any) {
+    console.error('AI Auto-Populate Error:', error);
+    return res.status(500).json({
+      error: 'Failed to auto-populate item from online information.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
+// Production static file serving
+app.use(express.static(path.resolve(__dirname, 'dist')));
+app.get('*', (_req, res) => {
+  res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+});
+
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server listening on http://0.0.0.0:${port}`);
+});

@@ -1,0 +1,6 @@
+{
+  "name": "Goodbeans - Goodreads for Coffee",
+  "description": "Catalog coffees on custom shelves, rate with half-stars, log tasting notes, dial in brew recipes with custom variables, and track coffee equipment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
