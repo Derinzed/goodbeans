@@ -17,6 +17,8 @@ import {
   MapPin,
   Compass,
   FileText,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import {
   Coffee,
@@ -143,6 +145,36 @@ export default function App() {
   const [timerCoffee, setTimerCoffee] = useState<Coffee | null>(null);
 
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
+  // Theme state: light or dark roast
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('goodbeans_theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('goodbeans_theme', theme);
+    } catch {
+      // ignore
+    }
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   // Save changes to localStorage
   useEffect(() => {
@@ -558,8 +590,22 @@ export default function App() {
           </button>
         </nav>
 
-        {/* Zone 3: 1-2 primary actions */}
-        <div className="flex items-center gap-2.5">
+        {/* Zone 3: 1-2 primary actions & theme toggle in upper right corner */}
+        <div className="flex items-center gap-2">
+          {/* Theme Toggle Button in Upper Right */}
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark roast theme'}
+            className="p-2 text-[#6B5A4E] hover:text-[#2B1D14] hover:bg-[#EFE8DD] rounded-lg transition-colors cursor-pointer border border-[#E5DACD] flex items-center justify-center shadow-2xs"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 text-[#F3A63B]" />
+            ) : (
+              <Moon className="w-4 h-4 text-[#5D4738]" />
+            )}
+          </button>
+
           {currentView === 'notes' ? (
             <button
               onClick={() => {
@@ -664,6 +710,25 @@ export default function App() {
           >
             Year in Coffee Analytics
           </button>
+          <div className="pt-2 border-t border-[#E5DACD] flex items-center justify-between">
+            <span className="text-xs text-[#6B5A4E]">Appearance</span>
+            <button
+              onClick={toggleTheme}
+              className="px-2.5 py-1 text-xs rounded-md border border-[#E5DACD] flex items-center gap-1.5 text-[#3B291D]"
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-[#F3A63B]" />
+                  <span>Light Mode</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-[#5D4738]" />
+                  <span>Dark Roast</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 

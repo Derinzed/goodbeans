@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-serif: 'Lora', Georgia, Cambria, serif;
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -28,5 +30,181 @@ h1, h2, h3, .font-serif {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(140, 110, 85, 0.45);
+}
+
+/* ==========================================================================
+   Goodbeans Dark Roast Theme
+   Rich espresso, obsidian, roasted chestnut, and warm crema amber palette
+   ========================================================================== */
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #14110F;
+  color: #EDE4DC;
+}
+
+/* Canvas & Page Backgrounds */
+html.dark .bg-\[\#F8F6F0\],
+html.dark .bg-\[\#F7F1E9\],
+html.dark .bg-\[\#FAF8F5\],
+html.dark .bg-\[\#FAF2E8\],
+html.dark .bg-\[\#FFFDF9\] {
+  background-color: #14110F !important;
+}
+
+/* Top Header */
+html.dark header {
+  background-color: rgba(28, 23, 20, 0.94) !important;
+  border-color: #382D26 !important;
+}
+
+/* Primary Cards, Panels, Modals, and White containers */
+html.dark .bg-\[\#FAF7F2\],
+html.dark .bg-white {
+  background-color: #1E1815 !important;
+}
+
+/* Secondary Surfaces, Chip containers, and Embedded sections */
+html.dark .bg-\[\#F5ECE1\],
+html.dark .bg-\[\#F3ECE2\],
+html.dark .bg-\[\#F3EBE1\],
+html.dark .bg-\[\#F3EBE0\],
+html.dark .bg-\[\#F2E8DC\],
+html.dark .bg-\[\#F2EAE0\],
+html.dark .bg-\[\#F0E6DB\],
+html.dark .bg-\[\#EFE8DD\],
+html.dark .bg-\[\#EFE7DC\],
+html.dark .bg-\[\#F6EFE6\],
+html.dark .bg-\[\#FAF3EC\],
+html.dark .bg-\[\#FAF1E4\],
+html.dark .bg-\[\#F2E9DE\],
+html.dark .bg-\[\#EFE0CE\],
+html.dark .bg-\[\#FBEEDC\],
+html.dark .bg-\[\#E8DCCF\] {
+  background-color: #29221D !important;
+}
+
+/* Form Controls & Inputs */
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark textarea,
+html.dark select {
+  background-color: #261F1A !important;
+  border-color: #44362D !important;
+  color: #F4EDE6 !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #8D7B6F !important;
+}
+
+/* Primary Dark Coffee Typography -> Warm Light Cream */
+html.dark .text-\[\#2B1D14\],
+html.dark .text-\[\#2C2118\],
+html.dark .text-\[\#2C2017\],
+html.dark .text-\[\#2C241E\],
+html.dark .text-\[\#2E1F14\],
+html.dark .text-\[\#251A13\],
+html.dark .text-\[\#3A291E\],
+html.dark .text-\[\#3B291D\],
+html.dark .text-\[\#3D2D23\],
+html.dark .text-\[\#3B2B20\],
+html.dark .text-\[\#34261C\],
+html.dark .text-\[\#4A3728\],
+html.dark .text-\[\#4A392D\],
+html.dark .text-\[\#4A3B30\],
+html.dark .text-\[\#5B473A\],
+html.dark .text-\[\#553E2F\],
+html.dark .text-\[\#523F32\],
+html.dark .text-\[\#554032\] {
+  color: #F4EDE6 !important;
+}
+
+/* Secondary & Muted Coffee Typography */
+html.dark .text-\[\#8C7A6D\],
+html.dark .text-\[\#6B5A4E\],
+html.dark .text-\[\#7D6B5D\],
+html.dark .text-\[\#6B5749\],
+html.dark .text-\[\#7A6757\],
+html.dark .text-\[\#7A6453\],
+html.dark .text-\[\#6D5A4E\],
+html.dark .text-\[\#8A6D56\],
+html.dark .text-\[\#9E8B7D\],
+html.dark .text-\[\#A69587\],
+html.dark .text-\[\#887363\],
+html.dark .text-\[\#6D594B\],
+html.dark .text-\[\#6B5341\],
+html.dark .text-\[\#524135\],
+html.dark .text-\[\#544337\],
+html.dark .text-\[\#55473E\] {
+  color: #B2A396 !important;
+}
+
+/* Accent text: deep caramel lightens to readable glowing amber */
+html.dark .text-\[\#8C4F1A\],
+html.dark .text-\[\#9B551C\],
+html.dark .text-\[\#8B4822\],
+html.dark .text-\[\#9E5D1D\] {
+  color: #ECA357 !important;
+}
+
+/* Borders across elements */
+html.dark .border-\[\#E5DACD\],
+html.dark .border-\[\#DACDC0\],
+html.dark .border-\[\#D5C7B8\],
+html.dark .border-\[\#E0D5C7\],
+html.dark .border-\[\#E8DEC0\],
+html.dark .border-\[\#EDE2D4\],
+html.dark .border-\[\#DECFC0\],
+html.dark .border-\[\#EAE0D3\],
+html.dark .border-\[\#F0E6DB\],
+html.dark .border-\[\#F0E8DC\],
+html.dark .border-\[\#E2D5C7\],
+html.dark .border-\[\#E2D5C5\],
+html.dark .border-\[\#E8DDD0\],
+html.dark .border-\[\#E8DDD1\],
+html.dark .border-\[\#E8DACB\],
+html.dark .border-\[\#D5C4B2\],
+html.dark .border-\[\#DDBF96\],
+html.dark .border-\[\#C7B7A7\] {
+  border-color: #382D26 !important;
+}
+
+/* Elements that had dark background in light mode */
+html.dark .bg-\[\#3A291E\],
+html.dark .bg-\[\#3A2A1E\],
+html.dark .bg-\[\#4A392D\],
+html.dark .bg-\[\#4A3728\],
+html.dark .bg-\[\#2B1D14\],
+html.dark .bg-\[\#251A13\],
+html.dark .bg-\[\#34261C\] {
+  background-color: #332821 !important;
+  color: #F7EFE8 !important;
+  border-color: #4C3C32 !important;
+}
+
+/* Hover States in Dark Mode */
+html.dark .hover\:bg-\[\#FAF7F2\]:hover,
+html.dark .hover\:bg-\[\#F2E8DC\]:hover,
+html.dark .hover\:bg-\[\#EFE8DD\]:hover,
+html.dark .hover\:bg-\[\#F2ECE3\]:hover,
+html.dark .hover\:bg-\[\#EAE0D3\]:hover,
+html.dark .hover\:bg-\[\#EFE0CE\]:hover {
+  background-color: #332923 !important;
+}
+
+html.dark .hover\:text-\[\#2B1D14\]:hover,
+html.dark .hover\:text-\[\#2C2118\]:hover {
+  color: #FFFFFF !important;
+}
+
+/* Scrollbars in dark mode */
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(210, 165, 120, 0.28);
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(210, 165, 120, 0.45);
 }
 
