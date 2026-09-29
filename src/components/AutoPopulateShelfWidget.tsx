@@ -108,9 +108,17 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
     }
   };
 
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!queryName.trim()) return;
+  const handleExecutePopulate = async (customQuery?: string, customType?: ShelfItemType) => {
+    const targetQuery = (customQuery !== undefined ? customQuery : queryName).trim();
+    const targetType = customType || itemType;
+    if (!targetQuery) return;
+
+    if (customQuery !== undefined) {
+      setQueryName(customQuery);
+    }
+    if (customType) {
+      setItemType(customType);
+    }
 
     setIsLoading(true);
     setError(null);
@@ -121,13 +129,13 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
 
     try {
       // 1. Check unification against registered items
-      const unifyPromise = authApi.unifyItem(queryName.trim(), itemType as any).catch(() => null);
+      const unifyPromise = authApi.unifyItem(targetQuery, targetType as any).catch(() => null);
 
       // 2. Query AI/heuristic specifications
       const popPromise = fetch('/api/ai/populate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemType, name: queryName.trim() }),
+        body: JSON.stringify({ itemType: targetType, name: targetQuery }),
       }).then((r) => r.json());
 
       const [unifyData, popData] = await Promise.all([unifyPromise, popPromise]);
@@ -150,6 +158,11 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleExecutePopulate();
   };
 
   const handleConfirmAdd = () => {
@@ -386,15 +399,16 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
                     {itemType === 'coffee' && registeredCoffees.length > 0 && (
                       <div className="pt-2">
                         <span className="text-[9px] uppercase font-bold text-[#8C7A6D] block mb-1">
-                          Recommended from Community Catalog:
+                          Recommended from Community Catalog (Click to Auto-Fill):
                         </span>
                         <div className="flex flex-wrap gap-1">
-                          {registeredCoffees.slice(0, 3).map((c) => (
+                          {registeredCoffees.slice(0, 4).map((c) => (
                             <button
                               key={c.id}
                               type="button"
-                              onClick={() => setQueryName(`${c.roaster} ${c.name}`)}
-                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E8DCCF] text-[#4A3728] rounded-md transition-colors truncate max-w-[170px] cursor-pointer"
+                              onClick={() => handleExecutePopulate(`${c.roaster} ${c.name}`, 'coffee')}
+                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E2D2BF] text-[#4A3728] rounded-md transition-colors truncate max-w-[200px] cursor-pointer font-medium border border-[#DACDC0]/60 hover:border-[#C87D32]"
+                              title={`Auto-populate ${c.roaster} ${c.name}`}
                             >
                               ★ {c.generalRating.toFixed(1)} {c.name}
                             </button>
@@ -405,15 +419,16 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
                     {itemType === 'equipment' && registeredEquipment.length > 0 && (
                       <div className="pt-2">
                         <span className="text-[9px] uppercase font-bold text-[#8C7A6D] block mb-1">
-                          Recommended Gear:
+                          Recommended Gear (Click to Auto-Fill):
                         </span>
                         <div className="flex flex-wrap gap-1">
-                          {registeredEquipment.slice(0, 3).map((e) => (
+                          {registeredEquipment.slice(0, 4).map((e) => (
                             <button
                               key={e.id}
                               type="button"
-                              onClick={() => setQueryName(`${e.brand} ${e.name}`)}
-                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E8DCCF] text-[#4A3728] rounded-md transition-colors truncate max-w-[170px] cursor-pointer"
+                              onClick={() => handleExecutePopulate(`${e.brand} ${e.name}`, 'equipment')}
+                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E2D2BF] text-[#4A3728] rounded-md transition-colors truncate max-w-[200px] cursor-pointer font-medium border border-[#DACDC0]/60 hover:border-[#C87D32]"
+                              title={`Auto-populate ${e.brand} ${e.name}`}
                             >
                               ★ {e.generalRating.toFixed(1)} {e.name}
                             </button>
@@ -424,15 +439,16 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
                     {itemType === 'cafe' && registeredCafes.length > 0 && (
                       <div className="pt-2">
                         <span className="text-[9px] uppercase font-bold text-[#8C7A6D] block mb-1">
-                          Recommended Cafes:
+                          Recommended Cafes (Click to Auto-Fill):
                         </span>
                         <div className="flex flex-wrap gap-1">
-                          {registeredCafes.slice(0, 3).map((c) => (
+                          {registeredCafes.slice(0, 4).map((c) => (
                             <button
                               key={c.id}
                               type="button"
-                              onClick={() => setQueryName(`${c.name} ${c.city}`)}
-                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E8DCCF] text-[#4A3728] rounded-md transition-colors truncate max-w-[170px] cursor-pointer"
+                              onClick={() => handleExecutePopulate(`${c.name} ${c.city}`, 'cafe')}
+                              className="text-[10px] px-2 py-0.5 bg-[#F2E8DC] hover:bg-[#E2D2BF] text-[#4A3728] rounded-md transition-colors truncate max-w-[200px] cursor-pointer font-medium border border-[#DACDC0]/60 hover:border-[#C87D32]"
+                              title={`Auto-populate ${c.name} (${c.city})`}
                             >
                               ★ {c.generalRating.toFixed(1)} {c.name}
                             </button>

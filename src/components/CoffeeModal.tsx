@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Plus, Search, Check, Info } from 'lucide-react';
+import { X, Sparkles, Plus, Search, Check, Info, Loader2 } from 'lucide-react';
 import { Coffee, ProcessType, RoastLevel, Shelf, RegisteredCoffee } from '../types/coffee';
 import { StarRatingInput, StarRatingDisplay } from './StarRating';
 import { COMMON_FLAVORS } from '../data/initialData';
@@ -82,6 +82,47 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
   const [description, setDescription] = useState(initialCoffee?.description || '');
   const [registeredSearchQuery, setRegisteredSearchQuery] = useState('');
   const [showAllRegistered, setShowAllRegistered] = useState(false);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [autoFillError, setAutoFillError] = useState<string | null>(null);
+
+  const handleAutoFillSpecs = async () => {
+    if (!name.trim()) return;
+    setIsAutoFilling(true);
+    setAutoFillError(null);
+    try {
+      const query = roaster.trim() ? `${roaster} ${name}` : name.trim();
+      const res = await fetch('/api/ai/populate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemType: 'coffee', name: query }),
+      }).then((r) => r.json());
+
+      if (res && res.success && res.item) {
+        const item = res.item;
+        if (item.name) setName(item.name);
+        if (item.roaster) setRoaster(item.roaster);
+        if (item.origin?.country) setCountry(item.origin.country);
+        if (item.origin?.region) setRegion(item.origin.region);
+        if (item.origin?.farmOrStation) setFarmOrStation(item.origin.farmOrStation);
+        if (item.origin?.producer) setProducer(item.origin.producer);
+        if (item.origin?.elevationMeters) setElevationMeters(item.origin.elevationMeters);
+        if (item.variety) setVariety(item.variety);
+        if (item.process) setProcess(item.process);
+        if (item.roastLevel) setRoastLevel(item.roastLevel);
+        if (Array.isArray(item.tastingNotesSummary) && item.tastingNotesSummary.length > 0) {
+          setFlavorTags(item.tastingNotesSummary);
+        }
+        if (item.description) setDescription(item.description);
+        if (item.coverColor) setCoverColor(item.coverColor);
+      } else {
+        setAutoFillError('Could not auto-populate bean specs online.');
+      }
+    } catch {
+      setAutoFillError('Failed to auto-populate specifications.');
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
 
   // Match against registered items by clean name and roaster
   const matchingRegistered = registeredCoffees.find(
@@ -301,9 +342,27 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
           {/* Coffee Name & Roaster */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#5B473A] uppercase tracking-wider mb-1">
-                Coffee Bean Name
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-[#5B473A] uppercase tracking-wider">
+                  Coffee Bean Name
+                </label>
+                {name.trim().length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleAutoFillSpecs}
+                    disabled={isAutoFilling}
+                    className="text-[11px] font-semibold text-[#C87D32] hover:text-[#9E5D1D] flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                    title="Auto-fill origin, process, notes, and specs from online lookup"
+                  >
+                    {isAutoFilling ? (
+                      <Loader2 className="w-3 h-3 animate-spin text-[#C87D32]" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-[#C87D32]" />
+                    )}
+                    <span>{isAutoFilling ? 'Looking up...' : 'Auto-Fill Specs'}</span>
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 value={name}
@@ -312,6 +371,9 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
                 className="w-full px-3 py-2 bg-white rounded-lg border border-[#DACDC0] text-sm text-[#2C2118]"
                 required
               />
+              {autoFillError && (
+                <p className="text-[10px] text-red-600 mt-1">{autoFillError}</p>
+              )}
             </div>
 
             <div>

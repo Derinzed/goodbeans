@@ -1559,6 +1559,7 @@ export default function App() {
         <CoffeeModal
           initialCoffee={editingCoffee}
           shelves={shelves}
+          registeredCoffees={registeredCoffees}
           onSave={handleSaveCoffee}
           onClose={() => {
             setIsCoffeeModalOpen(false);
@@ -1600,6 +1601,7 @@ export default function App() {
       {isEquipmentModalOpen && (
         <EquipmentModal
           initialEquipment={editingEquipment}
+          registeredEquipment={registeredEquipment}
           onSave={handleSaveEquipment}
           onClose={() => {
             setIsEquipmentModalOpen(false);
@@ -1612,6 +1614,7 @@ export default function App() {
       {isCafeModalOpen && (
         <CafeModal
           initialCafe={editingCafe}
+          registeredCafes={registeredCafes}
           onSave={handleSaveCafe}
           onClose={() => {
             setIsCafeModalOpen(false);
@@ -1748,6 +1751,9 @@ export default function App() {
       <AutoPopulateShelfWidget
         currentView={currentView}
         activeShelfId={activeShelfId}
+        registeredCoffees={registeredCoffees}
+        registeredEquipment={registeredEquipment}
+        registeredCafes={registeredCafes}
         onAddCoffee={(newCoffee) => {
           setCoffees((prev) => [newCoffee, ...prev]);
           setSelectedCoffeeId(newCoffee.id);
@@ -1764,6 +1770,22 @@ export default function App() {
         onAddNote={(newNote) => {
           setNotes((prev) => [newNote, ...prev]);
           setCurrentView('notes');
+        }}
+        onOpenEditCoffee={(c) => {
+          setEditingCoffee(c);
+          setIsCoffeeModalOpen(true);
+        }}
+        onOpenEditEquipment={(e) => {
+          setEditingEquipment(e);
+          setIsEquipmentModalOpen(true);
+        }}
+        onOpenEditCafe={(c) => {
+          setEditingCafe(c);
+          setIsCafeModalOpen(true);
+        }}
+        onOpenEditNote={(n) => {
+          setEditingNote(n);
+          setIsNoteModalOpen(true);
         }}
       />
     </div>

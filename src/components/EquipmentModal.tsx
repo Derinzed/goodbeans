@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Wrench, Sparkles, Search, Check, Info } from 'lucide-react';
+import { X, Wrench, Sparkles, Search, Check, Info, Loader2 } from 'lucide-react';
 import { Equipment, EquipmentCategory, RegisteredEquipment } from '../types/coffee';
 import { StarRatingInput, StarRatingDisplay } from './StarRating';
 
@@ -48,6 +48,40 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
   const [rating, setRating] = useState<number>(initialEquipment?.rating || 4.5);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllRegistered, setShowAllRegistered] = useState(false);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [autoFillError, setAutoFillError] = useState<string | null>(null);
+
+  const handleAutoFillSpecs = async () => {
+    if (!name.trim()) return;
+    setIsAutoFilling(true);
+    setAutoFillError(null);
+    try {
+      const query = brand.trim() ? `${brand} ${name}` : name.trim();
+      const res = await fetch('/api/ai/populate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemType: 'equipment', name: query }),
+      }).then((r) => r.json());
+
+      if (res && res.success && res.item) {
+        const item = res.item;
+        if (item.name) setName(item.name);
+        if (item.brand) setBrand(item.brand);
+        if (item.category && CATEGORIES.includes(item.category)) {
+          setCategory(item.category);
+        }
+        if (item.settingsNotes) setSettingsNotes(item.settingsNotes);
+        if (item.maintenanceNotes) setMaintenanceNotes(item.maintenanceNotes);
+        if (item.generalNotes) setGeneralNotes(item.generalNotes);
+      } else {
+        setAutoFillError('Could not auto-populate gear specs online.');
+      }
+    } catch {
+      setAutoFillError('Failed to auto-populate specifications.');
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
 
   // Match against registered items by clean name and brand/category
   const matchingRegistered = registeredEquipment.find(
@@ -213,9 +247,27 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
           {/* Name & Brand */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#5B473A] uppercase tracking-wider mb-1">
-                Equipment Model / Name
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-[#5B473A] uppercase tracking-wider">
+                  Equipment Model / Name
+                </label>
+                {name.trim().length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleAutoFillSpecs}
+                    disabled={isAutoFilling}
+                    className="text-[11px] font-semibold text-[#C87D32] hover:text-[#9E5D1D] flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                    title="Auto-fill brand, category, dial-in settings, and notes from online lookup"
+                  >
+                    {isAutoFilling ? (
+                      <Loader2 className="w-3 h-3 animate-spin text-[#C87D32]" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 text-[#C87D32]" />
+                    )}
+                    <span>{isAutoFilling ? 'Looking up...' : 'Auto-Fill Specs'}</span>
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 value={name}
@@ -224,6 +276,9 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
                 className="w-full px-3 py-2 bg-white rounded-lg border border-[#DACDC0] text-sm text-[#2C2118]"
                 required
               />
+              {autoFillError && (
+                <p className="text-[10px] text-red-600 mt-1">{autoFillError}</p>
+              )}
             </div>
 
             <div>
