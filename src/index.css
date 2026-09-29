@@ -34,15 +34,24 @@ h1, h2, h3, .font-serif {
 
 /* ==========================================================================
    Goodbeans Dark Roast Theme
-   Rich espresso, obsidian, roasted chestnut, and warm crema amber palette
+   Rich espresso, obsidian, roasted chestnut, and user-customizable primary/secondary hues
    ========================================================================== */
+
+:root {
+  --dark-primary: #C87D32;
+  --dark-primary-hover: #B06B26;
+  --dark-secondary: #ECA357;
+  --dark-secondary-bg: rgba(236, 163, 87, 0.15);
+  --dark-secondary-border: rgba(236, 163, 87, 0.3);
+  --dark-bg: #14110F;
+}
 
 html.dark {
   color-scheme: dark;
 }
 
 html.dark body {
-  background-color: #14110F;
+  background-color: var(--dark-bg, #14110F);
   color: #EDE4DC;
 }
 
@@ -52,19 +61,19 @@ html.dark .bg-\[\#F7F1E9\],
 html.dark .bg-\[\#FAF8F5\],
 html.dark .bg-\[\#FAF2E8\],
 html.dark .bg-\[\#FFFDF9\] {
-  background-color: #14110F !important;
+  background-color: var(--dark-bg, #14110F) !important;
 }
 
 /* Top Header */
 html.dark header {
-  background-color: rgba(28, 23, 20, 0.94) !important;
-  border-color: #382D26 !important;
+  background-color: color-mix(in srgb, var(--dark-bg, #14110F) 88%, transparent) !important;
+  border-color: color-mix(in srgb, var(--dark-bg, #14110F) 72%, white 28%) !important;
 }
 
 /* Primary Cards, Panels, Modals, and White containers */
 html.dark .bg-\[\#FAF7F2\],
 html.dark .bg-white {
-  background-color: #1E1815 !important;
+  background-color: color-mix(in srgb, var(--dark-bg, #14110F) 86%, white 14%) !important;
 }
 
 /* Secondary Surfaces, Chip containers, and Embedded sections */
@@ -78,21 +87,55 @@ html.dark .bg-\[\#F0E6DB\],
 html.dark .bg-\[\#EFE8DD\],
 html.dark .bg-\[\#EFE7DC\],
 html.dark .bg-\[\#F6EFE6\],
-html.dark .bg-\[\#FAF3EC\],
-html.dark .bg-\[\#FAF1E4\],
 html.dark .bg-\[\#F2E9DE\],
 html.dark .bg-\[\#EFE0CE\],
-html.dark .bg-\[\#FBEEDC\],
 html.dark .bg-\[\#E8DCCF\] {
-  background-color: #29221D !important;
+  background-color: color-mix(in srgb, var(--dark-bg, #14110F) 76%, white 24%) !important;
+}
+
+/* Primary Accent Hue Mappings in Dark Mode */
+html.dark .bg-\[\#C87D32\] {
+  background-color: var(--dark-primary, #C87D32) !important;
+}
+html.dark .hover\:bg-\[\#B06B26\]:hover {
+  background-color: var(--dark-primary-hover, #B06B26) !important;
+}
+html.dark .text-\[\#C87D32\] {
+  color: var(--dark-primary, #C87D32) !important;
+}
+html.dark .border-\[\#C87D32\] {
+  border-color: var(--dark-primary, #C87D32) !important;
+}
+html.dark .hover\:border-\[\#C87D32\]:hover {
+  border-color: var(--dark-primary, #C87D32) !important;
+}
+html.dark .focus\:ring-\[\#C87D32\]:focus,
+html.dark .focus\:ring-\[\#C87D32\]\/40:focus {
+  --tw-ring-color: var(--dark-primary, #C87D32) !important;
+}
+
+/* Secondary Accent Hue Mappings in Dark Mode */
+html.dark .text-\[\#8C4F1A\],
+html.dark .text-\[\#9B551C\],
+html.dark .text-\[\#8B4822\],
+html.dark .text-\[\#9E5D1D\] {
+  color: var(--dark-secondary, #ECA357) !important;
+}
+
+html.dark .bg-\[\#FAF3EC\],
+html.dark .bg-\[\#FAF1E4\],
+html.dark .bg-\[\#FBEEDC\],
+html.dark .bg-\[\#E8DCB8\] {
+  background-color: var(--dark-secondary-bg, rgba(236, 163, 87, 0.15)) !important;
+  border-color: var(--dark-secondary-border, rgba(236, 163, 87, 0.3)) !important;
 }
 
 /* Form Controls & Inputs */
 html.dark input:not([type="checkbox"]):not([type="radio"]),
 html.dark textarea,
 html.dark select {
-  background-color: #261F1A !important;
-  border-color: #44362D !important;
+  background-color: color-mix(in srgb, var(--dark-bg, #14110F) 80%, white 20%) !important;
+  border-color: color-mix(in srgb, var(--dark-bg, #14110F) 64%, white 36%) !important;
   color: #F4EDE6 !important;
 }
 html.dark input::placeholder,
@@ -147,7 +190,7 @@ html.dark .text-\[\#8C4F1A\],
 html.dark .text-\[\#9B551C\],
 html.dark .text-\[\#8B4822\],
 html.dark .text-\[\#9E5D1D\] {
-  color: #ECA357 !important;
+  color: var(--dark-secondary, #ECA357) !important;
 }
 
 /* Borders across elements */
@@ -169,7 +212,7 @@ html.dark .border-\[\#E8DACB\],
 html.dark .border-\[\#D5C4B2\],
 html.dark .border-\[\#DDBF96\],
 html.dark .border-\[\#C7B7A7\] {
-  border-color: #382D26 !important;
+  border-color: color-mix(in srgb, var(--dark-bg, #14110F) 70%, white 30%) !important;
 }
 
 /* Elements that had dark background in light mode */
@@ -180,9 +223,9 @@ html.dark .bg-\[\#4A3728\],
 html.dark .bg-\[\#2B1D14\],
 html.dark .bg-\[\#251A13\],
 html.dark .bg-\[\#34261C\] {
-  background-color: #332821 !important;
+  background-color: color-mix(in srgb, var(--dark-bg, #14110F) 65%, white 35%) !important;
   color: #F7EFE8 !important;
-  border-color: #4C3C32 !important;
+  border-color: color-mix(in srgb, var(--dark-bg, #14110F) 55%, white 45%) !important;
 }
 
 /* Hover States in Dark Mode */
@@ -192,7 +235,7 @@ html.dark .hover\:bg-\[\#EFE8DD\]:hover,
 html.dark .hover\:bg-\[\#F2ECE3\]:hover,
 html.dark .hover\:bg-\[\#EAE0D3\]:hover,
 html.dark .hover\:bg-\[\#EFE0CE\]:hover {
-  background-color: #332923 !important;
+  background-color: color-mix(in srgb, var(--dark-bg, #14110F) 70%, white 30%) !important;
 }
 
 html.dark .hover\:text-\[\#2B1D14\]:hover,

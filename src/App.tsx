@@ -19,6 +19,7 @@ import {
   FileText,
   Sun,
   Moon,
+  Palette,
 } from 'lucide-react';
 import {
   Coffee,
@@ -51,6 +52,7 @@ import { NoteModal } from './components/NoteModal';
 import { ShelfModal } from './components/ShelfModal';
 import { BrewTimerModal } from './components/BrewTimerModal';
 import { StatsModal } from './components/StatsModal';
+import { DarkHueModal } from './components/DarkHueModal';
 import { CoffeeChallengeWidget } from './components/CoffeeChallengeWidget';
 import { AutoPopulateShelfWidget } from './components/AutoPopulateShelfWidget';
 
@@ -159,6 +161,33 @@ export default function App() {
     }
   });
 
+  // Dark view customizable hues & background
+  const [primaryHue, setPrimaryHue] = useState<string>(() => {
+    try {
+      return localStorage.getItem('goodbeans_dark_primary_hue') || '#C87D32';
+    } catch {
+      return '#C87D32';
+    }
+  });
+
+  const [secondaryHue, setSecondaryHue] = useState<string>(() => {
+    try {
+      return localStorage.getItem('goodbeans_dark_secondary_hue') || '#ECA357';
+    } catch {
+      return '#ECA357';
+    }
+  });
+
+  const [backgroundColor, setBackgroundColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('goodbeans_dark_bg') || '#14110F';
+    } catch {
+      return '#14110F';
+    }
+  });
+
+  const [isHueModalOpen, setIsHueModalOpen] = useState(false);
+
   useEffect(() => {
     try {
       localStorage.setItem('goodbeans_theme', theme);
@@ -171,6 +200,30 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Synchronize CSS custom properties with current hues & background
+  useEffect(() => {
+    try {
+      localStorage.setItem('goodbeans_dark_primary_hue', primaryHue);
+      localStorage.setItem('goodbeans_dark_secondary_hue', secondaryHue);
+      localStorage.setItem('goodbeans_dark_bg', backgroundColor);
+    } catch {
+      // ignore
+    }
+    const root = document.documentElement;
+    root.style.setProperty('--dark-primary', primaryHue);
+    root.style.setProperty('--dark-primary-hover', `color-mix(in srgb, ${primaryHue} 85%, black)`);
+    root.style.setProperty('--dark-secondary', secondaryHue);
+    root.style.setProperty('--dark-secondary-bg', `color-mix(in srgb, ${secondaryHue} 18%, transparent)`);
+    root.style.setProperty('--dark-secondary-border', `color-mix(in srgb, ${secondaryHue} 35%, transparent)`);
+    root.style.setProperty('--dark-bg', backgroundColor);
+  }, [primaryHue, secondaryHue, backgroundColor]);
+
+  const handleResetHues = () => {
+    setPrimaryHue('#C87D32');
+    setSecondaryHue('#ECA357');
+    setBackgroundColor('#14110F');
+  };
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
@@ -592,6 +645,36 @@ export default function App() {
 
         {/* Zone 3: 1-2 primary actions & theme toggle in upper right corner */}
         <div className="flex items-center gap-2">
+          {/* Dark View Palette & Background Customizer Button */}
+          {theme === 'dark' && (
+            <button
+              onClick={() => setIsHueModalOpen(true)}
+              aria-label="Customize dark view colors"
+              title="Customize dark view primary hue, secondary hue & background"
+              className="px-2.5 py-1.5 text-xs text-[#EDE4DC] bg-[#261F1A] hover:bg-[#332923] rounded-lg transition-colors cursor-pointer border border-[#3D3128] flex items-center gap-1.5 shadow-2xs font-medium"
+            >
+              <Palette className="w-3.5 h-3.5" style={{ color: primaryHue }} />
+              <span className="hidden sm:inline">Palette</span>
+              <div className="flex items-center -space-x-1">
+                <span
+                  className="w-2.5 h-2.5 rounded-full border border-black/40 z-20"
+                  style={{ backgroundColor: primaryHue }}
+                  title="Primary hue"
+                />
+                <span
+                  className="w-2.5 h-2.5 rounded-full border border-black/40 z-10"
+                  style={{ backgroundColor: secondaryHue }}
+                  title="Secondary hue"
+                />
+                <span
+                  className="w-2.5 h-2.5 rounded-full border border-white/20 z-0"
+                  style={{ backgroundColor: backgroundColor }}
+                  title="Background color"
+                />
+              </div>
+            </button>
+          )}
+
           {/* Theme Toggle Button in Upper Right */}
           <button
             onClick={toggleTheme}
@@ -710,24 +793,45 @@ export default function App() {
           >
             Year in Coffee Analytics
           </button>
-          <div className="pt-2 border-t border-[#E5DACD] flex items-center justify-between">
-            <span className="text-xs text-[#6B5A4E]">Appearance</span>
-            <button
-              onClick={toggleTheme}
-              className="px-2.5 py-1 text-xs rounded-md border border-[#E5DACD] flex items-center gap-1.5 text-[#3B291D]"
-            >
-              {theme === 'dark' ? (
-                <>
-                  <Sun className="w-3.5 h-3.5 text-[#F3A63B]" />
-                  <span>Light Mode</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-3.5 h-3.5 text-[#5D4738]" />
-                  <span>Dark Roast</span>
-                </>
-              )}
-            </button>
+          <div className="pt-2 border-t border-[#E5DACD] flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[#6B5A4E]">Appearance</span>
+              <button
+                onClick={toggleTheme}
+                className="px-2.5 py-1 text-xs rounded-md border border-[#E5DACD] flex items-center gap-1.5 text-[#3B291D]"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-[#F3A63B]" />
+                    <span>Light Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-[#5D4738]" />
+                    <span>Dark Roast</span>
+                  </>
+                )}
+              </button>
+            </div>
+            {theme === 'dark' && (
+              <button
+                onClick={() => {
+                  setIsHueModalOpen(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full text-left font-medium py-1.5 px-2 rounded-md bg-[#261F1A] border border-[#3D3128] flex items-center justify-between text-xs text-[#EDE4DC]"
+              >
+                <span className="flex items-center gap-2">
+                  <Palette className="w-3.5 h-3.5" style={{ color: primaryHue }} />
+                  Customize Palette & Background
+                </span>
+                <div className="flex items-center -space-x-1">
+                  <span className="w-3 h-3 rounded-full border border-black/40 z-20" style={{ backgroundColor: primaryHue }} />
+                  <span className="w-3 h-3 rounded-full border border-black/40 z-10" style={{ backgroundColor: secondaryHue }} />
+                  <span className="w-3 h-3 rounded-full border border-white/20 z-0" style={{ backgroundColor: backgroundColor }} />
+                </div>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1148,6 +1252,19 @@ export default function App() {
           onClose={() => setIsStatsModalOpen(false)}
         />
       )}
+
+      {/* 9b. Dark View Hue & Background Customizer Modal */}
+      <DarkHueModal
+        isOpen={isHueModalOpen}
+        onClose={() => setIsHueModalOpen(false)}
+        primaryHue={primaryHue}
+        secondaryHue={secondaryHue}
+        backgroundColor={backgroundColor}
+        onPrimaryHueChange={setPrimaryHue}
+        onSecondaryHueChange={setSecondaryHue}
+        onBackgroundColorChange={setBackgroundColor}
+        onReset={handleResetHues}
+      />
 
       {/* 10. AI Auto-Populate Shelf Widget (Fixed Bottom-Right) */}
       <AutoPopulateShelfWidget
