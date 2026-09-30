@@ -9,7 +9,12 @@ const __dirname = path.dirname(__filename);
 // Root data directory
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+const GUESTS_FILE = path.join(DATA_DIR, 'guests.json');
 const COMMUNITY_ITEMS_FILE = path.join(DATA_DIR, 'community_items.json');
+
+// Stable persistent secret for signing session tokens across server reboots
+const SERVER_SECRET = process.env.SESSION_SECRET || 'goodbeans-secret-key-salt-2026-coffee-shelves';
 
 export interface UserDataPayload {
   coffees?: any[];
@@ -40,6 +45,24 @@ export interface SessionToken {
   token: string;
   userId: string;
   createdAt: number;
+}
+
+export interface StoredCommunityItem {
+  id: string;
+  name: string;
+  secondary: string; // roaster, brand, or city
+  type: 'coffee' | 'equipment' | 'cafe';
+  // Ratings given by each user or session: userId -> rating (0.5 to 5.0)
+  userRatings: Record<string, number>;
+  // Baseline initial seed rating for specialty roaster catalog
+  baseRating?: number;
+  baseRatingsCount?: number;
+  generalRating: number;
+  ratingsCount: number;
+  userCount: number;
+  itemData: any;
+  createdAt: string;
+  updatedAt: string;
 }
 
 function normalizeString(str: string): string {
@@ -78,20 +101,53 @@ function calculateSimilarity(a: string, b: string): number {
   return unionCount > 0 ? intersectionCount / unionCount : 0;
 }
 
-// In-memory token session store (persisted in memory for fast lookup)
-const activeSessions = new Map<string, SessionToken>();
-
 function hashPassword(password: string, salt: string): string {
   return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
 }
 
+// Token signing: gb_<userId>_<timestamp>_<hmac>
+function signToken(userId: string, timestamp: number): string {
+  const payload = `${userId}.${timestamp}`;
+  const hmac = crypto.createHmac('sha256', SERVER_SECRET).update(payload).digest('hex').slice(0, 32);
+  return `gb_${userId}_${timestamp}_${hmac}`;
+}
+
+function verifyTokenFormat(token: string): { userId: string; timestamp: number } | null {
+  if (!token || !token.startsWith('gb_')) return null;
+  const parts = token.slice(3).split('_');
+  if (parts.length < 3) return null;
+
+  const hmac = parts[parts.length - 1];
+  const timestampStr = parts[parts.length - 2];
+  const userId = parts.slice(0, parts.length - 2).join('_');
+  const timestamp = parseInt(timestampStr, 10);
+
+  if (!userId || isNaN(timestamp)) return null;
+
+  // Check 60 days expiration
+  const maxAgeMs = 60 * 24 * 60 * 60 * 1000;
+  if (Date.now() - timestamp > maxAgeMs) return null;
+
+  const expectedHmac = crypto
+    .createHmac('sha256', SERVER_SECRET)
+    .update(`${userId}.${timestamp}`)
+    .digest('hex')
+    .slice(0, 32);
+
+  if (crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expectedHmac))) {
+    return { userId, timestamp };
+  }
+  return null;
+}
+
 export class AuthStore {
-  private static ensureStorage() {
+  public static ensureStorage() {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
+
+    // 1. Seed USERS_FILE
     if (!fs.existsSync(USERS_FILE)) {
-      // Seed default admin account
       const adminSalt = crypto.randomBytes(16).toString('hex');
       const adminPasswordHash = hashPassword('admin123', adminSalt);
       const defaultAdmin: StoredUser = {
@@ -107,22 +163,166 @@ export class AuthStore {
       };
       fs.writeFileSync(USERS_FILE, JSON.stringify([defaultAdmin], null, 2), 'utf-8');
     }
-  }
 
-  public static getUsers(): StoredUser[] {
-    this.ensureStorage();
-    try {
-      const content = fs.readFileSync(USERS_FILE, 'utf-8');
-      return JSON.parse(content || '[]');
-    } catch (err) {
-      console.error('Error reading users file:', err);
-      return [];
+    // 2. Seed SESSIONS_FILE
+    if (!fs.existsSync(SESSIONS_FILE)) {
+      fs.writeFileSync(SESSIONS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    }
+
+    // 3. Seed GUESTS_FILE
+    if (!fs.existsSync(GUESTS_FILE)) {
+      fs.writeFileSync(GUESTS_FILE, JSON.stringify({}, null, 2), 'utf-8');
+    }
+
+    // 4. Seed COMMUNITY_ITEMS_FILE
+    if (!fs.existsSync(COMMUNITY_ITEMS_FILE)) {
+      // Seed with initial coffees, equipment, and cafes
+      const initialCatalog: {
+        coffees: StoredCommunityItem[];
+        equipment: StoredCommunityItem[];
+        cafes: StoredCommunityItem[];
+      } = {
+        coffees: [],
+        equipment: [],
+        cafes: [],
+      };
+
+      INITIAL_COFFEES.forEach((c) => {
+        const cleanName = (c.name || '').trim();
+        const cleanRoaster = (c.roaster || '').trim();
+        const baseRating = typeof c.communityRating === 'number' && c.communityRating > 0 ? c.communityRating : 4.7;
+        const baseCount = typeof c.communityRatingsCount === 'number' && c.communityRatingsCount > 0 ? c.communityRatingsCount : 24;
+
+        initialCatalog.coffees.push({
+          id: c.id,
+          name: cleanName,
+          secondary: cleanRoaster,
+          type: 'coffee',
+          userRatings: {},
+          baseRating,
+          baseRatingsCount: baseCount,
+          generalRating: baseRating,
+          ratingsCount: baseCount,
+          userCount: baseCount,
+          itemData: c,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      });
+
+      INITIAL_EQUIPMENT.forEach((eq) => {
+        const cleanName = (eq.name || '').trim();
+        const cleanBrand = (eq.brand || '').trim();
+        const baseRating = typeof eq.rating === 'number' && eq.rating > 0 ? eq.rating : 4.8;
+        const baseCount = 18;
+
+        initialCatalog.equipment.push({
+          id: eq.id,
+          name: cleanName,
+          secondary: cleanBrand,
+          type: 'equipment',
+          userRatings: {},
+          baseRating,
+          baseRatingsCount: baseCount,
+          generalRating: baseRating,
+          ratingsCount: baseCount,
+          userCount: baseCount,
+          itemData: eq,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      });
+
+      INITIAL_CAFES.forEach((cafe) => {
+        const cleanName = (cafe.name || '').trim();
+        const cleanCity = (cafe.city || '').trim();
+        const baseRating = typeof cafe.rating === 'number' && cafe.rating > 0 ? cafe.rating : 4.8;
+        const baseCount = 35;
+
+        initialCatalog.cafes.push({
+          id: cafe.id,
+          name: cleanName,
+          secondary: cleanCity,
+          type: 'cafe',
+          userRatings: {},
+          baseRating,
+          baseRatingsCount: baseCount,
+          generalRating: baseRating,
+          ratingsCount: baseCount,
+          userCount: baseCount,
+          itemData: cafe,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      });
+
+      fs.writeFileSync(COMMUNITY_ITEMS_FILE, JSON.stringify(initialCatalog, null, 2), 'utf-8');
     }
   }
 
-  private static saveUsers(users: StoredUser[]): void {
+  // Safe file reader helper
+  private static readJsonFile<T>(filePath: string, fallback: T): T {
     this.ensureStorage();
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+    try {
+      if (!fs.existsSync(filePath)) return fallback;
+      const content = fs.readFileSync(filePath, 'utf-8');
+      return content ? JSON.parse(content) : fallback;
+    } catch (err) {
+      console.error(`Error reading ${filePath}:`, err);
+      return fallback;
+    }
+  }
+
+  // Safe atomic file writer
+  private static writeJsonFile(filePath: string, data: any): void {
+    this.ensureStorage();
+    const tempFile = `${filePath}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+    try {
+      fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+      fs.renameSync(tempFile, filePath);
+    } catch (err) {
+      console.error(`Error writing ${filePath}:`, err);
+      try {
+        if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+      } catch {}
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    }
+  }
+
+  public static getUsers(): StoredUser[] {
+    return this.readJsonFile<StoredUser[]>(USERS_FILE, []);
+  }
+
+  private static saveUsers(users: StoredUser[]): void {
+    this.writeJsonFile(USERS_FILE, users);
+  }
+
+  public static getSessions(): SessionToken[] {
+    return this.readJsonFile<SessionToken[]>(SESSIONS_FILE, []);
+  }
+
+  private static saveSessions(sessions: SessionToken[]): void {
+    this.writeJsonFile(SESSIONS_FILE, sessions);
+  }
+
+  public static getGuests(): Record<string, { data: UserDataPayload; updatedAt: string }> {
+    return this.readJsonFile<Record<string, { data: UserDataPayload; updatedAt: string }>>(GUESTS_FILE, {});
+  }
+
+  public static getGuestData(guestId: string): UserDataPayload | null {
+    if (!guestId) return null;
+    const guests = this.getGuests();
+    return guests[guestId]?.data || null;
+  }
+
+  public static saveGuestData(guestId: string, data: UserDataPayload): void {
+    if (!guestId) return;
+    const guests = this.getGuests();
+    guests[guestId] = {
+      data,
+      updatedAt: new Date().toISOString(),
+    };
+    this.writeJsonFile(GUESTS_FILE, guests);
   }
 
   public static findByUsername(username: string): StoredUser | null {
@@ -174,7 +374,6 @@ export class AuthStore {
 
     const testHash = hashPassword(password, user.salt);
     if (testHash === user.passwordHash) {
-      // update last login
       user.lastLoginAt = new Date().toISOString();
       const users = this.getUsers();
       const index = users.findIndex((u) => u.id === user.id);
@@ -188,24 +387,54 @@ export class AuthStore {
   }
 
   public static createSession(userId: string): string {
-    const token = `gb_${crypto.randomBytes(32).toString('hex')}`;
-    activeSessions.set(token, {
+    const timestamp = Date.now();
+    const token = signToken(userId, timestamp);
+
+    const sessions = this.getSessions();
+    sessions.push({
       token,
       userId,
-      createdAt: Date.now(),
+      createdAt: timestamp,
     });
+    // Keep last 1000 sessions
+    if (sessions.length > 1000) sessions.splice(0, sessions.length - 1000);
+    this.saveSessions(sessions);
+
     return token;
   }
 
   public static getUserByToken(token: string): StoredUser | null {
     if (!token) return null;
-    const session = activeSessions.get(token);
-    if (!session) return null;
-    return this.findById(session.userId);
+
+    // 1. First check persisted sessions list
+    const sessions = this.getSessions();
+    const sessionMatch = sessions.find((s) => s.token === token);
+    if (sessionMatch) {
+      return this.findById(sessionMatch.userId);
+    }
+
+    // 2. If session wasn't found in memory/file, verify cryptographic token format directly
+    const verified = verifyTokenFormat(token);
+    if (verified) {
+      const user = this.findById(verified.userId);
+      if (user) {
+        // Re-persist session into sessions.json
+        sessions.push({
+          token,
+          userId: verified.userId,
+          createdAt: verified.timestamp,
+        });
+        this.saveSessions(sessions);
+        return user;
+      }
+    }
+
+    return null;
   }
 
   public static deleteSession(token: string): void {
-    activeSessions.delete(token);
+    const sessions = this.getSessions().filter((s) => s.token !== token);
+    this.saveSessions(sessions);
   }
 
   public static updateUserData(userId: string, data: UserDataPayload): StoredUser {
@@ -234,12 +463,8 @@ export class AuthStore {
     users.splice(index, 1);
     this.saveUsers(users);
 
-    // Invalidate any active sessions for this user
-    for (const [token, session] of activeSessions.entries()) {
-      if (session.userId === userId) {
-        activeSessions.delete(token);
-      }
-    }
+    const sessions = this.getSessions().filter((s) => s.userId !== userId);
+    this.saveSessions(sessions);
     return true;
   }
 
@@ -273,30 +498,64 @@ export class AuthStore {
     });
   }
 
-  private static getCommunityItemsData(): { coffees: any[]; equipment: any[]; cafes: any[] } {
+  // --- COMMUNITY CATALOG & GENERAL RATING AGGREGATION SYSTEM ---
+
+  public static getCommunityItemsData(): {
+    coffees: StoredCommunityItem[];
+    equipment: StoredCommunityItem[];
+    cafes: StoredCommunityItem[];
+  } {
     this.ensureStorage();
-    if (!fs.existsSync(COMMUNITY_ITEMS_FILE)) {
-      return { coffees: [], equipment: [], cafes: [] };
-    }
-    try {
-      const content = fs.readFileSync(COMMUNITY_ITEMS_FILE, 'utf-8');
-      return JSON.parse(content || '{"coffees":[],"equipment":[],"cafes":[]}');
-    } catch {
-      return { coffees: [], equipment: [], cafes: [] };
-    }
+    return this.readJsonFile<{
+      coffees: StoredCommunityItem[];
+      equipment: StoredCommunityItem[];
+      cafes: StoredCommunityItem[];
+    }>(COMMUNITY_ITEMS_FILE, { coffees: [], equipment: [], cafes: [] });
   }
 
-  private static saveCommunityItemsData(data: { coffees: any[]; equipment: any[]; cafes: any[] }): void {
-    this.ensureStorage();
-    fs.writeFileSync(COMMUNITY_ITEMS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  public static saveCommunityItemsData(data: {
+    coffees: StoredCommunityItem[];
+    equipment: StoredCommunityItem[];
+    cafes: StoredCommunityItem[];
+  }): void {
+    this.writeJsonFile(COMMUNITY_ITEMS_FILE, data);
   }
 
+  // Calculate mathematically exact aggregate general rating across all user ratings
+  private static calculateAggregateRating(
+    userRatings: Record<string, number>,
+    baseRating?: number,
+    baseRatingsCount?: number
+  ): { generalRating: number; ratingsCount: number; userCount: number } {
+    const ratingsList = Object.values(userRatings || {}).filter(
+      (r): r is number => typeof r === 'number' && r > 0
+    );
+
+    const userSum = ratingsList.reduce((acc, r) => acc + r, 0);
+    const userCount = ratingsList.length;
+
+    const baseCount = typeof baseRatingsCount === 'number' ? baseRatingsCount : 0;
+    const baseSum = typeof baseRating === 'number' ? baseRating * baseCount : 0;
+
+    const totalSum = userSum + baseSum;
+    const totalCount = userCount + baseCount;
+
+    const generalRating = totalCount > 0 ? Number((totalSum / totalCount).toFixed(1)) : 4.5;
+
+    return {
+      generalRating,
+      ratingsCount: totalCount,
+      userCount,
+    };
+  }
+
+  // Record an item or user rating in the community catalog
   public static recordCommunityItem(
     type: 'coffee' | 'equipment' | 'cafe',
     item: any,
     userId: string = 'community-user',
     rating?: number
-  ): any {
+  ): StoredCommunityItem | null {
     const data = this.getCommunityItemsData();
     if (!data.coffees) data.coffees = [];
     if (!data.equipment) data.equipment = [];
@@ -306,11 +565,11 @@ export class AuthStore {
     const cleanName = (item.name || '').trim();
     if (!cleanName) return null;
 
-    const secondary = (item.roaster || item.brand || item.city || '').trim().toLowerCase();
-    const key = `${cleanName.toLowerCase()}::${secondary}`;
+    const secondary = (item.roaster || item.brand || item.city || '').trim();
+    const key = `${cleanName.toLowerCase()}::${secondary.toLowerCase()}`;
 
     const existingIndex = list.findIndex((x) => {
-      const xSec = (x.roaster || x.brand || x.city || '').trim().toLowerCase();
+      const xSec = (x.secondary || '').trim().toLowerCase();
       return `${(x.name || '').trim().toLowerCase()}::${xSec}` === key;
     });
 
@@ -325,121 +584,142 @@ export class AuthStore {
 
     if (existingIndex >= 0) {
       const existing = list[existingIndex];
-      if (!Array.isArray(existing.ratings)) existing.ratings = [];
-      if (parsedRating !== undefined) {
-        existing.ratings.push(parsedRating);
+      if (!existing.userRatings || typeof existing.userRatings !== 'object') {
+        existing.userRatings = {};
       }
-      if (!Array.isArray(existing.users)) existing.users = [];
-      if (userId && !existing.users.includes(userId)) {
-        existing.users.push(userId);
+
+      // Record this user's latest rating
+      if (parsedRating !== undefined && userId) {
+        existing.userRatings[userId] = parsedRating;
       }
-      list[existingIndex] = { ...existing, ...item, ratings: existing.ratings, users: existing.users };
+
+      const agg = this.calculateAggregateRating(
+        existing.userRatings,
+        existing.baseRating,
+        existing.baseRatingsCount
+      );
+
+      existing.generalRating = agg.generalRating;
+      existing.ratingsCount = agg.ratingsCount;
+      existing.userCount = agg.userCount;
+      existing.updatedAt = new Date().toISOString();
+      existing.itemData = { ...existing.itemData, ...item };
+
+      list[existingIndex] = existing;
       this.saveCommunityItemsData(data);
-      return list[existingIndex];
+      return existing;
     } else {
-      const newItem = {
-        ...item,
+      const userRatings: Record<string, number> = {};
+      if (parsedRating !== undefined && userId) {
+        userRatings[userId] = parsedRating;
+      }
+
+      const agg = this.calculateAggregateRating(userRatings, item.communityRating, item.communityRatingsCount);
+
+      const newItem: StoredCommunityItem = {
         id: item.id || `community-${type}-${Date.now()}`,
         name: cleanName,
-        ratings: parsedRating !== undefined ? [parsedRating] : [],
-        users: userId ? [userId] : [],
+        secondary,
+        type,
+        userRatings,
+        baseRating: item.communityRating || (parsedRating ? parsedRating : 4.5),
+        baseRatingsCount: item.communityRatingsCount || (parsedRating ? 1 : 0),
+        generalRating: agg.generalRating,
+        ratingsCount: agg.ratingsCount,
+        userCount: agg.userCount,
+        itemData: item,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
+
       list.push(newItem);
       this.saveCommunityItemsData(data);
       return newItem;
     }
   }
 
-  // Running catalog of all registered coffees across all users and defaults
+  // Running catalog of all registered coffees across all users, community ratings, and defaults
   public static getRegisteredCoffees(): any[] {
     const users = this.getUsers();
     const communityData = this.getCommunityItemsData();
     const coffeeMap = new Map<string, any>();
 
-    const processCoffeeItem = (c: any, userId?: string) => {
-      if (!c || !c.name || typeof c.name !== 'string') return;
-      const cleanName = c.name.trim();
-      const cleanRoaster = (c.roaster || '').trim();
+    // 1. Load community items as foundation
+    (communityData.coffees || []).forEach((c) => {
+      const cleanName = (c.name || '').trim();
+      const cleanRoaster = (c.secondary || c.itemData?.roaster || '').trim();
       const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
 
-      // Extract ratings (personal rating + any tasting logs + existing ratings array)
-      const ratings: number[] = [];
-      if (typeof c.userRating === 'number' && c.userRating > 0) ratings.push(c.userRating);
-      if (typeof c.rating === 'number' && c.rating > 0) ratings.push(c.rating);
-      if (Array.isArray(c.ratings)) {
-        c.ratings.forEach((r: any) => {
-          if (typeof r === 'number' && r > 0) ratings.push(r);
-        });
-      }
-      if (Array.isArray(c.tastingLogs)) {
-        c.tastingLogs.forEach((log: any) => {
-          if (typeof log?.rating === 'number' && log.rating > 0) ratings.push(log.rating);
-        });
-      }
+      const userRatings: Record<string, number> = { ...(c.userRatings || {}) };
 
-      const existing = coffeeMap.get(key);
-      if (existing) {
-        if (userId) existing.users.add(userId);
-        if (Array.isArray(c.users)) {
-          c.users.forEach((u: string) => existing.users.add(u));
-        }
-        ratings.forEach((r) => existing.ratings.push(r));
-        if (!existing.origin && c.origin) existing.origin = c.origin;
-        if (!existing.process && c.process) existing.process = c.process;
-        if (!existing.variety && c.variety) existing.variety = c.variety;
-        if (!existing.roastLevel && c.roastLevel) existing.roastLevel = c.roastLevel;
-        if (!existing.description && c.description) existing.description = c.description;
-        if (Array.isArray(c.tastingNotesSummary) && c.tastingNotesSummary.length > 0) {
-          existing.tastingNotesSummary = Array.from(
-            new Set([...existing.tastingNotesSummary, ...c.tastingNotesSummary])
-          );
-        }
-      } else {
-        const usersSet = new Set<string>();
-        if (userId) usersSet.add(userId);
-        if (Array.isArray(c.users)) {
-          c.users.forEach((u: string) => usersSet.add(u));
-        }
-        coffeeMap.set(key, {
-          id: c.id || `reg-coffee-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-          name: cleanName,
-          roaster: cleanRoaster || 'Artisan Roaster',
-          origin: c.origin || { country: 'Single Origin' },
-          variety: c.variety || 'Arabica',
-          process: c.process || 'Washed',
-          roastLevel: c.roastLevel || 'Medium',
-          coverColor: c.coverColor || '#C87D32',
-          description: c.description || '',
-          tastingNotesSummary: Array.isArray(c.tastingNotesSummary) ? c.tastingNotesSummary : [],
-          ratings: [...ratings],
-          users: usersSet,
-        });
-      }
-    };
+      coffeeMap.set(key, {
+        id: c.id,
+        name: cleanName,
+        roaster: cleanRoaster,
+        userRatings,
+        baseRating: c.baseRating || 4.7,
+        baseRatingsCount: c.baseRatingsCount || 24,
+        origin: c.itemData?.origin || { country: 'Single Origin' },
+        variety: c.itemData?.variety || 'Arabica',
+        process: c.itemData?.process || 'Washed',
+        roastLevel: c.itemData?.roastLevel || 'Medium',
+        coverColor: c.itemData?.coverColor || '#C87D32',
+        description: c.itemData?.description || '',
+        tastingNotesSummary: Array.isArray(c.itemData?.tastingNotesSummary)
+          ? c.itemData.tastingNotesSummary
+          : [],
+      });
+    });
 
-    // 1. Ingest initial seed catalog
-    INITIAL_COFFEES.forEach((c) => processCoffeeItem(c, 'seed-system'));
-
-    // 2. Ingest all user-added coffees from stored accounts
+    // 2. Scan all registered users and aggregate user ratings
     users.forEach((u) => {
       const userCoffees = u.data?.coffees;
       if (Array.isArray(userCoffees)) {
-        userCoffees.forEach((c) => processCoffeeItem(c, u.id));
+        userCoffees.forEach((uc) => {
+          if (!uc || !uc.name) return;
+          const cleanName = (uc.name || '').trim();
+          const cleanRoaster = (uc.roaster || '').trim();
+          const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
+
+          // Personal rating or tasting logs average
+          let userRating = typeof uc.userRating === 'number' && uc.userRating > 0 ? uc.userRating : 0;
+          if (!userRating && Array.isArray(uc.tastingLogs) && uc.tastingLogs.length > 0) {
+            const validLogs = uc.tastingLogs.filter((l: any) => typeof l?.rating === 'number' && l.rating > 0);
+            if (validLogs.length > 0) {
+              userRating = validLogs.reduce((acc: number, l: any) => acc + l.rating, 0) / validLogs.length;
+            }
+          }
+
+          let existing = coffeeMap.get(key);
+          if (!existing) {
+            existing = {
+              id: uc.id || `reg-coffee-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+              name: cleanName,
+              roaster: cleanRoaster || 'Artisan Roaster',
+              userRatings: {},
+              baseRating: typeof uc.communityRating === 'number' && uc.communityRating > 0 ? uc.communityRating : 4.5,
+              baseRatingsCount: typeof uc.communityRatingsCount === 'number' ? uc.communityRatingsCount : 0,
+              origin: uc.origin || { country: 'Single Origin' },
+              variety: uc.variety || 'Arabica',
+              process: uc.process || 'Washed',
+              roastLevel: uc.roastLevel || 'Medium',
+              coverColor: uc.coverColor || '#C87D32',
+              description: uc.description || '',
+              tastingNotesSummary: Array.isArray(uc.tastingNotesSummary) ? uc.tastingNotesSummary : [],
+            };
+            coffeeMap.set(key, existing);
+          }
+
+          if (userRating > 0) {
+            existing.userRatings[u.id] = userRating;
+          }
+        });
       }
     });
 
-    // 3. Ingest community registered additions
-    if (Array.isArray(communityData.coffees)) {
-      communityData.coffees.forEach((c) => processCoffeeItem(c, 'community-user'));
-    }
-
-    // Format output with computed general average rating across all users
+    // Compute aggregate for each item
     return Array.from(coffeeMap.values()).map((item) => {
-      const count = item.ratings.length;
-      const sum = item.ratings.reduce((acc: number, r: number) => acc + r, 0);
-      const generalRating = count > 0 ? Number((sum / count).toFixed(1)) : 4.5;
-      const userCount = Math.max(1, item.users.size);
+      const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
 
       return {
         id: item.id,
@@ -452,79 +732,76 @@ export class AuthStore {
         coverColor: item.coverColor,
         description: item.description,
         tastingNotesSummary: item.tastingNotesSummary,
-        generalRating,
-        ratingsCount: count,
-        userCount,
-        isRecommended: generalRating >= 4.5 && (count >= 1 || userCount >= 1),
+        generalRating: agg.generalRating,
+        communityRating: agg.generalRating,
+        ratingsCount: agg.ratingsCount,
+        communityRatingsCount: agg.ratingsCount,
+        userCount: agg.userCount,
+        isRecommended: agg.generalRating >= 4.5,
       };
-    }).sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0) || b.generalRating - a.generalRating);
+    }).sort((a, b) => b.generalRating - a.generalRating);
   }
 
   // Running catalog of all registered equipment across all users and defaults
   public static getRegisteredEquipment(): any[] {
     const users = this.getUsers();
     const communityData = this.getCommunityItemsData();
-    const equipmentMap = new Map<string, any>();
+    const eqMap = new Map<string, any>();
 
-    const processEquipmentItem = (eq: any, userId?: string) => {
-      if (!eq || !eq.name || typeof eq.name !== 'string') return;
-      const cleanName = eq.name.trim();
-      const cleanCategory = (eq.category || 'Accessory').trim();
-      const key = `${cleanName.toLowerCase()}::${cleanCategory.toLowerCase()}`;
+    (communityData.equipment || []).forEach((eq) => {
+      const cleanName = (eq.name || '').trim();
+      const cleanBrand = (eq.secondary || eq.itemData?.brand || '').trim();
+      const key = `${cleanName.toLowerCase()}::${cleanBrand.toLowerCase()}`;
 
-      const ratings: number[] = [];
-      if (typeof eq.rating === 'number' && eq.rating > 0) ratings.push(eq.rating);
-      if (Array.isArray(eq.ratings)) {
-        eq.ratings.forEach((r: any) => {
-          if (typeof r === 'number' && r > 0) ratings.push(r);
-        });
-      }
+      eqMap.set(key, {
+        id: eq.id,
+        name: cleanName,
+        brand: cleanBrand,
+        category: eq.itemData?.category || 'Accessory',
+        userRatings: { ...(eq.userRatings || {}) },
+        baseRating: eq.baseRating || 4.8,
+        baseRatingsCount: eq.baseRatingsCount || 18,
+        settingsNotes: eq.itemData?.settingsNotes || '',
+        maintenanceNotes: eq.itemData?.maintenanceNotes || '',
+        generalNotes: eq.itemData?.generalNotes || '',
+      });
+    });
 
-      const existing = equipmentMap.get(key);
-      if (existing) {
-        if (userId) existing.users.add(userId);
-        if (Array.isArray(eq.users)) {
-          eq.users.forEach((u: string) => existing.users.add(u));
-        }
-        ratings.forEach((r) => existing.ratings.push(r));
-        if (!existing.brand && eq.brand) existing.brand = eq.brand;
-        if (!existing.settingsNotes && eq.settingsNotes) existing.settingsNotes = eq.settingsNotes;
-      } else {
-        const usersSet = new Set<string>();
-        if (userId) usersSet.add(userId);
-        if (Array.isArray(eq.users)) {
-          eq.users.forEach((u: string) => usersSet.add(u));
-        }
-        equipmentMap.set(key, {
-          id: eq.id || `reg-eq-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-          name: cleanName,
-          brand: eq.brand || 'Coffee Gear',
-          category: cleanCategory,
-          settingsNotes: eq.settingsNotes || '',
-          maintenanceNotes: eq.maintenanceNotes || '',
-          generalNotes: eq.generalNotes || '',
-          ratings: [...ratings],
-          users: usersSet,
-        });
-      }
-    };
-
-    INITIAL_EQUIPMENT.forEach((eq) => processEquipmentItem(eq, 'seed-system'));
     users.forEach((u) => {
       const userGear = u.data?.equipment;
       if (Array.isArray(userGear)) {
-        userGear.forEach((eq) => processEquipmentItem(eq, u.id));
+        userGear.forEach((ueq) => {
+          if (!ueq || !ueq.name) return;
+          const cleanName = (ueq.name || '').trim();
+          const cleanBrand = (ueq.brand || '').trim();
+          const key = `${cleanName.toLowerCase()}::${cleanBrand.toLowerCase()}`;
+
+          let existing = eqMap.get(key);
+          if (!existing) {
+            existing = {
+              id: ueq.id || `reg-eq-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+              name: cleanName,
+              brand: cleanBrand || 'Coffee Gear',
+              category: ueq.category || 'Accessory',
+              userRatings: {},
+              baseRating: 4.8,
+              baseRatingsCount: 0,
+              settingsNotes: ueq.settingsNotes || '',
+              maintenanceNotes: ueq.maintenanceNotes || '',
+              generalNotes: ueq.generalNotes || '',
+            };
+            eqMap.set(key, existing);
+          }
+
+          if (typeof ueq.rating === 'number' && ueq.rating > 0) {
+            existing.userRatings[u.id] = ueq.rating;
+          }
+        });
       }
     });
-    if (Array.isArray(communityData.equipment)) {
-      communityData.equipment.forEach((eq) => processEquipmentItem(eq, 'community-user'));
-    }
 
-    return Array.from(equipmentMap.values()).map((item) => {
-      const count = item.ratings.length;
-      const sum = item.ratings.reduce((acc: number, r: number) => acc + r, 0);
-      const generalRating = count > 0 ? Number((sum / count).toFixed(1)) : 4.5;
-      const userCount = Math.max(1, item.users.size);
+    return Array.from(eqMap.values()).map((item) => {
+      const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
 
       return {
         id: item.id,
@@ -534,10 +811,10 @@ export class AuthStore {
         settingsNotes: item.settingsNotes,
         maintenanceNotes: item.maintenanceNotes,
         generalNotes: item.generalNotes,
-        generalRating,
-        ratingsCount: count,
-        userCount,
-        isRecommended: generalRating >= 4.5,
+        generalRating: agg.generalRating,
+        ratingsCount: agg.ratingsCount,
+        userCount: agg.userCount,
+        isRecommended: agg.generalRating >= 4.5,
       };
     }).sort((a, b) => b.generalRating - a.generalRating);
   }
@@ -548,64 +825,62 @@ export class AuthStore {
     const communityData = this.getCommunityItemsData();
     const cafeMap = new Map<string, any>();
 
-    const processCafeItem = (cafe: any, userId?: string) => {
-      if (!cafe || !cafe.name || typeof cafe.name !== 'string') return;
-      const cleanName = cafe.name.trim();
-      const cleanCity = (cafe.city || '').trim();
+    (communityData.cafes || []).forEach((c) => {
+      const cleanName = (c.name || '').trim();
+      const cleanCity = (c.secondary || c.itemData?.city || '').trim();
       const key = `${cleanName.toLowerCase()}::${cleanCity.toLowerCase()}`;
 
-      const ratings: number[] = [];
-      if (typeof cafe.rating === 'number' && cafe.rating > 0) ratings.push(cafe.rating);
-      if (Array.isArray(cafe.ratings)) {
-        cafe.ratings.forEach((r: any) => {
-          if (typeof r === 'number' && r > 0) ratings.push(r);
-        });
-      }
+      cafeMap.set(key, {
+        id: c.id,
+        name: cleanName,
+        city: cleanCity,
+        country: c.itemData?.country || '',
+        address: c.itemData?.address || '',
+        vibes: Array.isArray(c.itemData?.vibes) ? c.itemData.vibes : [],
+        favoriteDrink: c.itemData?.favoriteDrink || '',
+        notes: c.itemData?.notes || '',
+        userRatings: { ...(c.userRatings || {}) },
+        baseRating: c.baseRating || 4.8,
+        baseRatingsCount: c.baseRatingsCount || 25,
+      });
+    });
 
-      const existing = cafeMap.get(key);
-      if (existing) {
-        if (userId) existing.users.add(userId);
-        if (Array.isArray(cafe.users)) {
-          cafe.users.forEach((u: string) => existing.users.add(u));
-        }
-        ratings.forEach((r) => existing.ratings.push(r));
-      } else {
-        const usersSet = new Set<string>();
-        if (userId) usersSet.add(userId);
-        if (Array.isArray(cafe.users)) {
-          cafe.users.forEach((u: string) => usersSet.add(u));
-        }
-        cafeMap.set(key, {
-          id: cafe.id || `reg-cafe-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-          name: cleanName,
-          city: cleanCity || 'Specialty Coffee',
-          country: cafe.country || '',
-          address: cafe.address || '',
-          vibes: Array.isArray(cafe.vibes) ? cafe.vibes : [],
-          favoriteDrink: cafe.favoriteDrink || '',
-          notes: cafe.notes || '',
-          ratings: [...ratings],
-          users: usersSet,
-        });
-      }
-    };
-
-    INITIAL_CAFES.forEach((c) => processCafeItem(c, 'seed-system'));
     users.forEach((u) => {
       const userCafes = u.data?.cafes;
       if (Array.isArray(userCafes)) {
-        userCafes.forEach((c) => processCafeItem(c, u.id));
+        userCafes.forEach((uc) => {
+          if (!uc || !uc.name) return;
+          const cleanName = (uc.name || '').trim();
+          const cleanCity = (uc.city || '').trim();
+          const key = `${cleanName.toLowerCase()}::${cleanCity.toLowerCase()}`;
+
+          let existing = cafeMap.get(key);
+          if (!existing) {
+            existing = {
+              id: uc.id || `reg-cafe-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+              name: cleanName,
+              city: cleanCity || 'Specialty Coffee',
+              country: uc.country || '',
+              address: uc.address || '',
+              vibes: Array.isArray(uc.vibes) ? uc.vibes : [],
+              favoriteDrink: uc.favoriteDrink || '',
+              notes: uc.notes || '',
+              userRatings: {},
+              baseRating: 4.8,
+              baseRatingsCount: 0,
+            };
+            cafeMap.set(key, existing);
+          }
+
+          if (typeof uc.rating === 'number' && uc.rating > 0) {
+            existing.userRatings[u.id] = uc.rating;
+          }
+        });
       }
     });
-    if (Array.isArray(communityData.cafes)) {
-      communityData.cafes.forEach((c) => processCafeItem(c, 'community-user'));
-    }
 
     return Array.from(cafeMap.values()).map((item) => {
-      const count = item.ratings.length;
-      const sum = item.ratings.reduce((acc: number, r: number) => acc + r, 0);
-      const generalRating = count > 0 ? Number((sum / count).toFixed(1)) : 4.5;
-      const userCount = Math.max(1, item.users.size);
+      const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
 
       return {
         id: item.id,
@@ -616,10 +891,10 @@ export class AuthStore {
         vibes: item.vibes,
         favoriteDrink: item.favoriteDrink,
         notes: item.notes,
-        generalRating,
-        ratingsCount: count,
-        userCount,
-        isRecommended: generalRating >= 4.5,
+        generalRating: agg.generalRating,
+        ratingsCount: agg.ratingsCount,
+        userCount: agg.userCount,
+        isRecommended: agg.generalRating >= 4.5,
       };
     }).sort((a, b) => b.generalRating - a.generalRating);
   }
@@ -655,7 +930,6 @@ export class AuthStore {
     let highestScore = 0;
 
     candidates.forEach((cand) => {
-      // Check full combined text (e.g. "Onyx Tropical Weather" or "Fellow Stagg EKG")
       let candCombined = cand.name;
       if (cand.roaster) candCombined = `${cand.roaster} ${cand.name}`;
       if (cand.brand) candCombined = `${cand.brand} ${cand.name}`;
@@ -664,7 +938,6 @@ export class AuthStore {
       const score2 = calculateSimilarity(cleanQuery, candCombined);
       let score = Math.max(score1, score2);
 
-      // Boost if roaster/brand matches provided hint
       if (roasterOrBrand && cand.roaster) {
         const roasterScore = calculateSimilarity(roasterOrBrand, cand.roaster);
         if (roasterScore >= 0.7) score = Math.min(1.0, score + 0.15);
@@ -680,7 +953,6 @@ export class AuthStore {
       }
     });
 
-    // High confidence threshold for auto-unification
     const isConfidentMatch = highestScore >= 0.70 && bestMatch !== null;
 
     return {
@@ -689,6 +961,53 @@ export class AuthStore {
       matchedItem: isConfidentMatch ? bestMatch : null,
       suggestedName: isConfidentMatch ? bestMatch.name : query,
       suggestedSecondary: isConfidentMatch ? (bestMatch.roaster || bestMatch.brand || bestMatch.city) : undefined,
+    };
+  }
+
+  // Complete raw database dump for Administrator inspection & backups
+  public static getRawDatabaseDump(): any {
+    const users = this.getUsers().map((u) => {
+      // Exclude password hashes from export for security
+      const { passwordHash, salt, ...safeUser } = u;
+      return safeUser;
+    });
+
+    const communityData = this.getCommunityItemsData();
+    const sessions = this.getSessions().map((s) => ({
+      userId: s.userId,
+      createdAt: new Date(s.createdAt).toISOString(),
+    }));
+    const guests = this.getGuests();
+
+    return {
+      serverTime: new Date().toISOString(),
+      storageDirectory: DATA_DIR,
+      tables: {
+        users: {
+          file: 'users.json',
+          count: users.length,
+          records: users,
+        },
+        communityItems: {
+          file: 'community_items.json',
+          counts: {
+            coffees: (communityData.coffees || []).length,
+            equipment: (communityData.equipment || []).length,
+            cafes: (communityData.cafes || []).length,
+          },
+          records: communityData,
+        },
+        sessions: {
+          file: 'sessions.json',
+          count: sessions.length,
+          records: sessions,
+        },
+        guests: {
+          file: 'guests.json',
+          count: Object.keys(guests).length,
+          records: guests,
+        },
+      },
     };
   }
 }

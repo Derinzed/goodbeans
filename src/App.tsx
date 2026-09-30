@@ -226,18 +226,115 @@ export default function App() {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Persistent Guest ID for anonymous server persistence
+  const [guestId] = useState<string>(() => {
+    try {
+      let id = localStorage.getItem('goodbeans_guest_id');
+      if (!id) {
+        id = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        localStorage.setItem('goodbeans_guest_id', id);
+      }
+      return id;
+    } catch {
+      return `guest_${Date.now()}`;
+    }
+  });
+
   // Running catalog of registered items across all users
   const [registeredCoffees, setRegisteredCoffees] = useState<RegisteredCoffee[]>([]);
   const [registeredEquipment, setRegisteredEquipment] = useState<RegisteredEquipment[]>([]);
   const [registeredCafes, setRegisteredCafes] = useState<RegisteredCafe[]>([]);
 
+  const applyServerData = (data: any) => {
+    if (!data || typeof data !== 'object') return;
+    if (Array.isArray(data.coffees) && data.coffees.length > 0) {
+      setCoffees(data.coffees);
+    }
+    if (Array.isArray(data.equipment) && data.equipment.length > 0) {
+      setEquipment(data.equipment);
+    }
+    if (Array.isArray(data.cafes) && data.cafes.length > 0) {
+      setCafes(data.cafes);
+    }
+    if (Array.isArray(data.notes) && data.notes.length > 0) {
+      setNotes(data.notes);
+    }
+    if (Array.isArray(data.shelves) && data.shelves.length > 0) {
+      setShelves(data.shelves);
+    }
+    if (data.theme) setTheme(data.theme);
+    if (data.primaryHue) setPrimaryHue(data.primaryHue);
+    if (data.secondaryHue) setSecondaryHue(data.secondaryHue);
+    if (data.backgroundColor) setBackgroundColor(data.backgroundColor);
+  };
+
   const fetchCommunityCatalog = async () => {
     try {
       const res = await authApi.getCommunityItems();
       if (res && res.success) {
-        if (Array.isArray(res.coffees)) setRegisteredCoffees(res.coffees);
-        if (Array.isArray(res.equipment)) setRegisteredEquipment(res.equipment);
-        if (Array.isArray(res.cafes)) setRegisteredCafes(res.cafes);
+        const regCoffees = Array.isArray(res.coffees) ? res.coffees : [];
+        const regEquip = Array.isArray(res.equipment) ? res.equipment : [];
+        const regCafes = Array.isArray(res.cafes) ? res.cafes : [];
+
+        setRegisteredCoffees(regCoffees);
+        setRegisteredEquipment(regEquip);
+        setRegisteredCafes(regCafes);
+
+        // Sync aggregate general ratings across all user-rated items
+        setCoffees((prev) =>
+          prev.map((c) => {
+            const match = regCoffees.find(
+              (rc) =>
+                rc.name.trim().toLowerCase() === c.name.trim().toLowerCase() &&
+                (!c.roaster || !rc.roaster || rc.roaster.trim().toLowerCase() === c.roaster.trim().toLowerCase())
+            );
+            if (match) {
+              return {
+                ...c,
+                generalRating: match.generalRating,
+                communityRating: match.generalRating,
+                communityRatingsCount: match.ratingsCount,
+              };
+            }
+            return c;
+          })
+        );
+
+        setEquipment((prev) =>
+          prev.map((eq) => {
+            const match = regEquip.find(
+              (req) =>
+                req.name.trim().toLowerCase() === eq.name.trim().toLowerCase() &&
+                (!eq.brand || !req.brand || req.brand.trim().toLowerCase() === eq.brand.trim().toLowerCase())
+            );
+            if (match) {
+              return {
+                ...eq,
+                generalRating: match.generalRating,
+                generalRatingsCount: match.ratingsCount,
+              };
+            }
+            return eq;
+          })
+        );
+
+        setCafes((prev) =>
+          prev.map((cafe) => {
+            const match = regCafes.find(
+              (rcafe) =>
+                rcafe.name.trim().toLowerCase() === cafe.name.trim().toLowerCase() &&
+                (!cafe.city || !rcafe.city || rcafe.city.trim().toLowerCase() === cafe.city.trim().toLowerCase())
+            );
+            if (match) {
+              return {
+                ...cafe,
+                generalRating: match.generalRating,
+                generalRatingsCount: match.ratingsCount,
+              };
+            }
+            return cafe;
+          })
+        );
       }
     } catch {
       // ignore
@@ -256,55 +353,50 @@ export default function App() {
     }
   }, [toastMessage]);
 
-  // Verify stored session on mount
+  // Verify stored session on mount or load persistent server guest data
   useEffect(() => {
     const savedToken = localStorage.getItem('goodbeans_auth_token');
-    if (!savedToken) return;
-
-    authApi
-      .getMe(savedToken)
-      .then((res) => {
-        if (res.success && res.user) {
-          setCurrentUser(res.user);
-          setAuthToken(savedToken);
-          if (res.data) {
-            if (Array.isArray(res.data.coffees) && res.data.coffees.length > 0) {
-              setCoffees(res.data.coffees);
+    if (savedToken) {
+      authApi
+        .getMe(savedToken)
+        .then((res) => {
+          if (res.success && res.user) {
+            setCurrentUser(res.user);
+            setAuthToken(savedToken);
+            if (res.data) {
+              applyServerData(res.data);
             }
-            if (Array.isArray(res.data.equipment) && res.data.equipment.length > 0) {
-              setEquipment(res.data.equipment);
-            }
-            if (Array.isArray(res.data.cafes) && res.data.cafes.length > 0) {
-              setCafes(res.data.cafes);
-            }
-            if (Array.isArray(res.data.notes) && res.data.notes.length > 0) {
-              setNotes(res.data.notes);
-            }
-            if (Array.isArray(res.data.shelves) && res.data.shelves.length > 0) {
-              setShelves(res.data.shelves);
-            }
-            if (res.data.theme) setTheme(res.data.theme);
-            if (res.data.primaryHue) setPrimaryHue(res.data.primaryHue);
-            if (res.data.secondaryHue) setSecondaryHue(res.data.secondaryHue);
-            if (res.data.backgroundColor) setBackgroundColor(res.data.backgroundColor);
+          } else {
+            // Only clear token if server explicitly rejected with 401
+            localStorage.removeItem('goodbeans_auth_token');
+            localStorage.removeItem('goodbeans_current_user');
+            setCurrentUser(null);
+            setAuthToken(null);
           }
-        } else {
-          localStorage.removeItem('goodbeans_auth_token');
-          localStorage.removeItem('goodbeans_current_user');
-          setCurrentUser(null);
-          setAuthToken(null);
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    } else {
+      // Check persistent guest session on server
+      const currentGuestId = localStorage.getItem('goodbeans_guest_id') || guestId;
+      if (currentGuestId) {
+        authApi
+          .getGuestData(currentGuestId)
+          .then((res) => {
+            if (res.success && res.data) {
+              applyServerData(res.data);
+            }
+          })
+          .catch(() => {});
+      }
+    }
   }, []);
 
-  // Debounced auto-sync to server when user is logged in
+  // Continuous auto-sync to server (works for both logged-in users and persistent guest sessions)
   useEffect(() => {
-    if (!authToken || !currentUser) return;
     setIsSyncing(true);
     const timeout = setTimeout(async () => {
       try {
-        await authApi.saveUserData(authToken, {
+        const payload = {
           coffees,
           equipment,
           cafes,
@@ -314,7 +406,12 @@ export default function App() {
           primaryHue,
           secondaryHue,
           backgroundColor,
-        });
+        };
+        if (authToken && currentUser) {
+          await authApi.saveUserData(authToken, payload);
+        } else if (guestId) {
+          await authApi.saveGuestData(guestId, payload);
+        }
         setLastSyncedAt(new Date().toISOString());
       } catch (err) {
         console.error('Server sync error:', err);
@@ -336,6 +433,7 @@ export default function App() {
     backgroundColor,
     authToken,
     currentUser,
+    guestId,
   ]);
 
   const handleAuthSuccess = (user: UserProfile, token: string, serverData?: any) => {
@@ -525,7 +623,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSaveCoffee = (coffeeData: Coffee) => {
+  const handleSaveCoffee = async (coffeeData: Coffee) => {
     if (editingCoffee) {
       setCoffees((prev) =>
         prev.map((c) => (c.id === coffeeData.id ? { ...c, ...coffeeData } : c))
@@ -533,11 +631,16 @@ export default function App() {
     } else {
       setCoffees((prev) => [coffeeData, ...prev]);
     }
-    // Register with community items to average ratings across all users
-    authApi.registerCommunityItem('coffee', coffeeData, coffeeData.userRating).catch(() => {});
-    fetchCommunityCatalog();
     setIsCoffeeModalOpen(false);
     setEditingCoffee(null);
+
+    // Register with community items to average ratings across all users
+    try {
+      if (typeof coffeeData.userRating === 'number' && coffeeData.userRating > 0) {
+        await authApi.registerCommunityItem('coffee', coffeeData, coffeeData.userRating);
+      }
+      await fetchCommunityCatalog();
+    } catch {}
   };
 
   const handleToggleFavorite = (coffeeId: string) => {
@@ -546,18 +649,23 @@ export default function App() {
     );
   };
 
-  const handleQuickRate = (coffeeId: string, rating: number) => {
+  const handleQuickRate = async (coffeeId: string, rating: number) => {
+    let updatedTarget: Coffee | null = null;
     setCoffees((prev) =>
       prev.map((c) => {
         if (c.id === coffeeId) {
-          const updated = { ...c, userRating: rating };
-          authApi.registerCommunityItem('coffee', updated, rating).catch(() => {});
-          return updated;
+          updatedTarget = { ...c, userRating: rating };
+          return updatedTarget;
         }
         return c;
       })
     );
-    fetchCommunityCatalog();
+    if (updatedTarget) {
+      try {
+        await authApi.registerCommunityItem('coffee', updatedTarget, rating);
+        await fetchCommunityCatalog();
+      } catch {}
+    }
   };
 
   const handleQuickChangeShelf = (coffeeId: string, shelfId: string) => {
@@ -667,22 +775,31 @@ export default function App() {
     setIsTastingModalOpen(true);
   };
 
-  const handleSaveTasting = (entry: TastingEntry) => {
+  const handleSaveTasting = async (entry: TastingEntry) => {
     if (!tastingModalCoffee) return;
+    let updatedTarget: Coffee | null = null;
     setCoffees((prev) =>
       prev.map((coffee) => {
         if (coffee.id === tastingModalCoffee.id) {
-          return {
+          updatedTarget = {
             ...coffee,
             userRating: entry.rating, // Update personal star rating with this latest score
             tastingLogs: [entry, ...coffee.tastingLogs],
           };
+          return updatedTarget;
         }
         return coffee;
       })
     );
     setIsTastingModalOpen(false);
     setTastingModalCoffee(null);
+
+    if (updatedTarget) {
+      try {
+        await authApi.registerCommunityItem('coffee', updatedTarget, entry.rating);
+        await fetchCommunityCatalog();
+      } catch {}
+    }
   };
 
   const handleDeleteTasting = (tastingId: string) => {
@@ -702,7 +819,7 @@ export default function App() {
   };
 
   // Handlers for Equipment
-  const handleSaveEquipment = (equipmentData: Equipment) => {
+  const handleSaveEquipment = async (equipmentData: Equipment) => {
     if (editingEquipment) {
       setEquipment((prev) =>
         prev.map((eq) => (eq.id === equipmentData.id ? equipmentData : eq))
@@ -710,11 +827,15 @@ export default function App() {
     } else {
       setEquipment((prev) => [equipmentData, ...prev]);
     }
-    // Register with community items to average ratings across all users
-    authApi.registerCommunityItem('equipment', equipmentData, equipmentData.rating).catch(() => {});
-    fetchCommunityCatalog();
     setIsEquipmentModalOpen(false);
     setEditingEquipment(null);
+
+    try {
+      if (typeof equipmentData.rating === 'number' && equipmentData.rating > 0) {
+        await authApi.registerCommunityItem('equipment', equipmentData, equipmentData.rating);
+      }
+      await fetchCommunityCatalog();
+    } catch {}
   };
 
   const handleDeleteEquipment = (id: string) => {
@@ -722,7 +843,7 @@ export default function App() {
   };
 
   // Handlers for Cafes
-  const handleSaveCafe = (cafeData: Cafe) => {
+  const handleSaveCafe = async (cafeData: Cafe) => {
     if (editingCafe) {
       setCafes((prev) =>
         prev.map((c) => (c.id === cafeData.id ? cafeData : c))
@@ -730,11 +851,15 @@ export default function App() {
     } else {
       setCafes((prev) => [cafeData, ...prev]);
     }
-    // Register with community items to average ratings across all users
-    authApi.registerCommunityItem('cafe', cafeData, cafeData.rating).catch(() => {});
-    fetchCommunityCatalog();
     setIsCafeModalOpen(false);
     setEditingCafe(null);
+
+    try {
+      if (typeof cafeData.rating === 'number' && cafeData.rating > 0) {
+        await authApi.registerCommunityItem('cafe', cafeData, cafeData.rating);
+      }
+      await fetchCommunityCatalog();
+    } catch {}
   };
 
   const handleDeleteCafe = (cafeId: string) => {
@@ -747,18 +872,23 @@ export default function App() {
     );
   };
 
-  const handleQuickRateCafe = (cafeId: string, rating: number) => {
+  const handleQuickRateCafe = async (cafeId: string, rating: number) => {
+    let updatedTarget: Cafe | null = null;
     setCafes((prev) =>
       prev.map((c) => {
         if (c.id === cafeId) {
-          const updated = { ...c, rating };
-          authApi.registerCommunityItem('cafe', updated, rating).catch(() => {});
-          return updated;
+          updatedTarget = { ...c, rating };
+          return updatedTarget;
         }
         return c;
       })
     );
-    fetchCommunityCatalog();
+    if (updatedTarget) {
+      try {
+        await authApi.registerCommunityItem('cafe', updatedTarget, rating);
+        await fetchCommunityCatalog();
+      } catch {}
+    }
   };
 
   // Handlers for Custom Notes
@@ -1016,16 +1146,24 @@ export default function App() {
             <button
               onClick={() => setIsAdminModalOpen(true)}
               className="text-[#C87D32] hover:text-[#B06B26] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-              title="View all registered users"
+              title="Admin Console & Server Raw Data Inspector"
             >
               <Shield className="w-3.5 h-3.5" />
-              <span>Admin Users</span>
+              <span>Admin Console</span>
             </button>
           )}
         </nav>
 
         {/* Zone 3: 1-2 primary actions & theme toggle & user account */}
         <div className="flex items-center gap-2">
+          {/* Continuous Server Sync Indicator */}
+          <div
+            className="hidden lg:flex items-center gap-1.5 px-2 py-1 bg-[#FAF7F2] border border-[#E8DEC0] rounded-lg text-[11px] text-[#6D5A4E]"
+            title="Continuous server persistence active. All items, shelves and ratings are safely saved to the server."
+          >
+            <CheckCircle className={`w-3 h-3 ${isSyncing ? 'text-amber-600 animate-pulse' : 'text-emerald-600'}`} />
+            <span>{isSyncing ? 'Saving to server...' : 'Server Synced'}</span>
+          </div>
           {/* User Account / Sign In Button */}
           {currentUser ? (
             <button
@@ -1276,7 +1414,7 @@ export default function App() {
             allShelves={shelves}
             equipmentList={equipment}
             onBack={() => setCurrentView('shelves')}
-            onUpdateCoffee={(updated) => {
+            onUpdateCoffee={async (updated) => {
               if (!updated.shelfIds || updated.shelfIds.length === 0) {
                 // If coffee has no shelves, remove it entirely from library!
                 setCoffees((prev) => prev.filter((c) => c.id !== updated.id));
@@ -1287,6 +1425,12 @@ export default function App() {
               setCoffees((prev) =>
                 prev.map((c) => (c.id === updated.id ? updated : c))
               );
+              if (typeof updated.userRating === 'number' && updated.userRating > 0) {
+                try {
+                  await authApi.registerCommunityItem('coffee', updated, updated.userRating);
+                  await fetchCommunityCatalog();
+                } catch {}
+              }
             }}
             onOpenAddRecipe={handleOpenAddRecipe}
             onOpenEditRecipe={handleOpenEditRecipe}

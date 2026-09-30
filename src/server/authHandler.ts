@@ -197,7 +197,72 @@ export async function handleAuthRoutes(
     return true;
   }
 
-  // 7. GET /api/admin/users (View all registered users)
+  // 6b. GET /api/guest/data (Retrieve persistent data for anonymous/guest session)
+  if (url.startsWith('/api/guest/data') && method === 'GET') {
+    try {
+      const parsedUrl = new URL(url, 'http://localhost');
+      const guestId = parsedUrl.searchParams.get('guestId') || (req.headers['x-guest-id'] as string);
+      if (!guestId) {
+        sendJson(res, 400, { error: 'guestId is required' });
+        return true;
+      }
+      const data = AuthStore.getGuestData(guestId);
+      sendJson(res, 200, {
+        success: true,
+        data,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to fetch guest data' });
+      return true;
+    }
+  }
+
+  // 6c. POST /api/guest/data (Continuously save persistent data for anonymous/guest session)
+  if (url.startsWith('/api/guest/data') && (method === 'POST' || method === 'PUT')) {
+    try {
+      const body = await readJsonBody(req);
+      const guestId = body.guestId || (req.headers['x-guest-id'] as string);
+      if (!guestId) {
+        sendJson(res, 400, { error: 'guestId is required' });
+        return true;
+      }
+      AuthStore.saveGuestData(guestId, body.data || body);
+      sendJson(res, 200, {
+        success: true,
+        message: 'Guest session data saved persistently on server.',
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to save guest data' });
+      return true;
+    }
+  }
+
+  // 7. GET /api/admin/raw-data (Admin inspects complete raw database tables: users, community items, sessions, guests)
+  if (url === '/api/admin/raw-data' && method === 'GET') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    try {
+      const dump = AuthStore.getRawDatabaseDump();
+      sendJson(res, 200, {
+        success: true,
+        ...dump,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to export raw database dump' });
+      return true;
+    }
+  }
+
+  // 7b. GET /api/admin/users (View all registered users)
   if (url === '/api/admin/users' && method === 'GET') {
     const token = getBearerToken(req);
     const user = token ? AuthStore.getUserByToken(token) : null;
@@ -296,7 +361,9 @@ export async function handleAuthRoutes(
       }
       const token = getBearerToken(req);
       const user = token ? AuthStore.getUserByToken(token) : null;
-      const registered = AuthStore.recordCommunityItem(type, item, user?.id || 'community-user', rating);
+      const guestId = (req.headers['x-guest-id'] as string) || body.userId;
+      const effectiveUserId = user?.id || (guestId ? `guest-${guestId}` : 'community-user');
+      const registered = AuthStore.recordCommunityItem(type, item, effectiveUserId, rating);
       sendJson(res, 200, {
         success: true,
         registered,

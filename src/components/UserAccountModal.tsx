@@ -183,10 +183,10 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                 </div>
                 <div>
                   <span className="text-xs font-bold text-[#2B1D14] block">
-                    Admin Tools
+                    Admin Console & Raw Data
                   </span>
                   <span className="text-[11px] text-[#8C4F1A]">
-                    View all registered users and their library data
+                    Inspect live server database, users, and community rating aggregates
                   </span>
                 </div>
               </div>
@@ -198,7 +198,7 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                 }}
                 className="px-3.5 py-1.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
               >
-                View Users
+                Open Console
               </button>
             </div>
           )}

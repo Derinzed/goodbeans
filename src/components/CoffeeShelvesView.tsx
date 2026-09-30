@@ -486,6 +486,7 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                     <th className="py-3 px-4">Origin & Process</th>
                     <th className="py-3 px-4">Roast</th>
                     <th className="py-3 px-4">Your Rating</th>
+                    <th className="py-3 px-4">General Rating</th>
                     <th className="py-3 px-4">Shelves (Click ✕ to Remove)</th>
                     <th className="py-3 px-4">Recipes</th>
                     <th className="py-3 px-4 text-center">Actions</th>
@@ -532,6 +533,14 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                           size="sm"
                           showTextLabel={false}
                         />
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-[#8C4F1A] font-semibold whitespace-nowrap">
+                          <span>★ {(coffee.generalRating || coffee.communityRating || 4.5).toFixed(1)}</span>
+                          <span className="text-[11px] text-[#8C7A6D] font-normal">
+                            ({coffee.communityRatingsCount || 0})
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-wrap gap-1">

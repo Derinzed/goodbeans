@@ -351,11 +351,12 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
           {/* Ratings Block: Community + User Rating */}
           <div className="p-4 bg-[#FAF7F2] rounded-xl border border-[#E5DACD] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1">
-                Community Rating
+              <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1 flex items-center gap-1.5">
+                <span>General Community Rating</span>
+                <span className="text-[10px] text-[#A8988A] font-normal lowercase">(aggregated across all baristas)</span>
               </div>
               <StarRatingDisplay
-                rating={coffee.communityRating}
+                rating={coffee.generalRating || coffee.communityRating || 4.5}
                 count={coffee.communityRatingsCount}
                 size="md"
               />

@@ -27,6 +27,7 @@ app.use(async (req, res, next) => {
   if (
     url.startsWith('/api/auth') ||
     url.startsWith('/api/user') ||
+    url.startsWith('/api/guest') ||
     url.startsWith('/api/admin') ||
     url.startsWith('/api/community')
   ) {

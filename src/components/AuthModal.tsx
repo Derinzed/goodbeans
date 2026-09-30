@@ -206,13 +206,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
 
-          {tab === 'login' && (
-            <div className="p-2.5 bg-[#FAF7F2] border border-[#E0D5C7] rounded-lg text-[11px] text-[#6B5A4E] flex items-center gap-2">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#C87D32] shrink-0" />
-              <span>Admin default account: username: <strong>admin</strong> | password: <strong>admin123</strong></span>
-            </div>
-          )}
-
           {/* Submit */}
           <button
             type="submit"

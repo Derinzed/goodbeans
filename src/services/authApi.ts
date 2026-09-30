@@ -108,6 +108,27 @@ export const authApi = {
     return res.json();
   },
 
+  async getRawDatabase(token: string): Promise<any> {
+    const res = await fetch('/api/admin/raw-data', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async getGuestData(guestId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    const res = await fetch(`/api/guest/data?guestId=${encodeURIComponent(guestId)}`);
+    return res.json();
+  },
+
+  async saveGuestData(guestId: string, data: any): Promise<{ success: boolean; message?: string; error?: string }> {
+    const res = await fetch('/api/guest/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guestId, data }),
+    });
+    return res.json();
+  },
+
   async getCommunityItems(): Promise<{
     success: boolean;
     coffees?: any[];
@@ -125,13 +146,20 @@ export const authApi = {
     rating?: number
   ): Promise<{ success: boolean; registered?: any; error?: string }> {
     const token = localStorage.getItem('goodbeans_auth_token');
+    const guestId = localStorage.getItem('goodbeans_guest_id');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (guestId) {
+      headers['x-guest-id'] = guestId;
+    }
     const res = await fetch('/api/community/items/register', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ type, item, rating }),
+      headers,
+      body: JSON.stringify({ type, item, rating, guestId }),
     });
     return res.json();
   },
