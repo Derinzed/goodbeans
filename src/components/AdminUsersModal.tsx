@@ -133,6 +133,11 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
       const res = await authApi.getAdminUsers(token);
       if (res.success && res.users) {
         setUsers(res.users);
+        res.users.forEach((u: any) => {
+          if (u.vault) {
+            authApi.saveVaultToRegistry(u.vault);
+          }
+        });
       } else {
         setError(res.error || 'Failed to load registered users.');
       }
@@ -240,6 +245,9 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
         initialData: includeSampleData ? undefined : {},
       });
       if (res.success) {
+        if ((res as any).vault) {
+          authApi.saveVaultToRegistry((res as any).vault);
+        }
         setActionSuccess(`User "${newUsername.trim()}" created successfully as ${newRole}.`);
         setIsAddUserOpen(false);
         setNewUsername('');

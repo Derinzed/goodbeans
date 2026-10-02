@@ -5,7 +5,6 @@ import {
   LayoutGrid,
   List,
   Layers,
-  Heart,
   ChevronRight,
   Filter,
   X,
@@ -341,69 +340,26 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                           {coffee.origin.country} · {coffee.process}
                         </div>
                       </div>
-
-                      {/* Favorite button & recipe count */}
-                      <div className="flex items-center justify-between pt-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleFavorite(coffee.id);
-                          }}
-                          className={`p-1 rounded transition-colors ${
-                            coffee.isFavorite
-                              ? 'text-rose-600'
-                              : 'text-[#B8A89A] hover:text-rose-600'
-                          }`}
-                        >
-                          <Heart
-                            className={`w-4 h-4 ${coffee.isFavorite ? 'fill-current' : ''}`}
-                          />
-                        </button>
-
-                        <span className="text-[10px] font-mono text-[#8C7A6D]">
-                          {coffee.recipes.length} recipe{coffee.recipes.length === 1 ? '' : 's'}
-                        </span>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Dual Rating Section: Personal Rating & General Rating */}
+                  {/* Rating Section: Personal Rating */}
                   <div
-                    className="py-2 border-t border-[#F2EAE0] space-y-1.5"
+                    className="py-2 border-t border-[#F2EAE0] flex items-center justify-between text-xs"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] uppercase font-semibold text-[#8C7A6D]">Personal:</span>
-                        <StarRatingInput
-                          value={coffee.userRating}
-                          onChange={(newRating) => onQuickRate(coffee.id, newRating)}
-                          size="sm"
-                          showTextLabel={false}
-                        />
-                      </div>
-                      <span className="text-[10px] font-mono text-[#8C7A6D]">
-                        {coffee.userRating > 0 ? `${coffee.userRating.toFixed(1)} ★` : 'Unrated'}
-                      </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-semibold text-[#8C7A6D]">Personal:</span>
+                      <StarRatingInput
+                        value={coffee.userRating}
+                        onChange={(newRating) => onQuickRate(coffee.id, newRating)}
+                        size="sm"
+                        showTextLabel={false}
+                      />
                     </div>
-
-                    {generalInfo.isRegistered ? (
-                      <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
-                        <span className="text-[#8C7A6D]">General Rating:</span>
-                        <span className="font-semibold text-[#8C4F1A] font-mono">
-                          {generalInfo.ratingsCount > 0 ? (
-                            <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'barista' : 'baristas'})</>
-                          ) : (
-                            <span className="text-[#A8988A] font-normal">Unrated (0)</span>
-                          )}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between text-[10px] text-[#8C7A6D] bg-[#F8F5F0] px-2 py-0.5 rounded border border-dashed border-[#E5DACD]">
-                        <span className="text-[#A8988A] italic">Personal Coffee</span>
-                        <span className="text-[#A8988A] font-mono text-[9px]">Unregistered</span>
-                      </div>
-                    )}
+                    <span className="text-[10px] font-mono text-[#8C7A6D]">
+                      {coffee.userRating > 0 ? `${coffee.userRating.toFixed(1)} ★` : 'Unrated'}
+                    </span>
                   </div>
 
                   {/* Active Shelves on Card (with individual remove 'X' icons!) */}

@@ -9,6 +9,8 @@ import {
   Layers,
   Edit2,
   Trash2,
+  Globe,
+  Users,
 } from 'lucide-react';
 import { Equipment, EquipmentCategory, RegisteredEquipment } from '../types/coffee';
 import { StarRatingDisplay, StarRatingInput } from './StarRating';
@@ -20,6 +22,8 @@ interface EquipmentShelfViewProps {
   onEditEquipment: (item: Equipment) => void;
   onDeleteEquipment: (id: string) => void;
   onQuickRate?: (id: string, rating: number) => void;
+  onRegisterEquipment?: (item: Equipment) => void;
+  onOpenAuthModal?: () => void;
   registeredEquipment?: RegisteredEquipment[];
   isRegisteredUser?: boolean;
 }
@@ -41,6 +45,8 @@ export const EquipmentShelfView: React.FC<EquipmentShelfViewProps> = ({
   onEditEquipment,
   onDeleteEquipment,
   onQuickRate,
+  onRegisterEquipment,
+  onOpenAuthModal,
   registeredEquipment = [],
   isRegisteredUser = false,
 }) => {
@@ -203,30 +209,93 @@ export const EquipmentShelfView: React.FC<EquipmentShelfViewProps> = ({
                 </h3>
                 <div className="text-xs text-[#7D6B5D] font-medium mb-2">{item.brand}</div>
 
-                {/* Dual Rating: Personal & General */}
-                <div className="mb-3 p-2.5 bg-[#FAF7F2] rounded-lg border border-[#EDE2D4] space-y-2">
-                  <StarRatingInput
-                    value={item.rating || 0}
-                    onChange={(newRating) => onQuickRate && onQuickRate(item.id, newRating)}
-                    label="Your Gear Rating"
-                    size="sm"
-                  />
-                  <div className="flex items-center justify-between text-[10px] text-[#7A6757] pt-1.5 border-t border-[#EDE2D4]">
-                    <span className="text-[#8C7A6D]">General Rating:</span>
-                    <span className="font-semibold text-[#8C4F1A] font-mono">
-                      {(() => {
-                        const generalInfo = getGeneralEquipmentInfo(item, registeredEquipment);
-                        if (!generalInfo.isRegistered) {
-                          return <span className="text-[#A8988A] font-normal italic">Personal Gear · Unregistered</span>;
-                        }
-                        return generalInfo.ratingsCount > 0 ? (
-                          <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'barista' : 'baristas'})</>
-                        ) : (
-                          <span className="text-[#A8988A] font-normal">Unrated (0)</span>
-                        );
-                      })()}
-                    </span>
+                {/* Dual Panel: Personal Rating & General Information */}
+                <div className="mb-3 space-y-2.5">
+                  {/* Personal Rating */}
+                  <div className="p-2.5 bg-[#FAF7F2] rounded-lg border border-[#EDE2D4]">
+                    <StarRatingInput
+                      value={item.rating || 0}
+                      onChange={(newRating) => onQuickRate && onQuickRate(item.id, newRating)}
+                      label="Personal Rating"
+                      size="sm"
+                    />
                   </div>
+
+                  {/* General Information Box */}
+                  {(() => {
+                    const generalInfo = getGeneralEquipmentInfo(item, registeredEquipment);
+                    if (generalInfo.isRegistered) {
+                      return (
+                        <div className="p-2.5 bg-[#FAF7F2] rounded-lg border border-[#DECFC0] space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <div className="font-bold uppercase tracking-wider text-[#8C4F1A] flex items-center gap-1">
+                              <Globe className="w-3.5 h-3.5 text-[#C87D32]" />
+                              <span>General Information</span>
+                            </div>
+                            <span className="px-1.5 py-0.2 bg-[#F2EAE0] text-[#8C7A6D] rounded text-[9px] font-mono">
+                              {isRegisteredUser ? 'Registered Consensus' : 'Registered Users Only'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-[#EAE0D3]">
+                            <div className="text-[10px] text-[#8C7A6D] uppercase font-semibold">General Rating:</div>
+                            <StarRatingDisplay
+                              rating={generalInfo.generalRating}
+                              count={generalInfo.ratingsCount}
+                              size="sm"
+                            />
+                          </div>
+                          <div className="text-[10px] text-[#8C4F1A] font-medium">
+                            {generalInfo.ratingsCount === 0 ? (
+                              <span className="text-[#A8988A] italic">No ratings yet · Default 0.0</span>
+                            ) : generalInfo.ratingsCount === 1 ? (
+                              <span>1 registered barista evaluated</span>
+                            ) : (
+                              <span>{generalInfo.ratingsCount} registered baristas evaluated</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Unregistered Gear
+                    return (
+                      <div className="p-2.5 bg-[#FAF7F2] rounded-lg border border-[#DECFC0] space-y-1.5">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <div className="font-bold uppercase tracking-wider text-[#8C7A6D] flex items-center gap-1">
+                            <Globe className="w-3.5 h-3.5 text-[#8C7A6D]" />
+                            <span>General Information</span>
+                          </div>
+                          <span className="px-1.5 py-0.2 bg-[#F2EAE0] text-[#8C7A6D] border border-[#E0D5C7] rounded text-[9px] font-mono">
+                            Personal Gear · Unregistered
+                          </span>
+                        </div>
+
+                        <p className="text-[10px] text-[#7A6757] leading-relaxed">
+                          This model is in your personal shelf and not yet part of the community catalog.
+                        </p>
+
+                        {isRegisteredUser && onRegisterEquipment ? (
+                          <button
+                            type="button"
+                            onClick={() => onRegisterEquipment(item)}
+                            className="w-full mt-1 py-1.5 px-2 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[11px] font-semibold rounded-md shadow-2xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Register Gear to Community Catalog</span>
+                          </button>
+                        ) : !isRegisteredUser && onOpenAuthModal ? (
+                          <button
+                            type="button"
+                            onClick={onOpenAuthModal}
+                            className="w-full mt-1 py-1.5 px-2 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[10px] font-semibold rounded-md shadow-2xs transition-colors cursor-pointer text-center"
+                          >
+                            Sign In to Register Gear
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Calibration / Settings Notes */}

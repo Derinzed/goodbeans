@@ -15,6 +15,7 @@ const __dirname = path.dirname(__filename);
 // Root data directory
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const BACKUP_USERS_FILE = path.resolve(__dirname, '../data/seedUsers.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const GUESTS_FILE = path.join(DATA_DIR, 'guests.json');
 const COMMUNITY_ITEMS_FILE = path.join(DATA_DIR, 'community_items.json');
@@ -174,8 +175,36 @@ export class AuthStore {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
 
-    // 1. Seed USERS_FILE
-    if (!fs.existsSync(USERS_FILE)) {
+    // 1. Seed & synchronize USERS_FILE with BACKUP_USERS_FILE across publishes/deployments
+    let usersList: StoredUser[] = [];
+    if (fs.existsSync(USERS_FILE)) {
+      try {
+        usersList = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+      } catch {}
+    }
+
+    let backupList: StoredUser[] = [];
+    if (fs.existsSync(BACKUP_USERS_FILE)) {
+      try {
+        backupList = JSON.parse(fs.readFileSync(BACKUP_USERS_FILE, 'utf-8'));
+      } catch {}
+    }
+
+    // Merge users so neither file loses registered accounts
+    const userMap = new Map<string, StoredUser>();
+    (Array.isArray(backupList) ? backupList : []).forEach((u) => {
+      if (u && u.id) userMap.set(u.id, u);
+    });
+    (Array.isArray(usersList) ? usersList : []).forEach((u) => {
+      if (u && u.id) {
+        const existing = userMap.get(u.id);
+        if (!existing || (u.updatedAt && (!existing.updatedAt || u.updatedAt >= existing.updatedAt))) {
+          userMap.set(u.id, u);
+        }
+      }
+    });
+
+    if (userMap.size === 0) {
       const adminSalt = crypto.randomBytes(16).toString('hex');
       const adminPasswordHash = hashPassword('admin123', adminSalt);
       const defaultAdmin: StoredUser = {
@@ -189,7 +218,17 @@ export class AuthStore {
         updatedAt: new Date().toISOString(),
         data: {},
       };
-      fs.writeFileSync(USERS_FILE, JSON.stringify([defaultAdmin], null, 2), 'utf-8');
+      userMap.set(defaultAdmin.id, defaultAdmin);
+    }
+
+    const mergedUsers = Array.from(userMap.values());
+    if (!fs.existsSync(USERS_FILE) || usersList.length !== mergedUsers.length) {
+      fs.writeFileSync(USERS_FILE, JSON.stringify(mergedUsers, null, 2), 'utf-8');
+    }
+    if (!fs.existsSync(BACKUP_USERS_FILE) || backupList.length !== mergedUsers.length) {
+      try {
+        fs.writeFileSync(BACKUP_USERS_FILE, JSON.stringify(mergedUsers, null, 2), 'utf-8');
+      } catch {}
     }
 
     // 2. Seed SESSIONS_FILE
@@ -372,6 +411,9 @@ export class AuthStore {
       data: sanitizeUserData(u.data),
     }));
     this.writeJsonFile(USERS_FILE, cleanedUsers);
+    try {
+      this.writeJsonFile(BACKUP_USERS_FILE, cleanedUsers);
+    } catch {}
   }
 
   public static getSessions(): SessionToken[] {
@@ -446,7 +488,19 @@ export class AuthStore {
   }
 
   public static verifyCredentials(username: string, password: string): StoredUser | null {
-    const user = this.findByUsername(username);
+    let user = this.findByUsername(username);
+    if (!user && fs.existsSync(BACKUP_USERS_FILE)) {
+      try {
+        const backupUsers: StoredUser[] = JSON.parse(fs.readFileSync(BACKUP_USERS_FILE, 'utf-8'));
+        const backupMatch = backupUsers.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
+        if (backupMatch) {
+          const users = this.getUsers();
+          users.push(backupMatch);
+          this.saveUsers(users);
+          user = backupMatch;
+        }
+      } catch {}
+    }
     if (!user) return null;
 
     const testHash = hashPassword(password, user.salt);
@@ -493,7 +547,20 @@ export class AuthStore {
     // 2. If session wasn't found in memory/file, verify cryptographic token format directly
     const verified = verifyTokenFormat(token);
     if (verified) {
-      const user = this.findById(verified.userId);
+      let user = this.findById(verified.userId);
+      if (!user && fs.existsSync(BACKUP_USERS_FILE)) {
+        try {
+          const backupUsers: StoredUser[] = JSON.parse(fs.readFileSync(BACKUP_USERS_FILE, 'utf-8'));
+          const backupMatch = backupUsers.find((u) => u.id === verified.userId);
+          if (backupMatch) {
+            const users = this.getUsers();
+            users.push(backupMatch);
+            this.saveUsers(users);
+            user = backupMatch;
+          }
+        } catch {}
+      }
+
       if (user) {
         // Re-persist session into sessions.json
         sessions.push({
@@ -507,6 +574,67 @@ export class AuthStore {
     }
 
     return null;
+  }
+
+  public static restoreOrSyncUser(vault: any, clientData?: any): StoredUser {
+    if (!vault || !vault.username) {
+      throw new Error('Valid vault is required');
+    }
+    const cleanUsername = vault.username.trim().toLowerCase();
+    const users = this.getUsers();
+    let existingIndex = users.findIndex(
+      (u) => u.username.toLowerCase() === cleanUsername || (vault.id && u.id === vault.id)
+    );
+
+    if (existingIndex >= 0) {
+      const existing = users[existingIndex];
+      if (
+        clientData &&
+        typeof clientData === 'object' &&
+        (!existing.data?.coffees || existing.data.coffees.length === 0) &&
+        Array.isArray(clientData.coffees) &&
+        clientData.coffees.length > 0
+      ) {
+        existing.data = sanitizeUserData({ ...existing.data, ...clientData });
+        existing.updatedAt = new Date().toISOString();
+        users[existingIndex] = existing;
+        this.saveUsers(users);
+      }
+      return existing;
+    }
+
+    const salt = vault.salt || crypto.randomBytes(16).toString('hex');
+    const passwordHash =
+      vault.passwordHash || hashPassword(vault.password || 'admin123', salt);
+
+    const restoredUser: StoredUser = {
+      id: vault.id || `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      username: vault.username.trim(),
+      passwordHash,
+      salt,
+      role: vault.role === 'admin' ? 'admin' : 'user',
+      createdAt: vault.createdAt || new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      data: sanitizeUserData(clientData || vault.data || {}),
+    };
+
+    users.push(restoredUser);
+    this.saveUsers(users);
+    return restoredUser;
+  }
+
+  public static restoreOrSyncBatch(vaults: any[]): StoredUser[] {
+    if (!Array.isArray(vaults) || vaults.length === 0) return this.getUsers();
+    for (const vault of vaults) {
+      if (!vault || !vault.username) continue;
+      try {
+        this.restoreOrSyncUser(vault, vault.data);
+      } catch (err) {
+        console.error('Error in restoreOrSyncBatch for user:', vault.username, err);
+      }
+    }
+    return this.getUsers();
   }
 
   public static deleteSession(token: string): void {
@@ -870,6 +998,16 @@ export class AuthStore {
         notesCount: notes.length,
         tastingsCount,
         hasData: coffees.length > 0 || equipment.length > 0 || cafes.length > 0 || notes.length > 0,
+        vault: {
+          id: u.id,
+          username: u.username,
+          passwordHash: u.passwordHash,
+          salt: u.salt,
+          role: u.role,
+          createdAt: u.createdAt,
+          updatedAt: u.updatedAt,
+          data: u.data,
+        },
       };
     });
   }

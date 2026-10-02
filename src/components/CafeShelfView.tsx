@@ -13,6 +13,8 @@ import {
   LayoutGrid,
   Coffee,
   Sparkles,
+  Globe,
+  Users,
 } from 'lucide-react';
 import { Cafe, RegisteredCafe } from '../types/coffee';
 import { StarRatingDisplay, StarRatingInput } from './StarRating';
@@ -25,6 +27,8 @@ interface CafeShelfViewProps {
   onDeleteCafe: (cafeId: string) => void;
   onToggleFavorite: (cafeId: string) => void;
   onQuickRate: (cafeId: string, rating: number) => void;
+  onRegisterCafe?: (cafe: Cafe) => void;
+  onOpenAuthModal?: () => void;
   registeredCafes?: RegisteredCafe[];
   isRegisteredUser?: boolean;
 }
@@ -36,6 +40,8 @@ export const CafeShelfView: React.FC<CafeShelfViewProps> = ({
   onDeleteCafe,
   onToggleFavorite,
   onQuickRate,
+  onRegisterCafe,
+  onOpenAuthModal,
   registeredCafes = [],
   isRegisteredUser = false,
 }) => {
@@ -256,34 +262,87 @@ export const CafeShelfView: React.FC<CafeShelfViewProps> = ({
                     </div>
                   )}
 
-                  {/* Star Rating: Personal & General */}
-                  <div className="py-2.5 mt-2 border-t border-[#F2EAE0] space-y-1.5">
+                  {/* Dual Panel: Personal & General Information */}
+                  <div className="py-2.5 mt-2 border-t border-[#F2EAE0] space-y-2">
                     <StarRatingInput
                       value={cafe.rating}
                       onChange={(newRating) => onQuickRate(cafe.id, newRating)}
                       size="sm"
-                      label="Your Cafe Rating"
+                      label="Personal Rating"
                     />
+
+                    {/* General Information Box */}
                     {(() => {
                       const generalInfo = getGeneralCafeInfo(cafe, registeredCafes);
-                      if (!generalInfo.isRegistered) {
+                      if (generalInfo.isRegistered) {
                         return (
-                          <div className="flex items-center justify-between text-[10px] text-[#8C7A6D] bg-[#F8F5F0] px-2 py-0.5 rounded border border-dashed border-[#E5DACD]">
-                            <span className="text-[#A8988A] italic">Personal Cafe</span>
-                            <span className="text-[#A8988A] font-mono text-[9px]">Unregistered</span>
+                          <div className="p-2.5 bg-[#FAF7F2] rounded-lg border border-[#DECFC0] space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px]">
+                              <div className="font-bold uppercase tracking-wider text-[#8C4F1A] flex items-center gap-1">
+                                <Globe className="w-3.5 h-3.5 text-[#C87D32]" />
+                                <span>General Information</span>
+                              </div>
+                              <span className="px-1.5 py-0.2 bg-[#F2EAE0] text-[#8C7A6D] rounded text-[9px] font-mono">
+                                {isRegisteredUser ? 'Registered Consensus' : 'Registered Users Only'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-[#EAE0D3]">
+                              <div className="text-[10px] text-[#8C7A6D] uppercase font-semibold">General Rating:</div>
+                              <StarRatingDisplay
+                                rating={generalInfo.generalRating}
+                                count={generalInfo.ratingsCount}
+                                size="sm"
+                              />
+                            </div>
+                            <div className="text-[10px] text-[#8C4F1A] font-medium">
+                              {generalInfo.ratingsCount === 0 ? (
+                                <span className="text-[#A8988A] italic">No ratings yet · Default 0.0</span>
+                              ) : generalInfo.ratingsCount === 1 ? (
+                                <span>1 barista visited & rated</span>
+                              ) : (
+                                <span>{generalInfo.ratingsCount} baristas visited & rated</span>
+                              )}
+                            </div>
                           </div>
                         );
                       }
+
+                      // Unregistered Cafe
                       return (
-                        <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
-                          <span className="text-[#8C7A6D]">General Rating:</span>
-                          <span className="font-semibold text-[#8C4F1A] font-mono">
-                            {generalInfo.ratingsCount > 0 ? (
-                              <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'visit' : 'visits'})</>
-                            ) : (
-                              <span className="text-[#A8988A] font-normal">Unrated (0)</span>
-                            )}
-                          </span>
+                        <div className="p-2.5 bg-[#FAF7F2] rounded-lg border border-[#DECFC0] space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <div className="font-bold uppercase tracking-wider text-[#8C7A6D] flex items-center gap-1">
+                              <Globe className="w-3.5 h-3.5 text-[#8C7A6D]" />
+                              <span>General Information</span>
+                            </div>
+                            <span className="px-1.5 py-0.2 bg-[#F2EAE0] text-[#8C7A6D] border border-[#E0D5C7] rounded text-[9px] font-mono">
+                              Personal Spot · Unregistered
+                            </span>
+                          </div>
+
+                          <p className="text-[10px] text-[#7A6757] leading-relaxed">
+                            This spot is in your personal journal and not yet in the community directory.
+                          </p>
+
+                          {isRegisteredUser && onRegisterCafe ? (
+                            <button
+                              type="button"
+                              onClick={() => onRegisterCafe(cafe)}
+                              className="w-full mt-1 py-1.5 px-2 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[11px] font-semibold rounded-md shadow-2xs transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Register Cafe to Community Directory</span>
+                            </button>
+                          ) : !isRegisteredUser && onOpenAuthModal ? (
+                            <button
+                              type="button"
+                              onClick={onOpenAuthModal}
+                              className="w-full mt-1 py-1.5 px-2 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[10px] font-semibold rounded-md shadow-2xs transition-colors cursor-pointer text-center"
+                            >
+                              Sign In to Register Cafe
+                            </button>
+                          ) : null}
                         </div>
                       );
                     })()}

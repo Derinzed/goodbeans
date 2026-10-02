@@ -76,11 +76,76 @@ export async function handleAuthRoutes(
           role: newUser.role,
           createdAt: newUser.createdAt,
         },
+        vault: {
+          id: newUser.id,
+          username: newUser.username,
+          passwordHash: newUser.passwordHash,
+          salt: newUser.salt,
+          role: newUser.role,
+        },
         data: newUser.data,
       });
       return true;
     } catch (err: any) {
       sendJson(res, 400, { error: err.message || 'Registration failed' });
+      return true;
+    }
+  }
+
+  // 1b. POST /api/auth/sync-vault (Seamless account persistence across server rebuilds/publishes)
+  if (url === '/api/auth/sync-vault' && method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      const { vault, data } = body;
+      if (!vault || !vault.username) {
+        sendJson(res, 400, { error: 'Invalid vault payload' });
+        return true;
+      }
+
+      const user = AuthStore.restoreOrSyncUser(vault, data);
+      const token = AuthStore.createSession(user.id);
+      sendJson(res, 200, {
+        success: true,
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          createdAt: user.createdAt,
+        },
+        vault: {
+          id: user.id,
+          username: user.username,
+          passwordHash: user.passwordHash,
+          salt: user.salt,
+          role: user.role,
+        },
+        data: user.data,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to sync vault' });
+      return true;
+    }
+  }
+
+  // 1c. POST /api/auth/sync-vault-batch (Batch restore users from local browser registry across deployments)
+  if (url === '/api/auth/sync-vault-batch' && method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      const { vaults } = body;
+      if (!Array.isArray(vaults)) {
+        sendJson(res, 400, { error: 'vaults array is required' });
+        return true;
+      }
+      const users = AuthStore.restoreOrSyncBatch(vaults);
+      sendJson(res, 200, {
+        success: true,
+        count: users.length,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to sync vault batch' });
       return true;
     }
   }
@@ -112,6 +177,13 @@ export async function handleAuthRoutes(
           role: user.role,
           createdAt: user.createdAt,
         },
+        vault: {
+          id: user.id,
+          username: user.username,
+          passwordHash: user.passwordHash,
+          salt: user.salt,
+          role: user.role,
+        },
         data: user.data,
       });
       return true;
@@ -137,6 +209,13 @@ export async function handleAuthRoutes(
         username: user.username,
         role: user.role,
         createdAt: user.createdAt,
+      },
+      vault: {
+        id: user.id,
+        username: user.username,
+        passwordHash: user.passwordHash,
+        salt: user.salt,
+        role: user.role,
       },
       data: user.data,
     });
@@ -307,6 +386,14 @@ export async function handleAuthRoutes(
           username: created.username,
           role: created.role,
           createdAt: created.createdAt,
+        },
+        vault: {
+          id: created.id,
+          username: created.username,
+          passwordHash: created.passwordHash,
+          salt: created.salt,
+          role: created.role,
+          data: created.data,
         },
       });
       return true;

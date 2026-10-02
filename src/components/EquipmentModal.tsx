@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { X, Wrench, Sparkles, Search, Check, Info, Loader2 } from 'lucide-react';
+import { X, Wrench, Sparkles, Search, Check, Info, Loader2, Globe, Users } from 'lucide-react';
 import { Equipment, EquipmentCategory, RegisteredEquipment } from '../types/coffee';
 import { StarRatingInput, StarRatingDisplay } from './StarRating';
 
 interface EquipmentModalProps {
   initialEquipment?: Equipment | null;
   registeredEquipment?: RegisteredEquipment[];
-  onSave: (equipment: Equipment) => void;
+  isRegisteredUser?: boolean;
+  onSave: (equipment: Equipment, registerToCommunity?: boolean) => void;
   onClose: () => void;
 }
 
@@ -24,6 +25,7 @@ const CATEGORIES: EquipmentCategory[] = [
 export const EquipmentModal: React.FC<EquipmentModalProps> = ({
   initialEquipment,
   registeredEquipment = [],
+  isRegisteredUser = false,
   onSave,
   onClose,
 }) => {
@@ -50,6 +52,7 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
   const [showAllRegistered, setShowAllRegistered] = useState(false);
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [autoFillError, setAutoFillError] = useState<string | null>(null);
+  const [registerToCommunity, setRegisterToCommunity] = useState(true);
 
   const handleAutoFillSpecs = async () => {
     if (!name.trim()) return;
@@ -120,7 +123,7 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
       generalNotes: generalNotes.trim(),
       rating,
     };
-    onSave(data);
+    onSave(data, isRegisteredUser && !matchingRegistered && registerToCommunity);
   };
 
   const recommendedItems = registeredEquipment.filter((re) => re.isRecommended || re.generalRating >= 4.5);
@@ -224,18 +227,50 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
               </div>
 
               {matchingRegistered ? (
-                <div className="flex items-start gap-1.5 text-[11px] text-[#3B5A3E] bg-emerald-50/80 p-2 rounded-lg border border-emerald-200">
-                  <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600" />
-                  <span>
-                    Linked with registered gear: <strong>{matchingRegistered.name}</strong> ({matchingRegistered.brand}). General rating is averaged across all baristas. (You can still use your own custom name if desired).
-                  </span>
+                <div className="p-2.5 bg-emerald-50/80 rounded-lg border border-emerald-200 space-y-1.5 text-xs text-[#2E4A32]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-800 text-[11px]">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Linked with Registered Catalog Gear</span>
+                    </div>
+                    <span className="text-[10px] font-mono bg-emerald-100 text-emerald-900 px-1.5 py-0.5 rounded">
+                      General Consensus
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60 text-[11px]">
+                    <span className="text-[#4A634E]">General Rating:</span>
+                    <div className="flex items-center gap-1 font-mono font-semibold text-emerald-900">
+                      <StarRatingDisplay
+                        rating={matchingRegistered.generalRating}
+                        count={matchingRegistered.ratingsCount}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
                 </div>
               ) : name.trim() ? (
-                <div className="flex items-start gap-1.5 text-[11px] text-[#6B5A4E] bg-white/70 p-2 rounded-lg border border-[#E5DACD]">
-                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#C87D32]" />
-                  <span>
-                    Custom gear: <strong>"{name}"</strong> will be added as a distinct item to track in the community registry.
-                  </span>
+                <div className="p-2.5 bg-white/90 rounded-lg border border-[#E5DACD] space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#8C4F1A]">
+                    <Globe className="w-3.5 h-3.5 text-[#C87D32]" />
+                    <span>Unregistered Custom Gear Model</span>
+                  </div>
+                  {isRegisteredUser ? (
+                    <label className="flex items-start gap-2 cursor-pointer pt-1 border-t border-[#F0E6DB]">
+                      <input
+                        type="checkbox"
+                        checked={registerToCommunity}
+                        onChange={(e) => setRegisterToCommunity(e.target.checked)}
+                        className="mt-0.5 rounded border-[#DACDC0] text-[#C87D32] focus:ring-[#C87D32] w-3.5 h-3.5"
+                      />
+                      <span className="text-[11px] text-[#553E2F] leading-tight">
+                        Register <strong>"{name.trim()}"</strong> to the site's shared community catalog upon saving
+                      </span>
+                    </label>
+                  ) : (
+                    <p className="text-[11px] text-[#7A6757] leading-relaxed pt-1 border-t border-[#F0E6DB]">
+                      This gear will be stored in your personal shelf. Sign in to contribute evaluations and register gear to the site.
+                    </p>
+                  )}
                 </div>
               ) : null}
             </div>

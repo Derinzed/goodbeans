@@ -5,7 +5,7 @@ import { authApi, UserProfile } from '../services/authApi';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAuthSuccess: (user: UserProfile, token: string, serverData?: any) => void;
+  onAuthSuccess: (user: UserProfile, token: string, serverData?: any, vault?: any) => void;
   initialDataToSave?: any;
   initialMode?: 'login' | 'register';
 }
@@ -59,16 +59,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setIsLoading(false);
           return;
         }
-        onAuthSuccess(res.user, res.token, res.data);
+        if (res.vault) {
+          authApi.saveCurrentVault(res.vault, initialDataToSave);
+        }
+        onAuthSuccess(res.user, res.token, res.data, res.vault);
         onClose();
       } else {
-        const res = await authApi.login(cleanUsername, password);
+        let res = await authApi.login(cleanUsername, password);
+        // If login failed because server container was freshly published/redeployed, check local vault
+        if ((!res.success || !res.user) && typeof window !== 'undefined') {
+          const registry = authApi.getVaultRegistry();
+          const matchedVault = registry[cleanUsername.toLowerCase()] || authApi.getCurrentVault();
+
+          if (matchedVault) {
+            // Restore user seamlessly on server
+            const syncRes = await authApi.syncVault(
+              {
+                ...matchedVault,
+                password,
+              },
+              initialDataToSave
+            );
+            if (syncRes.success && syncRes.user && syncRes.token) {
+              res = syncRes;
+            }
+          }
+        }
+
         if (!res.success || !res.token || !res.user) {
           setError(res.error || 'Invalid username or password.');
           setIsLoading(false);
           return;
         }
-        onAuthSuccess(res.user, res.token, res.data);
+        if (res.vault) {
+          authApi.saveCurrentVault(res.vault, res.data);
+        }
+        onAuthSuccess(res.user, res.token, res.data, res.vault);
         onClose();
       }
     } catch (err: any) {

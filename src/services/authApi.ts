@@ -24,6 +24,7 @@ export interface AuthResponse {
   success: boolean;
   token?: string;
   user?: UserProfile;
+  vault?: any;
   data?: any;
   error?: string;
   message?: string;
@@ -37,6 +38,103 @@ export const authApi = {
       body: JSON.stringify({ username, password, initialData }),
     });
     return res.json();
+  },
+
+  async syncVault(vault: any, data?: any): Promise<AuthResponse> {
+    const res = await fetch('/api/auth/sync-vault', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vault, data }),
+    });
+    return res.json();
+  },
+
+  async syncVaultBatch(vaults: any[]): Promise<{ success: boolean; count?: number; error?: string }> {
+    try {
+      const res = await fetch('/api/auth/sync-vault-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vaults }),
+      });
+      return res.json();
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error syncing batch' };
+    }
+  },
+
+  // --- Local Browser Vault Registry Utilities (Never lost across redeployments/publishes) ---
+  getVaultRegistry(): Record<string, any> {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem('goodbeans_vault_registry');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  },
+
+  saveVaultToRegistry(vault: any, data?: any): void {
+    if (typeof window === 'undefined' || !vault || !vault.username) return;
+    try {
+      const registry = this.getVaultRegistry();
+      const key = vault.username.trim().toLowerCase();
+      registry[key] = {
+        ...registry[key],
+        ...vault,
+        username: vault.username.trim(),
+        data: data || vault.data || registry[key]?.data || {},
+        lastSeenAt: new Date().toISOString(),
+      };
+      localStorage.setItem('goodbeans_vault_registry', JSON.stringify(registry));
+    } catch {}
+  },
+
+  saveCurrentVault(vault: any, data?: any): void {
+    if (typeof window === 'undefined' || !vault || !vault.username) return;
+    try {
+      const payload = {
+        ...vault,
+        data: data || vault.data || {},
+        updatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem('goodbeans_user_vault', JSON.stringify(payload));
+      this.saveVaultToRegistry(vault, data);
+    } catch {}
+  },
+
+  getCurrentVault(): any | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('goodbeans_user_vault');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  removeUserFromRegistry(usernameOrId: string): void {
+    if (typeof window === 'undefined' || !usernameOrId) return;
+    try {
+      const registry = this.getVaultRegistry();
+      const clean = usernameOrId.trim().toLowerCase();
+      delete registry[clean];
+      for (const [k, v] of Object.entries(registry)) {
+        if ((v as any).id === usernameOrId) {
+          delete registry[k];
+        }
+      }
+      localStorage.setItem('goodbeans_vault_registry', JSON.stringify(registry));
+    } catch {}
+  },
+
+  clearCurrentSessionOnly(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem('goodbeans_auth_token');
+      localStorage.removeItem('goodbeans_current_user');
+      localStorage.removeItem('goodbeans_user_vault');
+      // Notice: goodbeans_vault_registry is preserved so past users are never wiped when published!
+    } catch {}
   },
 
   async login(username: string, password: string): Promise<AuthResponse> {

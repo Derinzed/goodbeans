@@ -305,6 +305,13 @@ export default function App() {
 
   // Verify stored session on mount or load persistent server guest data
   useEffect(() => {
+    // 1. Sync all browser-persisted user vaults to the server in the background (survives container redeployments/publishes)
+    const registry = authApi.getVaultRegistry();
+    const vaultList = Object.values(registry);
+    if (vaultList.length > 0) {
+      authApi.syncVaultBatch(vaultList).catch(() => {});
+    }
+
     const savedToken = localStorage.getItem('goodbeans_auth_token');
     if (savedToken) {
       authApi
@@ -313,15 +320,57 @@ export default function App() {
           if (res.success && res.user) {
             setCurrentUser(res.user);
             setAuthToken(savedToken);
+            if (res.vault) {
+              authApi.saveCurrentVault(res.vault, res.data);
+            }
             if (res.data) {
               applyServerData(res.data);
             }
           } else {
-            // Only clear token if server explicitly rejected with 401
-            localStorage.removeItem('goodbeans_auth_token');
-            localStorage.removeItem('goodbeans_current_user');
-            setCurrentUser(null);
-            setAuthToken(null);
+            // Container was republished/rebuilt: seamlessly restore user session via client vault
+            const currentVault = authApi.getCurrentVault();
+            if (currentVault && currentVault.username) {
+              const currentPayload = {
+                coffees: coffees.map(stripGeneralCoffeeFields),
+                equipment: equipment.map(stripGeneralEquipmentFields),
+                cafes: cafes.map(stripGeneralCafeFields),
+                notes,
+                shelves,
+                theme,
+                primaryHue,
+                secondaryHue,
+                backgroundColor,
+              };
+              authApi
+                .syncVault(currentVault, currentPayload)
+                .then((syncRes) => {
+                  if (syncRes.success && syncRes.user && syncRes.token) {
+                    setCurrentUser(syncRes.user);
+                    setAuthToken(syncRes.token);
+                    localStorage.setItem('goodbeans_current_user', JSON.stringify(syncRes.user));
+                    localStorage.setItem('goodbeans_auth_token', syncRes.token);
+                    if (syncRes.vault) {
+                      authApi.saveCurrentVault(syncRes.vault, syncRes.data);
+                    }
+                    if (syncRes.data) {
+                      applyServerData(syncRes.data);
+                    }
+                  } else {
+                    authApi.clearCurrentSessionOnly();
+                    setCurrentUser(null);
+                    setAuthToken(null);
+                  }
+                })
+                .catch(() => {
+                  authApi.clearCurrentSessionOnly();
+                  setCurrentUser(null);
+                  setAuthToken(null);
+                });
+            } else {
+              authApi.clearCurrentSessionOnly();
+              setCurrentUser(null);
+              setAuthToken(null);
+            }
           }
         })
         .catch(() => {});
@@ -386,12 +435,15 @@ export default function App() {
     guestId,
   ]);
 
-  const handleAuthSuccess = (user: UserProfile, token: string, serverData?: any) => {
+  const handleAuthSuccess = (user: UserProfile, token: string, serverData?: any, vault?: any) => {
     setCurrentUser(user);
     setAuthToken(token);
     try {
       localStorage.setItem('goodbeans_current_user', JSON.stringify(user));
       localStorage.setItem('goodbeans_auth_token', token);
+      if (vault) {
+        authApi.saveCurrentVault(vault, serverData);
+      }
     } catch {
       // ignore
     }
@@ -440,12 +492,7 @@ export default function App() {
     }
     setCurrentUser(null);
     setAuthToken(null);
-    try {
-      localStorage.removeItem('goodbeans_current_user');
-      localStorage.removeItem('goodbeans_auth_token');
-    } catch {
-      // ignore
-    }
+    authApi.clearCurrentSessionOnly();
     setIsUserModalOpen(false);
     setToastMessage('Signed out successfully.');
   };
@@ -455,14 +502,13 @@ export default function App() {
     try {
       const res = await authApi.deleteAccount(authToken);
       if (res.success) {
+        if (currentUser) {
+          authApi.removeUserFromRegistry(currentUser.id);
+          authApi.removeUserFromRegistry(currentUser.username);
+        }
         setCurrentUser(null);
         setAuthToken(null);
-        try {
-          localStorage.removeItem('goodbeans_current_user');
-          localStorage.removeItem('goodbeans_auth_token');
-        } catch {
-          // ignore
-        }
+        authApi.clearCurrentSessionOnly();
         handleResetData();
         setToastMessage(res.message || 'Your account and data were permanently deleted.');
       } else {
@@ -808,7 +854,7 @@ export default function App() {
   };
 
   // Handlers for Equipment
-  const handleSaveEquipment = async (equipmentData: Equipment) => {
+  const handleSaveEquipment = async (equipmentData: Equipment, registerToCommunity?: boolean) => {
     const cleanEquipment = stripGeneralEquipmentFields(equipmentData);
     if (editingEquipment) {
       setEquipment((prev) =>
@@ -822,11 +868,41 @@ export default function App() {
 
     if (authToken && currentUser) {
       try {
-        if (typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0) {
+        if (registerToCommunity) {
+          await authApi.registerCommunityItem(
+            'equipment',
+            cleanEquipment,
+            typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0 ? cleanEquipment.rating : undefined,
+            undefined,
+            false
+          );
+          setToastMessage(`"${cleanEquipment.name}" registered to community equipment catalog!`);
+        } else if (typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0) {
           await authApi.registerCommunityItem('equipment', cleanEquipment, cleanEquipment.rating, undefined, true);
         }
         await fetchCommunityCatalog();
       } catch {}
+    }
+  };
+
+  const handleRegisterEquipmentToCommunity = async (targetEquipment: Equipment) => {
+    if (!authToken || !currentUser) {
+      setAuthModalMode('login');
+      setIsAuthModalOpen(true);
+      return;
+    }
+    try {
+      await authApi.registerCommunityItem(
+        'equipment',
+        targetEquipment,
+        typeof targetEquipment.rating === 'number' && targetEquipment.rating > 0 ? targetEquipment.rating : undefined,
+        undefined,
+        false
+      );
+      await fetchCommunityCatalog();
+      setToastMessage(`"${targetEquipment.name}" registered to community equipment catalog!`);
+    } catch {
+      setToastMessage('Failed to register equipment to community catalog.');
     }
   };
 
@@ -854,7 +930,7 @@ export default function App() {
   };
 
   // Handlers for Cafes
-  const handleSaveCafe = async (cafeData: Cafe) => {
+  const handleSaveCafe = async (cafeData: Cafe, registerToCommunity?: boolean) => {
     const cleanCafe = stripGeneralCafeFields(cafeData);
     if (editingCafe) {
       setCafes((prev) =>
@@ -868,11 +944,41 @@ export default function App() {
 
     if (authToken && currentUser) {
       try {
-        if (typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0) {
+        if (registerToCommunity) {
+          await authApi.registerCommunityItem(
+            'cafe',
+            cleanCafe,
+            typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0 ? cleanCafe.rating : undefined,
+            undefined,
+            false
+          );
+          setToastMessage(`"${cleanCafe.name}" registered to community cafe catalog!`);
+        } else if (typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0) {
           await authApi.registerCommunityItem('cafe', cleanCafe, cleanCafe.rating, undefined, true);
         }
         await fetchCommunityCatalog();
       } catch {}
+    }
+  };
+
+  const handleRegisterCafeToCommunity = async (targetCafe: Cafe) => {
+    if (!authToken || !currentUser) {
+      setAuthModalMode('login');
+      setIsAuthModalOpen(true);
+      return;
+    }
+    try {
+      await authApi.registerCommunityItem(
+        'cafe',
+        targetCafe,
+        typeof targetCafe.rating === 'number' && targetCafe.rating > 0 ? targetCafe.rating : undefined,
+        undefined,
+        false
+      );
+      await fetchCommunityCatalog();
+      setToastMessage(`"${targetCafe.name}" registered to community cafe catalog!`);
+    } catch {
+      setToastMessage('Failed to register cafe to community catalog.');
     }
   };
 
@@ -1479,6 +1585,11 @@ export default function App() {
             }}
             onDeleteEquipment={handleDeleteEquipment}
             onQuickRate={handleQuickRateEquipment}
+            onRegisterEquipment={handleRegisterEquipmentToCommunity}
+            onOpenAuthModal={() => {
+              setAuthModalMode('login');
+              setIsAuthModalOpen(true);
+            }}
           />
         ) : currentView === 'cafes' ? (
           <CafeShelfView
@@ -1496,6 +1607,11 @@ export default function App() {
             onDeleteCafe={handleDeleteCafe}
             onToggleFavorite={handleToggleCafeFavorite}
             onQuickRate={handleQuickRateCafe}
+            onRegisterCafe={handleRegisterCafeToCommunity}
+            onOpenAuthModal={() => {
+              setAuthModalMode('login');
+              setIsAuthModalOpen(true);
+            }}
           />
         ) : currentView === 'notes' ? (
           <NotesShelfView
@@ -1781,6 +1897,7 @@ export default function App() {
         <EquipmentModal
           initialEquipment={editingEquipment}
           registeredEquipment={registeredEquipment}
+          isRegisteredUser={Boolean(authToken && currentUser)}
           onSave={handleSaveEquipment}
           onClose={() => {
             setIsEquipmentModalOpen(false);
@@ -1794,6 +1911,7 @@ export default function App() {
         <CafeModal
           initialCafe={editingCafe}
           registeredCafes={registeredCafes}
+          isRegisteredUser={Boolean(authToken && currentUser)}
           onSave={handleSaveCafe}
           onClose={() => {
             setIsCafeModalOpen(false);
