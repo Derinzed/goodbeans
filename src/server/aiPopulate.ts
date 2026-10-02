@@ -24,8 +24,6 @@ Return ONLY valid raw JSON matching this schema:
   "description": "string (2-3 sentences about the lot, terroir, processing method, and flavor character)",
   "bagBadgeText": "string (short 1-2 words badge, e.g. 'Micro-Lot', '90+ Score', 'Direct Trade', 'Competition Lot')",
   "coverColor": "string (hex code fitting the coffee's origin and flavor, e.g. '#2B1D14', '#5C3A21', '#8C4F1A', '#355E3B', '#1B4D3E', '#722F37', '#1E3A8A')",
-  "communityRating": number (realistic average 4.2 to 4.9),
-  "communityRatingsCount": number (realistic count 15 to 80),
   "recommendedRecipe": {
     "title": "string (e.g. Recommended V60 Dial-In)",
     "method": "string (must be one of: 'v60', 'espresso', 'aeropress', 'french-press', 'chemex', 'clever', 'cold-brew')",

@@ -47,6 +47,7 @@ interface CoffeeDetailViewProps {
   isRegisteredUser?: boolean;
   onOpenAuthModal?: () => void;
   registeredCoffees?: RegisteredCoffee[];
+  onRegisterCoffee?: (coffee: Coffee) => void;
 }
 
 export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
@@ -68,9 +69,10 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
   isRegisteredUser = false,
   onOpenAuthModal,
   registeredCoffees = [],
+  onRegisterCoffee,
 }) => {
   const generalInfo = getGeneralCoffeeInfo(coffee, registeredCoffees);
-  const { generalRating, ratingsCount, generalTastingNotes, tastingNotesBreakdown } = generalInfo;
+  const { isRegistered, generalRating, ratingsCount, generalTastingNotes, tastingNotesBreakdown } = generalInfo;
 
   const [activeTab, setActiveTab] = useState<'recipes' | 'tastings' | 'notes' | 'overview'>('recipes');
   const [isShelfDropdownOpen, setIsShelfDropdownOpen] = useState(false);
@@ -392,124 +394,193 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
 
           {/* Dual Panel: General Information (Shared Community Aggregate) & Personal Evaluations */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* 1. General Information (Shared across all entries of this type, server-side aggregate) */}
-            <div className="p-4 bg-[#FAF7F2] rounded-xl border border-[#DECFC0] flex flex-col justify-between space-y-4">
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-[#EAE0D3]">
-                  <div className="text-[11px] uppercase font-bold text-[#8C4F1A] tracking-wider flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5 text-[#C87D32]" />
-                    <span>General Information</span>
+            {/* 1. General Information (Owned & Populated by Server for Registered Catalog Items) */}
+            {isRegistered ? (
+              <div className="p-4 bg-[#FAF7F2] rounded-xl border border-[#DECFC0] flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-[#EAE0D3]">
+                    <div className="text-[11px] uppercase font-bold text-[#8C4F1A] tracking-wider flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-[#C87D32]" />
+                      <span>General Information</span>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
+                      isRegisteredUser
+                        ? 'text-[#8C7A6D] bg-[#F2EAE0]'
+                        : 'text-amber-800 bg-amber-100 border border-amber-200'
+                    }`}>
+                      {isRegisteredUser ? 'Registered Consensus' : 'Registered Users Only'}
+                    </span>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
-                    isRegisteredUser
-                      ? 'text-[#8C7A6D] bg-[#F2EAE0]'
-                      : 'text-amber-800 bg-amber-100 border border-amber-200'
-                  }`}>
-                    {isRegisteredUser ? 'Registered Consensus' : 'Registered Users Only'}
-                  </span>
-                </div>
 
-                {/* General Rating */}
-                <div className="mb-3.5">
-                  <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1 flex items-center justify-between">
-                    <span>General Rating</span>
-                    <span className="text-[10px] text-[#A8988A] lowercase font-normal">registered baristas aggregate</span>
+                  {/* General Rating */}
+                  <div className="mb-3.5">
+                    <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1 flex items-center justify-between">
+                      <span>General Rating</span>
+                      <span className="text-[10px] text-[#A8988A] lowercase font-normal">registered baristas aggregate</span>
+                    </div>
+                    <StarRatingDisplay
+                      rating={generalRating}
+                      count={ratingsCount}
+                      size="md"
+                    />
+                    <div className="text-[11px] text-[#8C7A6D] mt-1 font-medium">
+                      {ratingsCount === 0 ? (
+                        <span className="text-[#A8988A] italic">No ratings yet · Default 0.0</span>
+                      ) : ratingsCount === 1 ? (
+                        <span className="text-[#8C4F1A]">1 registered barista evaluated</span>
+                      ) : (
+                        <span className="text-[#8C4F1A]">{ratingsCount} registered baristas evaluated</span>
+                      )}
+                    </div>
                   </div>
-                  <StarRatingDisplay
-                    rating={generalRating}
-                    count={ratingsCount}
-                    size="md"
-                  />
-                  <div className="text-[11px] text-[#8C7A6D] mt-1 font-medium">
-                    {ratingsCount === 0 ? (
-                      <span className="text-[#A8988A] italic">No ratings yet · Default 0.0</span>
-                    ) : ratingsCount === 1 ? (
-                      <span className="text-[#8C4F1A]">1 registered barista evaluated</span>
+
+                  {/* General Tasting Notes: Top 5 Aggregated */}
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1.5 flex items-center justify-between">
+                      <span>General Tasting Notes (Top 5)</span>
+                      <span className="text-[10px] text-[#A8988A] lowercase font-normal">consensus proper casing</span>
+                    </div>
+                    {generalTastingNotes && generalTastingNotes.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {generalTastingNotes.slice(0, 5).map((note) => {
+                          const count = tastingNotesBreakdown?.find(
+                            (b) => b.note.toLowerCase() === note.toLowerCase()
+                          )?.count;
+                          const isAlreadyInPersonal = (coffee.tastingNotesSummary || []).some(
+                            (pt) => pt.toLowerCase() === note.toLowerCase()
+                          );
+                          return (
+                            <button
+                              key={note}
+                              type="button"
+                              onClick={() => !isAlreadyInPersonal && handleAddPersonalTag(note)}
+                              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
+                                isAlreadyInPersonal
+                                  ? 'bg-[#F2ECE3] text-[#4A3728] border-[#DFCFC0]'
+                                  : 'bg-[#FAF3EC] hover:bg-[#F2E5D5] text-[#8C4F1A] border-[#E8DACB] hover:border-[#C87D32]'
+                              }`}
+                              title={
+                                isAlreadyInPersonal
+                                  ? `Already in your personal notes: ${note}`
+                                  : `Click to add "${note}" to your personal palate notes`
+                              }
+                            >
+                              <span>{note}</span>
+                              {count !== undefined && count > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.2 bg-[#E6DACB] text-[#554032] rounded-full font-mono font-normal">
+                                  {count}
+                                </span>
+                              )}
+                              {!isAlreadyInPersonal && (
+                                <Plus className="w-2.5 h-2.5 opacity-60 ml-0.5" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     ) : (
-                      <span className="text-[#8C4F1A]">{ratingsCount} registered baristas evaluated</span>
+                      <div className="text-xs text-[#8C7A6D] italic bg-[#F5ECE1] p-2.5 rounded-lg border border-[#E8DEC0]">
+                        Awaiting registered barista evaluations. Rate or add personal notes to contribute to the server-side consensus.
+                      </div>
                     )}
                   </div>
-                </div>
 
-                {/* General Tasting Notes: Top 5 Aggregated */}
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1.5 flex items-center justify-between">
-                    <span>General Tasting Notes (Top 5)</span>
-                    <span className="text-[10px] text-[#A8988A] lowercase font-normal">consensus proper casing</span>
-                  </div>
-                  {generalTastingNotes && generalTastingNotes.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {generalTastingNotes.slice(0, 5).map((note) => {
-                        const count = tastingNotesBreakdown?.find(
-                          (b) => b.note.toLowerCase() === note.toLowerCase()
-                        )?.count;
-                        const isAlreadyInPersonal = (coffee.tastingNotesSummary || []).some(
-                          (pt) => pt.toLowerCase() === note.toLowerCase()
-                        );
-                        return (
-                          <button
-                            key={note}
-                            type="button"
-                            onClick={() => !isAlreadyInPersonal && handleAddPersonalTag(note)}
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
-                              isAlreadyInPersonal
-                                ? 'bg-[#F2ECE3] text-[#4A3728] border-[#DFCFC0]'
-                                : 'bg-[#FAF3EC] hover:bg-[#F2E5D5] text-[#8C4F1A] border-[#E8DACB] hover:border-[#C87D32]'
-                            }`}
-                            title={
-                              isAlreadyInPersonal
-                                ? `Already in your personal notes: ${note}`
-                                : `Click to add "${note}" to your personal palate notes`
-                            }
-                          >
-                            <span>{note}</span>
-                            {count !== undefined && count > 0 && (
-                              <span className="text-[10px] px-1.5 py-0.2 bg-[#E6DACB] text-[#554032] rounded-full font-mono font-normal">
-                                {count}
-                              </span>
-                            )}
-                            {!isAlreadyInPersonal && (
-                              <Plus className="w-2.5 h-2.5 opacity-60 ml-0.5" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-[#8C7A6D] italic bg-[#F5ECE1] p-2.5 rounded-lg border border-[#E8DEC0]">
-                      Awaiting registered barista evaluations. Rate or add personal notes below to contribute to the server-side consensus.
+                  {!isRegisteredUser && (
+                    <div className="mt-3 p-2.5 bg-amber-50/90 border border-amber-200/80 rounded-lg text-xs text-[#6B5342] space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-semibold text-amber-900 text-[11px]">
+                        <Users className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                        <span>General information applies only to registered users</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-[#7A6757]">
+                        Guest ratings remain in your local session. To contribute your ratings and tasting notes to the server-wide general consensus, please sign in.
+                      </p>
+                      {onOpenAuthModal && (
+                        <button
+                          type="button"
+                          onClick={onOpenAuthModal}
+                          className="px-2.5 py-1 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[11px] font-semibold rounded-md shadow-2xs transition-colors cursor-pointer"
+                        >
+                          Sign In / Register
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {!isRegisteredUser && (
-                  <div className="mt-3 p-2.5 bg-amber-50/90 border border-amber-200/80 rounded-lg text-xs text-[#6B5342] space-y-1.5">
-                    <div className="flex items-center gap-1.5 font-semibold text-amber-900 text-[11px]">
-                      <Users className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                      <span>General information applies only to registered users</span>
+                <div className="text-[10px] text-[#9E8B7D] pt-2 border-t border-[#EAE0D3] leading-relaxed">
+                  {isRegisteredUser
+                    ? "Shared across all entries of this roast on the server. Aggregated live from registered baristas' evaluations."
+                    : "General consensus ratings and tasting notes are contributed exclusively by registered members."}
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-[#FAF7F2] rounded-xl border border-[#DECFC0] flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-[#EAE0D3]">
+                    <div className="text-[11px] uppercase font-bold text-[#8C7A6D] tracking-wider flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-[#8C7A6D]" />
+                      <span>General Information</span>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-[#7A6757]">
-                      Guest ratings remain in your local session. To contribute your ratings and tasting notes to the server-wide general consensus, please sign in.
+                    <span className="text-[10px] px-2 py-0.5 rounded font-mono font-medium text-[#8C7A6D] bg-[#F2EAE0] border border-[#E0D5C7]">
+                      Personal Roast · Unregistered
+                    </span>
+                  </div>
+
+                  <div className="py-3 px-3.5 bg-white/80 rounded-lg border border-[#EDE2D4] space-y-2 mb-3">
+                    <p className="text-xs text-[#553E2F] leading-relaxed">
+                      This roast is stored in your personal library and is not currently part of the server's registered catalog.
                     </p>
-                    {onOpenAuthModal && (
+                    <p className="text-[11px] text-[#8C7A6D] leading-relaxed">
+                      General server information, community ratings, and shared tasting consensus are owned and populated by the server for registered catalog items.
+                    </p>
+                  </div>
+
+                  {isRegisteredUser && onRegisterCoffee && (
+                    <div className="p-3 bg-[#FAF2E8] border border-[#E8DACB] rounded-lg space-y-2">
+                      <div className="text-xs font-semibold text-[#8C4F1A]">
+                        Want to share this roast with the community catalog?
+                      </div>
+                      <p className="text-[11px] text-[#7A6757] leading-relaxed">
+                        Register this roast so baristas can view, rate, and contribute evaluations to establish a server-wide general consensus.
+                      </p>
                       <button
                         type="button"
-                        onClick={onOpenAuthModal}
-                        className="px-2.5 py-1 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[11px] font-semibold rounded-md shadow-2xs transition-colors cursor-pointer"
+                        onClick={() => onRegisterCoffee(coffee)}
+                        className="px-3 py-1.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                       >
-                        Sign In / Register
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Register Roast to Community Catalog</span>
                       </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
 
-              <div className="text-[10px] text-[#9E8B7D] pt-2 border-t border-[#EAE0D3] leading-relaxed">
-                {isRegisteredUser
-                  ? "Shared across all entries of this roast on the server. Aggregated live from registered baristas' evaluations."
-                  : "General consensus ratings and tasting notes are contributed exclusively by registered members."}
+                  {!isRegisteredUser && (
+                    <div className="mt-2 p-2.5 bg-amber-50/90 border border-amber-200/80 rounded-lg text-xs text-[#6B5342] space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-semibold text-amber-900 text-[11px]">
+                        <Users className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                        <span>Sign in to contribute to the community</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-[#7A6757]">
+                        Registered baristas can contribute evaluations to registered coffees or register personal roasts to the community.
+                      </p>
+                      {onOpenAuthModal && (
+                        <button
+                          type="button"
+                          onClick={onOpenAuthModal}
+                          className="px-2.5 py-1 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[11px] font-semibold rounded-md shadow-2xs transition-colors cursor-pointer"
+                        >
+                          Sign In / Register
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-[10px] text-[#9E8B7D] pt-2 border-t border-[#EAE0D3] leading-relaxed">
+                  Personal library item. General consensus is populated by the server only for registered catalog coffees.
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 2. Personal Evaluations (User-specific & private) */}
             <div className="p-4 bg-white rounded-xl border border-[#DECFC0] flex flex-col justify-between space-y-4 shadow-2xs">

@@ -7,7 +7,214 @@
     "role": "admin",
     "createdAt": "2026-09-29T22:50:41.931Z",
     "lastLoginAt": "2026-09-29T22:51:01.571Z",
-    "updatedAt": "2026-09-29T22:50:41.931Z",
-    "data": {}
+    "updatedAt": "2026-10-02T21:24:30.940Z",
+    "data": {
+      "coffees": [
+        {
+          "id": "coffee-ai-1790723328107",
+          "name": "Companion Blend",
+          "roaster": "Little Wolf Coffee",
+          "origin": {
+            "country": "Colombia / Ethiopia",
+            "region": "Huila / Guji",
+            "farmOrStation": "Various Smallholder Producers",
+            "producer": "Various",
+            "elevationMeters": 1850
+          },
+          "variety": "Castillo, Colombia, Heirloom",
+          "process": "Washed",
+          "roastLevel": "Medium-Light",
+          "tastingNotesSummary": [
+            "Milk Chocolate",
+            "Red Apple",
+            "Caramel",
+            "Toasted Almond"
+          ],
+          "description": "Companion is Little Wolf's flagship year-round blend, designed to be approachable, balanced, and sweet. It combines the structured body of high-altitude Colombian lots with the delicate floral and fruit brightness of Ethiopian coffees, making it an ideal choice for both espresso and drip brewing.",
+          "bagBadgeText": "House Blend",
+          "coverColor": "#5C3A21",
+          "userRating": 5,
+          "shelfIds": [
+            "currently-drinking"
+          ],
+          "dateAdded": "2026-09-29",
+          "isFavorite": false,
+          "tastingLogs": [],
+          "recipes": [
+            {
+              "id": "recipe-1790723328107",
+              "coffeeId": "coffee-ai-1790723328107",
+              "title": "Versatile Daily Brew",
+              "method": "v60",
+              "doseGrams": 18,
+              "waterGrams": 300,
+              "ratio": "1:16.7",
+              "grindSize": "Medium (5.5 on Ode Gen 2)",
+              "waterTempC": 94,
+              "totalTimeSeconds": 180,
+              "bloomGrams": 50,
+              "bloomTimeSeconds": 45,
+              "equipmentIds": [],
+              "customVariables": [
+                {
+                  "id": "v1",
+                  "label": "Filter Type",
+                  "value": "Hario V60 Paper"
+                },
+                {
+                  "id": "v2",
+                  "label": "Water Minerals",
+                  "value": "Filtered Tap Water"
+                }
+              ],
+              "steps": [
+                {
+                  "id": "s1",
+                  "timeSeconds": 0,
+                  "title": "Bloom",
+                  "waterAmountGrams": 50,
+                  "instruction": "Saturate grounds evenly and let bloom for 45 seconds"
+                },
+                {
+                  "id": "s2",
+                  "timeSeconds": 45,
+                  "title": "Main Pour",
+                  "waterAmountGrams": 175,
+                  "instruction": "Pour in steady circles to reach 225g"
+                },
+                {
+                  "id": "s3",
+                  "timeSeconds": 120,
+                  "title": "Final Pour",
+                  "waterAmountGrams": 300,
+                  "instruction": "Top off to 300g and allow to draw down"
+                }
+              ],
+              "notes": "Focus on a steady pour to maintain a consistent bed temperature, highlighting the chocolatey sweetness.",
+              "isRecommended": true,
+              "createdAt": "2026-09-29T23:08:48.107Z"
+            }
+          ]
+        }
+      ],
+      "equipment": [
+        {
+          "id": "eq-ai-1790647856144",
+          "name": "Breville Barista Express",
+          "brand": "Breville",
+          "category": "Espresso Machine",
+          "status": "Active",
+          "dateAcquired": "2024-12-25",
+          "settingsNotes": "",
+          "maintenanceNotes": "",
+          "generalNotes": "",
+          "rating": 4
+        }
+      ],
+      "cafes": [],
+      "notes": [
+        {
+          "id": "note-water-minerals",
+          "title": "Lotus Water Chemistry for Ultra-Light Nordic Roasts",
+          "content": "For delicate washed Ethiopians and Kenyans, use the \"Bright & Clean\" profile:\n• 2 drops Calcium\n• 1 drop Magnesium\n• 1 drop Potassium\nper 450ml zero-TDS water (approx 60ppm GH / 20ppm KH). Keeps acidity vivid without astringent chalkiness.",
+          "category": "Water Recipe",
+          "tags": [
+            "Lotus Drops",
+            "Water Chemistry",
+            "Nordic Roasts",
+            "Extraction"
+          ],
+          "isPinned": true,
+          "date": "2026-08-18"
+        },
+        {
+          "id": "note-resting-times",
+          "title": "Optimal Resting Times for Dense High-Elevation Washed Africans",
+          "content": "High-altitude washed beans (2,000m+ like Chelbesa or Nyeri) require a minimum of 14 to 21 days post-roast before opening. Brewing before day 10 yields sharp CO2 bite, channel tendency, and muted floral notes. Peak flavor window is day 21 through 40.",
+          "category": "Brew Technique",
+          "tags": [
+            "Resting",
+            "Degassing",
+            "African Coffees"
+          ],
+          "isPinned": true,
+          "date": "2026-07-28"
+        },
+        {
+          "id": "note-ode-gen2-dialin",
+          "title": "Fellow Ode Gen 2 with SSP Cast Burrs Calibration",
+          "content": "Zero point calibrated to chirp + 1 click back. For 15g:250g V60 with Cafec Abaca papers, sweet spot is setting 5.1 to 5.2. Yields total brew time around 3:15 with high sweetness and negligible fines migration.",
+          "category": "Dial-in & Grind",
+          "tags": [
+            "Ode Gen 2",
+            "SSP Burrs",
+            "Grinder Calibration"
+          ],
+          "isPinned": false,
+          "date": "2026-06-15"
+        },
+        {
+          "id": "note-cupping-protocol",
+          "title": "Standard SCA Cupping Protocol & Sensory Focus",
+          "content": "Ratio: 8.25g ground coffee per 150ml water at 94°C. Break crust strictly at 4:00 with 3 gentle stirs. Begin tasting at minute 10:00 when slurry drops to 55°C—this is when delicate stonefruit and jasmine florals emerge.",
+          "category": "Cupping & Sensory",
+          "tags": [
+            "Cupping",
+            "Sensory",
+            "SCA Standard"
+          ],
+          "isPinned": false,
+          "date": "2026-05-10"
+        }
+      ],
+      "shelves": [
+        {
+          "id": "currently-drinking",
+          "name": "Currently Drinking",
+          "description": "Bags actively open on the brew bar",
+          "isDefault": true,
+          "color": "#935824"
+        },
+        {
+          "id": "want-to-brew",
+          "name": "Want to Brew",
+          "description": "Wishlist & upcoming bags to discover",
+          "isDefault": true,
+          "color": "#3B6E59"
+        },
+        {
+          "id": "brewed",
+          "name": "Brewed & Finished",
+          "description": "Bags enjoyed and cataloged",
+          "isDefault": true,
+          "color": "#55473E"
+        },
+        {
+          "id": "favorites",
+          "name": "Favorites",
+          "description": "Hall of Fame all-time memorable roasts",
+          "isDefault": true,
+          "color": "#A83232"
+        },
+        {
+          "id": "filter-geishas",
+          "name": "Filter Geishas & Exotics",
+          "description": "High elevation, delicate floral coffees",
+          "isDefault": false,
+          "color": "#6E48AA"
+        },
+        {
+          "id": "espresso-picks",
+          "name": "Espresso Sweet Spots",
+          "description": "Bags dialed in with milk or neat shots",
+          "isDefault": false,
+          "color": "#7D4721"
+        }
+      ],
+      "theme": "light",
+      "primaryHue": "#C87D32",
+      "secondaryHue": "#ECA357",
+      "backgroundColor": "#14110F"
+    }
   }
 ]

@@ -266,6 +266,14 @@ export const CafeShelfView: React.FC<CafeShelfViewProps> = ({
                     />
                     {(() => {
                       const generalInfo = getGeneralCafeInfo(cafe, registeredCafes);
+                      if (!generalInfo.isRegistered) {
+                        return (
+                          <div className="flex items-center justify-between text-[10px] text-[#8C7A6D] bg-[#F8F5F0] px-2 py-0.5 rounded border border-dashed border-[#E5DACD]">
+                            <span className="text-[#A8988A] italic">Personal Cafe</span>
+                            <span className="text-[#A8988A] font-mono text-[9px]">Unregistered</span>
+                          </div>
+                        );
+                      }
                       return (
                         <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
                           <span className="text-[#8C7A6D]">General Rating:</span>

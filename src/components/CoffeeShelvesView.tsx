@@ -387,16 +387,23 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
-                      <span className="text-[#8C7A6D]">General Rating:</span>
-                      <span className="font-semibold text-[#8C4F1A] font-mono">
-                        {generalInfo.ratingsCount > 0 ? (
-                          <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'barista' : 'baristas'})</>
-                        ) : (
-                          <span className="text-[#A8988A] font-normal">Unrated (0)</span>
-                        )}
-                      </span>
-                    </div>
+                    {generalInfo.isRegistered ? (
+                      <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
+                        <span className="text-[#8C7A6D]">General Rating:</span>
+                        <span className="font-semibold text-[#8C4F1A] font-mono">
+                          {generalInfo.ratingsCount > 0 ? (
+                            <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'barista' : 'baristas'})</>
+                          ) : (
+                            <span className="text-[#A8988A] font-normal">Unrated (0)</span>
+                          )}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-[10px] text-[#8C7A6D] bg-[#F8F5F0] px-2 py-0.5 rounded border border-dashed border-[#E5DACD]">
+                        <span className="text-[#A8988A] italic">Personal Coffee</span>
+                        <span className="text-[#A8988A] font-mono text-[9px]">Unregistered</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Active Shelves on Card (with individual remove 'X' icons!) */}
@@ -426,27 +433,29 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                   </div>
 
                   {/* Flavor Tags: General Consensus or Personal */}
-                  {((generalInfo.generalTastingNotes && generalInfo.generalTastingNotes.length > 0) ||
+                  {((generalInfo.isRegistered && generalInfo.generalTastingNotes && generalInfo.generalTastingNotes.length > 0) ||
                     (coffee.tastingNotesSummary && coffee.tastingNotesSummary.length > 0)) && (
                     <div className="flex flex-wrap gap-1 pt-1">
-                      {generalInfo.generalTastingNotes && generalInfo.generalTastingNotes.length > 0
-                        ? generalInfo.generalTastingNotes.slice(0, 3).map((f) => (
-                            <span
-                              key={f}
-                              className="text-[10px] px-1.5 py-0.5 bg-[#FAF3EC] text-[#8C4F1A] border border-[#E8DACB] rounded font-semibold"
-                              title={`Community top note: ${f}`}
-                            >
-                              {f}
-                            </span>
-                          ))
-                        : coffee.tastingNotesSummary.slice(0, 3).map((f) => (
-                            <span
-                              key={f}
-                              className="text-[10px] px-1.5 py-0.5 bg-[#FAF7F2] text-[#554032] border border-[#EDE2D4] rounded"
-                            >
-                              {f}
-                            </span>
-                          ))}
+                      {generalInfo.isRegistered && generalInfo.generalTastingNotes && generalInfo.generalTastingNotes.length > 0 ? (
+                        generalInfo.generalTastingNotes.slice(0, 3).map((f) => (
+                          <span
+                            key={f}
+                            className="text-[10px] px-1.5 py-0.5 bg-[#FAF3EC] text-[#8C4F1A] border border-[#E8DACB] rounded font-semibold"
+                            title={`Community top note: ${f}`}
+                          >
+                            {f}
+                          </span>
+                        ))
+                      ) : (
+                        (coffee.tastingNotesSummary || []).slice(0, 3).map((f) => (
+                          <span
+                            key={f}
+                            className="text-[10px] px-1.5 py-0.5 bg-[#FAF7F2] text-[#554032] border border-[#EDE2D4] rounded"
+                          >
+                            {f}
+                          </span>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
@@ -558,6 +567,9 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                       <td className="py-3 px-4">
                         {(() => {
                           const itemGeneralInfo = getGeneralCoffeeInfo(coffee, registeredCoffees);
+                          if (!itemGeneralInfo.isRegistered) {
+                            return <span className="text-[#A8988A] italic text-[11px]">Personal item</span>;
+                          }
                           return (
                             <div className="flex items-center gap-1.5 font-mono text-xs text-[#8C4F1A] font-semibold whitespace-nowrap">
                               {itemGeneralInfo.ratingsCount > 0 ? (

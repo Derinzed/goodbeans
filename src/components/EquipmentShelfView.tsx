@@ -216,6 +216,9 @@ export const EquipmentShelfView: React.FC<EquipmentShelfViewProps> = ({
                     <span className="font-semibold text-[#8C4F1A] font-mono">
                       {(() => {
                         const generalInfo = getGeneralEquipmentInfo(item, registeredEquipment);
+                        if (!generalInfo.isRegistered) {
+                          return <span className="text-[#A8988A] font-normal italic">Personal Gear · Unregistered</span>;
+                        }
                         return generalInfo.ratingsCount > 0 ? (
                           <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'barista' : 'baristas'})</>
                         ) : (

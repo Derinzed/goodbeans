@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { AuthStore } from './authStore.ts';
+import { sanitizeUserData } from '../utils/communityLookup.ts';
 
 // Helper to extract bearer token
 function getBearerToken(req: IncomingMessage): string | null {
@@ -594,7 +595,7 @@ export async function handleAuthRoutes(
     sendJson(res, 200, {
       success: true,
       username: targetUser.username,
-      data: targetUser.data,
+      data: sanitizeUserData(targetUser.data),
       exportedAt: new Date().toISOString(),
     });
     return true;
@@ -763,7 +764,7 @@ export async function handleAuthRoutes(
   if (url === '/api/community/items/register' && method === 'POST') {
     try {
       const body = await readJsonBody(req);
-      const { type = 'coffee', item, rating, tastingNotes } = body;
+      const { type = 'coffee', item, rating, tastingNotes, onlyIfExisting = false } = body;
       if (!item || !item.name) {
         sendJson(res, 400, { error: 'Item with name is required' });
         return true;
@@ -779,7 +780,14 @@ export async function handleAuthRoutes(
         });
         return true;
       }
-      const registered = AuthStore.recordCommunityItem(type, item, user.id, rating, tastingNotes);
+      const registered = AuthStore.recordCommunityItem(
+        type,
+        item,
+        user.id,
+        rating,
+        tastingNotes,
+        Boolean(onlyIfExisting)
+      );
       sendJson(res, 200, {
         success: true,
         registered,

@@ -143,8 +143,6 @@ export const CafeModal: React.FC<CafeModalProps> = ({
       city: city.trim(),
       country: country.trim(),
       rating,
-      generalRating: effectiveGeneralRating,
-      generalRatingsCount: effectiveRatingsCount,
       favoriteDrink: favoriteDrink.trim() || undefined,
       roasterOrBeansServed: roasterOrBeansServed.trim() || undefined,
       dateVisited: dateVisited || undefined,
@@ -152,7 +150,6 @@ export const CafeModal: React.FC<CafeModalProps> = ({
       vibes,
       googleMapsUrl: getGoogleMapsSearchUrl(),
       isFavorite: initialCafe?.isFavorite || false,
-      isRegistered: Boolean(matchingRegistered),
     };
     onSave(data);
   };

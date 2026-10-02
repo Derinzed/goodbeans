@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Award, MapPin, Coffee, Download, Upload, RotateCcw, Compass, FileText } from 'lucide-react';
 import { Coffee as CoffeeType, Equipment, Cafe, CustomNote } from '../types/coffee';
+import { stripGeneralCoffeeFields, stripGeneralEquipmentFields, stripGeneralCafeFields } from '../utils/communityLookup';
 
 interface StatsModalProps {
   coffees: CoffeeType[];
@@ -35,15 +36,15 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   const uniqueOrigins = Array.from(new Set(coffees.map((c) => c.origin.country)));
   const uniqueRoasters = Array.from(new Set(coffees.map((c) => c.roaster)));
 
-  // Export JSON
+  // Export JSON (User specific data only)
   const handleExport = () => {
     const backup = {
-      coffees,
-      equipment,
-      cafes,
+      coffees: coffees.map(stripGeneralCoffeeFields),
+      equipment: equipment.map(stripGeneralEquipmentFields),
+      cafes: cafes.map(stripGeneralCafeFields),
       notes,
       exportDate: new Date().toISOString(),
-      version: '1.2',
+      version: '1.4',
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

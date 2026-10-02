@@ -67,13 +67,19 @@ import { AdminUsersModal } from './components/AdminUsersModal';
 import { authApi, UserProfile } from './services/authApi';
 import { CoffeeChallengeWidget } from './components/CoffeeChallengeWidget';
 import { AutoPopulateShelfWidget } from './components/AutoPopulateShelfWidget';
+import {
+  stripGeneralCoffeeFields,
+  stripGeneralEquipmentFields,
+  stripGeneralCafeFields,
+  sanitizeUserData,
+} from './utils/communityLookup';
 
 export default function App() {
   // Local storage state initialization
   const [coffees, setCoffees] = useState<Coffee[]>(() => {
     try {
       const saved = localStorage.getItem('goodbeans_coffees');
-      return saved ? JSON.parse(saved) : INITIAL_COFFEES;
+      return saved ? JSON.parse(saved).map(stripGeneralCoffeeFields) : INITIAL_COFFEES;
     } catch {
       return INITIAL_COFFEES;
     }
@@ -82,7 +88,7 @@ export default function App() {
   const [equipment, setEquipment] = useState<Equipment[]>(() => {
     try {
       const saved = localStorage.getItem('goodbeans_equipment');
-      return saved ? JSON.parse(saved) : INITIAL_EQUIPMENT;
+      return saved ? JSON.parse(saved).map(stripGeneralEquipmentFields) : INITIAL_EQUIPMENT;
     } catch {
       return INITIAL_EQUIPMENT;
     }
@@ -91,7 +97,7 @@ export default function App() {
   const [cafes, setCafes] = useState<Cafe[]>(() => {
     try {
       const saved = localStorage.getItem('goodbeans_cafes');
-      return saved ? JSON.parse(saved) : INITIAL_CAFES;
+      return saved ? JSON.parse(saved).map(stripGeneralCafeFields) : INITIAL_CAFES;
     } catch {
       return INITIAL_CAFES;
     }
@@ -248,13 +254,13 @@ export default function App() {
   const applyServerData = (data: any) => {
     if (!data || typeof data !== 'object') return;
     if (Array.isArray(data.coffees) && data.coffees.length > 0) {
-      setCoffees(data.coffees);
+      setCoffees(data.coffees.map(stripGeneralCoffeeFields));
     }
     if (Array.isArray(data.equipment) && data.equipment.length > 0) {
-      setEquipment(data.equipment);
+      setEquipment(data.equipment.map(stripGeneralEquipmentFields));
     }
     if (Array.isArray(data.cafes) && data.cafes.length > 0) {
-      setCafes(data.cafes);
+      setCafes(data.cafes.map(stripGeneralCafeFields));
     }
     if (Array.isArray(data.notes) && data.notes.length > 0) {
       setNotes(data.notes);
@@ -279,79 +285,6 @@ export default function App() {
         setRegisteredCoffees(regCoffees);
         setRegisteredEquipment(regEquip);
         setRegisteredCafes(regCafes);
-
-        // Sync aggregate general ratings across all user-rated items
-        setCoffees((prev) =>
-          prev.map((c) => {
-            const match = regCoffees.find(
-              (rc) =>
-                rc.name.trim().toLowerCase() === c.name.trim().toLowerCase() &&
-                (!c.roaster || !rc.roaster || rc.roaster.trim().toLowerCase() === c.roaster.trim().toLowerCase())
-            );
-            if (match) {
-              return {
-                ...c,
-                generalRating: match.ratingsCount > 0 ? match.generalRating : 0,
-                communityRating: match.ratingsCount > 0 ? match.generalRating : 0,
-                communityRatingsCount: match.ratingsCount || 0,
-                generalTastingNotes: match.generalTastingNotes || [],
-                tastingNotesBreakdown: match.tastingNotesBreakdown || [],
-              };
-            }
-            return {
-              ...c,
-              generalRating: 0,
-              communityRating: 0,
-              communityRatingsCount: 0,
-              generalTastingNotes: [],
-              tastingNotesBreakdown: [],
-            };
-          })
-        );
-
-        setEquipment((prev) =>
-          prev.map((eq) => {
-            const match = regEquip.find(
-              (req) =>
-                req.name.trim().toLowerCase() === eq.name.trim().toLowerCase() &&
-                (!eq.brand || !req.brand || req.brand.trim().toLowerCase() === eq.brand.trim().toLowerCase())
-            );
-            if (match) {
-              return {
-                ...eq,
-                generalRating: match.ratingsCount > 0 ? match.generalRating : 0,
-                generalRatingsCount: match.ratingsCount || 0,
-              };
-            }
-            return {
-              ...eq,
-              generalRating: 0,
-              generalRatingsCount: 0,
-            };
-          })
-        );
-
-        setCafes((prev) =>
-          prev.map((cafe) => {
-            const match = regCafes.find(
-              (rcafe) =>
-                rcafe.name.trim().toLowerCase() === cafe.name.trim().toLowerCase() &&
-                (!cafe.city || !rcafe.city || rcafe.city.trim().toLowerCase() === cafe.city.trim().toLowerCase())
-            );
-            if (match) {
-              return {
-                ...cafe,
-                generalRating: match.ratingsCount > 0 ? match.generalRating : 0,
-                generalRatingsCount: match.ratingsCount || 0,
-              };
-            }
-            return {
-              ...cafe,
-              generalRating: 0,
-              generalRatingsCount: 0,
-            };
-          })
-        );
       }
     } catch {
       // ignore
@@ -414,9 +347,9 @@ export default function App() {
     const timeout = setTimeout(async () => {
       try {
         const payload = {
-          coffees,
-          equipment,
-          cafes,
+          coffees: coffees.map(stripGeneralCoffeeFields),
+          equipment: equipment.map(stripGeneralEquipmentFields),
+          cafes: cafes.map(stripGeneralCafeFields),
           notes,
           shelves,
           theme,
@@ -465,13 +398,13 @@ export default function App() {
 
     if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
       if (Array.isArray(serverData.coffees) && serverData.coffees.length > 0) {
-        setCoffees(serverData.coffees);
+        setCoffees(serverData.coffees.map(stripGeneralCoffeeFields));
       }
       if (Array.isArray(serverData.equipment) && serverData.equipment.length > 0) {
-        setEquipment(serverData.equipment);
+        setEquipment(serverData.equipment.map(stripGeneralEquipmentFields));
       }
       if (Array.isArray(serverData.cafes) && serverData.cafes.length > 0) {
-        setCafes(serverData.cafes);
+        setCafes(serverData.cafes.map(stripGeneralCafeFields));
       }
       if (Array.isArray(serverData.notes) && serverData.notes.length > 0) {
         setNotes(serverData.notes);
@@ -486,9 +419,9 @@ export default function App() {
     } else {
       // Push initial library to newly created account
       authApi.saveUserData(token, {
-        coffees,
-        equipment,
-        cafes,
+        coffees: coffees.map(stripGeneralCoffeeFields),
+        equipment: equipment.map(stripGeneralEquipmentFields),
+        cafes: cafes.map(stripGeneralCafeFields),
         notes,
         shelves,
         theme,
@@ -545,9 +478,9 @@ export default function App() {
     setIsSyncing(true);
     try {
       await authApi.saveUserData(authToken, {
-        coffees,
-        equipment,
-        cafes,
+        coffees: coffees.map(stripGeneralCoffeeFields),
+        equipment: equipment.map(stripGeneralEquipmentFields),
+        cafes: cafes.map(stripGeneralCafeFields),
         notes,
         shelves,
         theme,
@@ -641,27 +574,49 @@ export default function App() {
   };
 
   const handleSaveCoffee = async (coffeeData: Coffee) => {
+    const cleanCoffee = stripGeneralCoffeeFields(coffeeData);
     if (editingCoffee) {
       setCoffees((prev) =>
-        prev.map((c) => (c.id === coffeeData.id ? { ...c, ...coffeeData } : c))
+        prev.map((c) => (c.id === cleanCoffee.id ? { ...c, ...cleanCoffee } : c))
       );
     } else {
-      setCoffees((prev) => [coffeeData, ...prev]);
+      setCoffees((prev) => [cleanCoffee, ...prev]);
     }
     setIsCoffeeModalOpen(false);
     setEditingCoffee(null);
 
-    // Register with community items to average ratings and aggregate tasting notes across all registered users
+    // If existing in community catalog, update user evaluations (never auto-register new community items)
     if (authToken && currentUser) {
       try {
         await authApi.registerCommunityItem(
           'coffee',
-          coffeeData,
-          typeof coffeeData.userRating === 'number' && coffeeData.userRating > 0 ? coffeeData.userRating : undefined,
-          Array.isArray(coffeeData.tastingNotesSummary) ? coffeeData.tastingNotesSummary : undefined
+          cleanCoffee,
+          typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0 ? cleanCoffee.userRating : undefined,
+          Array.isArray(cleanCoffee.tastingNotesSummary) ? cleanCoffee.tastingNotesSummary : undefined,
+          true
         );
         await fetchCommunityCatalog();
       } catch {}
+    }
+  };
+
+  const handleRegisterCoffeeToCommunity = async (targetCoffee: Coffee) => {
+    if (!authToken || !currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    try {
+      await authApi.registerCommunityItem(
+        'coffee',
+        targetCoffee,
+        typeof targetCoffee.userRating === 'number' && targetCoffee.userRating > 0 ? targetCoffee.userRating : undefined,
+        Array.isArray(targetCoffee.tastingNotesSummary) ? targetCoffee.tastingNotesSummary : undefined,
+        false
+      );
+      await fetchCommunityCatalog();
+      setToastMessage(`"${targetCoffee.name}" registered to community catalog!`);
+    } catch {
+      setToastMessage('Failed to register coffee to community catalog.');
     }
   };
 
@@ -688,7 +643,8 @@ export default function App() {
           'coffee',
           updatedTarget,
           rating,
-          (updatedTarget as Coffee).tastingNotesSummary
+          (updatedTarget as Coffee).tastingNotesSummary,
+          true
         );
         await fetchCommunityCatalog();
       } catch {}
@@ -827,7 +783,8 @@ export default function App() {
           'coffee',
           updatedTarget,
           entry.rating,
-          entry.flavorTags.length > 0 ? entry.flavorTags : (updatedTarget as Coffee).tastingNotesSummary
+          entry.flavorTags.length > 0 ? entry.flavorTags : (updatedTarget as Coffee).tastingNotesSummary,
+          true
         );
         await fetchCommunityCatalog();
       } catch {}
@@ -852,20 +809,21 @@ export default function App() {
 
   // Handlers for Equipment
   const handleSaveEquipment = async (equipmentData: Equipment) => {
+    const cleanEquipment = stripGeneralEquipmentFields(equipmentData);
     if (editingEquipment) {
       setEquipment((prev) =>
-        prev.map((eq) => (eq.id === equipmentData.id ? equipmentData : eq))
+        prev.map((eq) => (eq.id === cleanEquipment.id ? cleanEquipment : eq))
       );
     } else {
-      setEquipment((prev) => [equipmentData, ...prev]);
+      setEquipment((prev) => [cleanEquipment, ...prev]);
     }
     setIsEquipmentModalOpen(false);
     setEditingEquipment(null);
 
     if (authToken && currentUser) {
       try {
-        if (typeof equipmentData.rating === 'number' && equipmentData.rating > 0) {
-          await authApi.registerCommunityItem('equipment', equipmentData, equipmentData.rating);
+        if (typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0) {
+          await authApi.registerCommunityItem('equipment', cleanEquipment, cleanEquipment.rating, undefined, true);
         }
         await fetchCommunityCatalog();
       } catch {}
@@ -885,7 +843,7 @@ export default function App() {
     );
     if (updatedTarget && authToken && currentUser) {
       try {
-        await authApi.registerCommunityItem('equipment', updatedTarget, rating);
+        await authApi.registerCommunityItem('equipment', updatedTarget, rating, undefined, true);
         await fetchCommunityCatalog();
       } catch {}
     }
@@ -897,20 +855,21 @@ export default function App() {
 
   // Handlers for Cafes
   const handleSaveCafe = async (cafeData: Cafe) => {
+    const cleanCafe = stripGeneralCafeFields(cafeData);
     if (editingCafe) {
       setCafes((prev) =>
-        prev.map((c) => (c.id === cafeData.id ? cafeData : c))
+        prev.map((c) => (c.id === cleanCafe.id ? cleanCafe : c))
       );
     } else {
-      setCafes((prev) => [cafeData, ...prev]);
+      setCafes((prev) => [cleanCafe, ...prev]);
     }
     setIsCafeModalOpen(false);
     setEditingCafe(null);
 
     if (authToken && currentUser) {
       try {
-        if (typeof cafeData.rating === 'number' && cafeData.rating > 0) {
-          await authApi.registerCommunityItem('cafe', cafeData, cafeData.rating);
+        if (typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0) {
+          await authApi.registerCommunityItem('cafe', cleanCafe, cleanCafe.rating, undefined, true);
         }
         await fetchCommunityCatalog();
       } catch {}
@@ -940,7 +899,7 @@ export default function App() {
     );
     if (updatedTarget && authToken && currentUser) {
       try {
-        await authApi.registerCommunityItem('cafe', updatedTarget, rating);
+        await authApi.registerCommunityItem('cafe', updatedTarget, rating, undefined, true);
         await fetchCommunityCatalog();
       } catch {}
     }
@@ -1001,12 +960,12 @@ export default function App() {
     setToastMessage('Reset library to default catalog.');
   };
 
-  // Export JSON backup
+  // Export JSON backup (User specific information only; General server info owned by server)
   const handleExportData = () => {
     const backup = {
-      coffees,
-      equipment,
-      cafes,
+      coffees: coffees.map(stripGeneralCoffeeFields),
+      equipment: equipment.map(stripGeneralEquipmentFields),
+      cafes: cafes.map(stripGeneralCafeFields),
       notes,
       shelves,
       theme,
@@ -1015,7 +974,7 @@ export default function App() {
       backgroundColor,
       exportDate: new Date().toISOString(),
       account: currentUser ? currentUser.username : 'guest',
-      version: '1.3',
+      version: '1.4',
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1024,7 +983,7 @@ export default function App() {
     a.download = `goodbeans-${currentUser ? currentUser.username : 'backup'}-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setToastMessage('Backup file exported!');
+    setToastMessage('Backup file exported (user data only)!');
   };
 
   // Import JSON backup (and automatically sync to server if logged in!)
@@ -1038,15 +997,15 @@ export default function App() {
       let updatedShelves = shelves;
 
       if (parsed.coffees && Array.isArray(parsed.coffees)) {
-        updatedCoffees = parsed.coffees;
+        updatedCoffees = parsed.coffees.map(stripGeneralCoffeeFields);
         setCoffees(updatedCoffees);
       }
       if (parsed.equipment && Array.isArray(parsed.equipment)) {
-        updatedEquipment = parsed.equipment;
+        updatedEquipment = parsed.equipment.map(stripGeneralEquipmentFields);
         setEquipment(updatedEquipment);
       }
       if (parsed.cafes && Array.isArray(parsed.cafes)) {
-        updatedCafes = parsed.cafes;
+        updatedCafes = parsed.cafes.map(stripGeneralCafeFields);
         setCafes(updatedCafes);
       }
       if (parsed.notes && Array.isArray(parsed.notes)) {
@@ -1072,23 +1031,8 @@ export default function App() {
           backgroundColor,
         });
         setLastSyncedAt(new Date().toISOString());
-        // Also register imported items to the community catalog
-        if (Array.isArray(updatedCoffees)) {
-          updatedCoffees.forEach((c) =>
-            authApi.registerCommunityItem('coffee', c, c.userRating, c.tastingNotesSummary).catch(() => {})
-          );
-        }
-        if (Array.isArray(updatedEquipment)) {
-          updatedEquipment.forEach((eq) =>
-            authApi.registerCommunityItem('equipment', eq, eq.rating).catch(() => {})
-          );
-        }
-        if (Array.isArray(updatedCafes)) {
-          updatedCafes.forEach((cf) =>
-            authApi.registerCommunityItem('cafe', cf, cf.rating).catch(() => {})
-          );
-        }
-        fetchCommunityCatalog();
+        // Refresh catalog so any newly imported items that match registered items display server general info
+        await fetchCommunityCatalog();
         setToastMessage('Data restored and updated in your server account!');
       } else {
         setToastMessage('Data restored successfully!');
@@ -1492,7 +1436,8 @@ export default function App() {
                     'coffee',
                     updated,
                     typeof updated.userRating === 'number' && updated.userRating > 0 ? updated.userRating : undefined,
-                    Array.isArray(updated.tastingNotesSummary) ? updated.tastingNotesSummary : undefined
+                    Array.isArray(updated.tastingNotesSummary) ? updated.tastingNotesSummary : undefined,
+                    true
                   );
                   await fetchCommunityCatalog();
                 } catch {}
@@ -1516,6 +1461,8 @@ export default function App() {
               setAuthModalMode('login');
               setIsAuthModalOpen(true);
             }}
+            registeredCoffees={registeredCoffees}
+            onRegisterCoffee={handleRegisterCoffeeToCommunity}
           />
         ) : currentView === 'equipment' ? (
           <EquipmentShelfView

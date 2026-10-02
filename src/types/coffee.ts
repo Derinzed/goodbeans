@@ -110,9 +110,9 @@ export interface Coffee {
   roastLevel: RoastLevel;
   roastDate?: string;
   userRating: number; // 0 to 5 personal rating
-  communityRating: number; // General rating across all users
-  communityRatingsCount: number;
-  generalRating?: number; // General rating across all users
+  communityRating?: number; // General rating across all users (populated by server)
+  communityRatingsCount?: number;
+  generalRating?: number; // General rating across all users (populated by server)
   shelfIds: string[];
   tastingNotesSummary: string[];
   generalTastingNotes?: string[];

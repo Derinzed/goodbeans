@@ -382,7 +382,8 @@ export const authApi = {
     type: 'coffee' | 'equipment' | 'cafe',
     item: any,
     rating?: number,
-    tastingNotes?: string[]
+    tastingNotes?: string[],
+    onlyIfExisting?: boolean
   ): Promise<{ success: boolean; registered?: any; error?: string }> {
     const token = localStorage.getItem('goodbeans_auth_token');
     const guestId = localStorage.getItem('goodbeans_guest_id');
@@ -398,7 +399,7 @@ export const authApi = {
     const res = await fetch('/api/community/items/register', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ type, item, rating, tastingNotes, guestId }),
+      body: JSON.stringify({ type, item, rating, tastingNotes, guestId, onlyIfExisting }),
     });
     return res.json();
   },

@@ -3,6 +3,12 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { INITIAL_COFFEES, INITIAL_EQUIPMENT, INITIAL_CAFES } from '../data/initialData.ts';
+import {
+  sanitizeUserData,
+  stripGeneralCoffeeFields,
+  stripGeneralEquipmentFields,
+  stripGeneralCafeFields,
+} from '../utils/communityLookup.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -282,6 +288,49 @@ export class AuthStore {
         }
       }
     } catch {}
+
+    // Auto-clean any legacy general server information from users.json & guests.json
+    try {
+      if (fs.existsSync(USERS_FILE)) {
+        const rawUsers = fs.readFileSync(USERS_FILE, 'utf-8');
+        if (
+          rawUsers &&
+          (rawUsers.includes('"generalRating"') ||
+            rawUsers.includes('"communityRating"') ||
+            rawUsers.includes('"communityRatingsCount"') ||
+            rawUsers.includes('"generalTastingNotes"') ||
+            rawUsers.includes('"tastingNotesBreakdown"') ||
+            rawUsers.includes('"isRegistered"'))
+        ) {
+          const parsed = JSON.parse(rawUsers);
+          if (Array.isArray(parsed)) {
+            const cleaned = parsed.map((u: any) => ({
+              ...u,
+              data: sanitizeUserData(u.data),
+            }));
+            fs.writeFileSync(USERS_FILE, JSON.stringify(cleaned, null, 2), 'utf-8');
+          }
+        }
+      }
+      if (fs.existsSync(GUESTS_FILE)) {
+        const rawGuests = fs.readFileSync(GUESTS_FILE, 'utf-8');
+        if (
+          rawGuests &&
+          (rawGuests.includes('"generalRating"') ||
+            rawGuests.includes('"communityRating"') ||
+            rawGuests.includes('"isRegistered"'))
+        ) {
+          const parsed = JSON.parse(rawGuests);
+          if (parsed && typeof parsed === 'object') {
+            const cleanedGuests: any = {};
+            for (const [k, v] of Object.entries(parsed)) {
+              cleanedGuests[k] = sanitizeUserData(v);
+            }
+            fs.writeFileSync(GUESTS_FILE, JSON.stringify(cleanedGuests, null, 2), 'utf-8');
+          }
+        }
+      }
+    } catch {}
   }
 
   // Safe file reader helper
@@ -318,7 +367,11 @@ export class AuthStore {
   }
 
   private static saveUsers(users: StoredUser[]): void {
-    this.writeJsonFile(USERS_FILE, users);
+    const cleanedUsers = users.map((u) => ({
+      ...u,
+      data: sanitizeUserData(u.data),
+    }));
+    this.writeJsonFile(USERS_FILE, cleanedUsers);
   }
 
   public static getSessions(): SessionToken[] {
@@ -343,7 +396,7 @@ export class AuthStore {
     if (!guestId) return;
     const guests = this.getGuests();
     guests[guestId] = {
-      data,
+      data: sanitizeUserData(data),
       updatedAt: new Date().toISOString(),
     };
     this.writeJsonFile(GUESTS_FILE, guests);
@@ -384,7 +437,7 @@ export class AuthStore {
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      data: initialData || {},
+      data: sanitizeUserData(initialData) || {},
     };
 
     users.push(newUser);
@@ -468,38 +521,42 @@ export class AuthStore {
       throw new Error('User not found.');
     }
 
+    const sanitizedData = sanitizeUserData(data);
+
     users[index].data = {
       ...users[index].data,
-      ...data,
+      ...sanitizedData,
     };
     users[index].updatedAt = new Date().toISOString();
     this.saveUsers(users);
 
     try {
-      if (Array.isArray(data.coffees)) {
-        data.coffees.forEach((c) => {
+      if (Array.isArray(sanitizedData.coffees)) {
+        sanitizedData.coffees.forEach((c: any) => {
           if (c && c.name) {
+            // onlyIfExisting = true: user data autosync or import NEVER creates new registered community items!
             this.recordCommunityItem(
               'coffee',
               c,
               userId,
               c.userRating,
-              Array.isArray(c.tastingNotesSummary) ? c.tastingNotesSummary : undefined
+              Array.isArray(c.tastingNotesSummary) ? c.tastingNotesSummary : undefined,
+              true
             );
           }
         });
       }
-      if (Array.isArray(data.equipment)) {
-        data.equipment.forEach((eq) => {
+      if (Array.isArray(sanitizedData.equipment)) {
+        sanitizedData.equipment.forEach((eq: any) => {
           if (eq && eq.name) {
-            this.recordCommunityItem('equipment', eq, userId, eq.rating);
+            this.recordCommunityItem('equipment', eq, userId, eq.rating, undefined, true);
           }
         });
       }
-      if (Array.isArray(data.cafes)) {
-        data.cafes.forEach((cf) => {
+      if (Array.isArray(sanitizedData.cafes)) {
+        sanitizedData.cafes.forEach((cf: any) => {
           if (cf && cf.name) {
-            this.recordCommunityItem('cafe', cf, userId, cf.rating);
+            this.recordCommunityItem('cafe', cf, userId, cf.rating, undefined, true);
           }
         });
       }
@@ -548,7 +605,7 @@ export class AuthStore {
       createdAt: new Date().toISOString(),
       lastLoginAt: '',
       updatedAt: new Date().toISOString(),
-      data: initialData || {},
+      data: sanitizeUserData(initialData) || {},
     };
 
     users.push(newUser);
@@ -601,7 +658,7 @@ export class AuthStore {
     const { passwordHash, salt, ...safeUser } = user;
     return {
       user: safeUser,
-      data: user.data || {},
+      data: sanitizeUserData(user.data) || {},
     };
   }
 
@@ -923,7 +980,8 @@ export class AuthStore {
     item: any,
     userId: string = 'community-user',
     rating?: number,
-    tastingNotes?: string[]
+    tastingNotes?: string[],
+    onlyIfExisting: boolean = false
   ): StoredCommunityItem | null {
     const data = this.getCommunityItemsData();
     if (!data.coffees) data.coffees = [];
@@ -1035,6 +1093,11 @@ export class AuthStore {
       this.saveCommunityItemsData(data);
       return existing;
     } else {
+      // If we only want to update ratings on existing registered catalog items, do not create a new community item
+      if (onlyIfExisting) {
+        return null;
+      }
+
       const userRatings: Record<string, number> = {};
       if (parsedRating !== undefined && userId) {
         userRatings[userId] = parsedRating;
@@ -1314,24 +1377,14 @@ export class AuthStore {
 
           let existing = coffeeMap.get(key);
           if (!existing) {
-            const baseNotes = Array.isArray(uc.tastingNotesSummary) ? uc.tastingNotesSummary : [];
-            existing = {
-              id: uc.id || `reg-coffee-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-              name: cleanName,
-              roaster: cleanRoaster || 'Artisan Roaster',
-              userRatings: {},
-              userTastingNotes: {},
-              baseNotes,
-              origin: uc.origin || { country: 'Single Origin' },
-              variety: uc.variety || 'Arabica',
-              process: uc.process || 'Washed',
-              roastLevel: uc.roastLevel || 'Medium',
-              coverColor: uc.coverColor || '#C87D32',
-              description: uc.description || '',
-              tastingNotesSummary: baseNotes,
-            };
-            coffeeMap.set(key, existing);
+            const matchEntry = Array.from(coffeeMap.entries()).find(([k]) => k.startsWith(`${cleanName.toLowerCase()}::`));
+            if (matchEntry) {
+              existing = matchEntry[1];
+            }
           }
+
+          // Personal items do not register items into the community catalog; only populate ratings if registered
+          if (!existing) return;
 
           if (userRating > 0) {
             existing.userRatings[u.id] = userRating;
@@ -1415,18 +1468,14 @@ export class AuthStore {
 
           let existing = eqMap.get(key);
           if (!existing) {
-            existing = {
-              id: ueq.id || `reg-eq-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-              name: cleanName,
-              brand: cleanBrand || 'Coffee Gear',
-              category: ueq.category || 'Accessory',
-              userRatings: {},
-              settingsNotes: ueq.settingsNotes || '',
-              maintenanceNotes: ueq.maintenanceNotes || '',
-              generalNotes: ueq.generalNotes || '',
-            };
-            eqMap.set(key, existing);
+            const matchEntry = Array.from(eqMap.entries()).find(([k]) => k.startsWith(`${cleanName.toLowerCase()}::`));
+            if (matchEntry) {
+              existing = matchEntry[1];
+            }
           }
+
+          // Personal gear does not register items into the community catalog; only populate ratings if registered
+          if (!existing) return;
 
           if (typeof ueq.rating === 'number' && ueq.rating > 0) {
             existing.userRatings[u.id] = ueq.rating;
@@ -1499,22 +1548,19 @@ export class AuthStore {
 
           let existing = cafeMap.get(key);
           if (!existing) {
-            existing = {
-              id: uc.id || `reg-cafe-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-              name: cleanName,
-              city: cleanCity || 'Specialty Coffee',
-              country: uc.country || '',
-              address: uc.address || '',
-              vibes: Array.isArray(uc.vibes) ? uc.vibes : [],
-              favoriteDrink: uc.favoriteDrink || '',
-              notes: uc.notes || '',
-              userRatings: {},
-            };
-            cafeMap.set(key, existing);
+            const matchEntry = Array.from(cafeMap.entries()).find(([k]) => k.startsWith(`${cleanName.toLowerCase()}::`));
+            if (matchEntry) {
+              existing = matchEntry[1];
+            }
           }
+
+          // Personal cafes do not register items into the community catalog; only populate ratings if registered
+          if (!existing) return;
 
           if (typeof uc.rating === 'number' && uc.rating > 0) {
             existing.userRatings[u.id] = uc.rating;
+          } else if (typeof uc.userRating === 'number' && uc.userRating > 0) {
+            existing.userRatings[u.id] = uc.userRating;
           }
         });
       }

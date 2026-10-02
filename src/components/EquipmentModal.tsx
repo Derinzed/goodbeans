@@ -119,9 +119,6 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
       maintenanceNotes: maintenanceNotes.trim(),
       generalNotes: generalNotes.trim(),
       rating,
-      generalRating: effectiveGeneralRating,
-      generalRatingsCount: effectiveRatingsCount,
-      isRegistered: Boolean(matchingRegistered),
     };
     onSave(data);
   };

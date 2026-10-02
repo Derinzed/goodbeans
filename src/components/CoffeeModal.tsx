@@ -195,9 +195,6 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
       roastLevel,
       roastDate: roastDate || undefined,
       userRating,
-      generalRating: effectiveGeneralRating,
-      communityRating: effectiveGeneralRating,
-      communityRatingsCount: effectiveRatingsCount,
       shelfIds: selectedShelfIds.length > 0 ? selectedShelfIds : ['currently-drinking'],
       tastingNotesSummary: flavorTags,
       tastingLogs: initialCoffee?.tastingLogs || [],
@@ -207,7 +204,6 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
       description: description.trim(),
       dateAdded: initialCoffee?.dateAdded || new Date().toISOString().split('T')[0],
       isFavorite: initialCoffee?.isFavorite || false,
-      isRegistered: Boolean(matchingRegistered),
     };
 
     onSave(coffeeData);
@@ -516,30 +512,39 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
                 />
               </div>
 
-              {/* General Rating hooked to average across all user added beans */}
+              {/* General Rating hooked to registered catalog */}
               <div className="pt-2.5 border-t border-[#F0E6DB]">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider">
-                    General Rating (Community Avg)
-                  </span>
-                  <span className="font-mono text-[11px] font-bold text-[#8C4F1A]">
-                    {effectiveGeneralRating.toFixed(1)} ★
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <StarRatingDisplay
-                    rating={effectiveGeneralRating}
-                    count={effectiveRatingsCount}
-                    size="sm"
-                  />
-                  <span className="text-[10px] text-[#7A6757]">
-                    {matchingRegistered
-                      ? `Avg across all user-added "${matchingRegistered.name}" (${effectiveRatingsCount} ratings)`
-                      : userRating > 0
-                      ? `Starts with your personal score (${userRating.toFixed(1)} ★)`
-                      : 'Will start from your personal rating'}
-                  </span>
-                </div>
+                {matchingRegistered ? (
+                  <>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider">
+                        General Rating (Community Avg)
+                      </span>
+                      <span className="font-mono text-[11px] font-bold text-[#8C4F1A]">
+                        {effectiveGeneralRating.toFixed(1)} ★
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StarRatingDisplay
+                        rating={effectiveGeneralRating}
+                        count={effectiveRatingsCount}
+                        size="sm"
+                      />
+                      <span className="text-[10px] text-[#7A6757]">
+                        Avg across all user-added "{matchingRegistered.name}" ({effectiveRatingsCount} ratings)
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-[11px] text-[#8C7A6D]">
+                    <span className="text-[10px] uppercase font-bold text-[#A8988A] tracking-wider block mb-0.5">
+                      General Rating
+                    </span>
+                    <span className="italic text-[#7A6757]">
+                      Personal entry (not in registered catalog). General information is owned and populated by the server for registered coffees.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
