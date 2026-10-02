@@ -131,12 +131,12 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
       (!roaster.trim() || rc.roaster.toLowerCase() === roaster.trim().toLowerCase())
   );
 
-  const effectiveGeneralRating = matchingRegistered
+  const effectiveGeneralRating = matchingRegistered && matchingRegistered.ratingsCount > 0
     ? matchingRegistered.generalRating
-    : initialCoffee?.generalRating || initialCoffee?.communityRating || (userRating > 0 ? userRating : 4.5);
+    : 0;
   const effectiveRatingsCount = matchingRegistered
     ? matchingRegistered.ratingsCount
-    : initialCoffee?.communityRatingsCount || (userRating > 0 ? 1 : 0);
+    : 0;
 
   const handleSelectRegistered = (rc: RegisteredCoffee) => {
     setName(rc.name);

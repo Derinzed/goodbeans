@@ -10,8 +10,9 @@ import {
   Edit2,
   Trash2,
 } from 'lucide-react';
-import { Equipment, EquipmentCategory } from '../types/coffee';
+import { Equipment, EquipmentCategory, RegisteredEquipment } from '../types/coffee';
 import { StarRatingDisplay, StarRatingInput } from './StarRating';
+import { getGeneralEquipmentInfo } from '../utils/communityLookup';
 
 interface EquipmentShelfViewProps {
   equipment: Equipment[];
@@ -19,6 +20,8 @@ interface EquipmentShelfViewProps {
   onEditEquipment: (item: Equipment) => void;
   onDeleteEquipment: (id: string) => void;
   onQuickRate?: (id: string, rating: number) => void;
+  registeredEquipment?: RegisteredEquipment[];
+  isRegisteredUser?: boolean;
 }
 
 const CATEGORIES: ('All' | EquipmentCategory)[] = [
@@ -38,6 +41,8 @@ export const EquipmentShelfView: React.FC<EquipmentShelfViewProps> = ({
   onEditEquipment,
   onDeleteEquipment,
   onQuickRate,
+  registeredEquipment = [],
+  isRegisteredUser = false,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<'All' | EquipmentCategory>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -209,7 +214,14 @@ export const EquipmentShelfView: React.FC<EquipmentShelfViewProps> = ({
                   <div className="flex items-center justify-between text-[10px] text-[#7A6757] pt-1.5 border-t border-[#EDE2D4]">
                     <span className="text-[#8C7A6D]">General Rating:</span>
                     <span className="font-semibold text-[#8C4F1A] font-mono">
-                      ★ {(item.generalRating || 4.8).toFixed(1)} {item.generalRatingsCount ? `(${item.generalRatingsCount} baristas)` : ''}
+                      {(() => {
+                        const generalInfo = getGeneralEquipmentInfo(item, registeredEquipment);
+                        return generalInfo.ratingsCount > 0 ? (
+                          <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'barista' : 'baristas'})</>
+                        ) : (
+                          <span className="text-[#A8988A] font-normal">Unrated (0)</span>
+                        );
+                      })()}
                     </span>
                   </div>
                 </div>

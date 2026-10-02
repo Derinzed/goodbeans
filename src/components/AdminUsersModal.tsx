@@ -1353,9 +1353,6 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                                 <span className="font-semibold text-[#8C4F1A]">
                                   Individual User Ratings Breakdown:
                                 </span>
-                                <span className="text-[11px] text-[#7A6757]">
-                                  (Baseline: {item.baseRating || 4.5} ★ from {item.baseRatingsCount || 1} baristas)
-                                </span>
                               </div>
                               <button
                                 onClick={() => handleResetAllRatings(item.id, item.name)}
@@ -1367,7 +1364,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
 
                             {userRatingsList.length === 0 ? (
                               <p className="text-xs text-[#8C7A6D] italic">
-                                No individual user ratings recorded yet. General rating is currently using the baseline specialty catalog score ({item.baseRating || 4.5} ★).
+                                No individual user ratings recorded yet. General rating defaults to 0.0 until evaluated by registered baristas.
                               </p>
                             ) : (
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">

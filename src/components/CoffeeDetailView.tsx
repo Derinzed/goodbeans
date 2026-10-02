@@ -23,9 +23,10 @@ import {
   Globe,
   Users,
 } from 'lucide-react';
-import { Coffee, BrewRecipe, TastingEntry, Equipment, Shelf, CoffeeCustomNote } from '../types/coffee';
+import { Coffee, BrewRecipe, TastingEntry, Equipment, Shelf, CoffeeCustomNote, RegisteredCoffee } from '../types/coffee';
 import { CoffeeBagCover } from './CoffeeBagCover';
 import { StarRatingDisplay, StarRatingInput } from './StarRating';
+import { getGeneralCoffeeInfo } from '../utils/communityLookup';
 
 interface CoffeeDetailViewProps {
   coffee: Coffee;
@@ -45,6 +46,7 @@ interface CoffeeDetailViewProps {
   onDeleteCoffee?: (coffeeId: string) => void;
   isRegisteredUser?: boolean;
   onOpenAuthModal?: () => void;
+  registeredCoffees?: RegisteredCoffee[];
 }
 
 export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
@@ -65,7 +67,11 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
   onDeleteCoffee,
   isRegisteredUser = false,
   onOpenAuthModal,
+  registeredCoffees = [],
 }) => {
+  const generalInfo = getGeneralCoffeeInfo(coffee, registeredCoffees);
+  const { generalRating, ratingsCount, generalTastingNotes, tastingNotesBreakdown } = generalInfo;
+
   const [activeTab, setActiveTab] = useState<'recipes' | 'tastings' | 'notes' | 'overview'>('recipes');
   const [isShelfDropdownOpen, setIsShelfDropdownOpen] = useState(false);
   const [isAddingNote, setIsAddingNote] = useState(false);
@@ -410,10 +416,19 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
                     <span className="text-[10px] text-[#A8988A] lowercase font-normal">registered baristas aggregate</span>
                   </div>
                   <StarRatingDisplay
-                    rating={coffee.generalRating || coffee.communityRating || 4.5}
-                    count={coffee.communityRatingsCount}
+                    rating={generalRating}
+                    count={ratingsCount}
                     size="md"
                   />
+                  <div className="text-[11px] text-[#8C7A6D] mt-1 font-medium">
+                    {ratingsCount === 0 ? (
+                      <span className="text-[#A8988A] italic">No ratings yet · Default 0.0</span>
+                    ) : ratingsCount === 1 ? (
+                      <span className="text-[#8C4F1A]">1 registered barista evaluated</span>
+                    ) : (
+                      <span className="text-[#8C4F1A]">{ratingsCount} registered baristas evaluated</span>
+                    )}
+                  </div>
                 </div>
 
                 {/* General Tasting Notes: Top 5 Aggregated */}
@@ -422,10 +437,10 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
                     <span>General Tasting Notes (Top 5)</span>
                     <span className="text-[10px] text-[#A8988A] lowercase font-normal">consensus proper casing</span>
                   </div>
-                  {coffee.generalTastingNotes && coffee.generalTastingNotes.length > 0 ? (
+                  {generalTastingNotes && generalTastingNotes.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {coffee.generalTastingNotes.slice(0, 5).map((note) => {
-                        const count = coffee.tastingNotesBreakdown?.find(
+                      {generalTastingNotes.slice(0, 5).map((note) => {
+                        const count = tastingNotesBreakdown?.find(
                           (b) => b.note.toLowerCase() === note.toLowerCase()
                         )?.count;
                         const isAlreadyInPersonal = (coffee.tastingNotesSummary || []).some(
@@ -943,8 +958,8 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
                 <span>Community Consensus Top 5 Notes</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {coffee.generalTastingNotes && coffee.generalTastingNotes.length > 0 ? (
-                  coffee.generalTastingNotes.map((n) => (
+                {generalTastingNotes && generalTastingNotes.length > 0 ? (
+                  generalTastingNotes.map((n) => (
                     <span
                       key={n}
                       className="text-xs px-2.5 py-0.5 bg-[#FAF3EC] text-[#553E2E] rounded border border-[#DFCFC0] font-semibold"

@@ -176,8 +176,8 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
 
     if (itemType === 'coffee') {
       const finalRoaster = isUnified && unificationMatch?.roaster ? unificationMatch.roaster : (generatedResult.roaster || 'Specialty Roaster');
-      const finalGeneralRating = isUnified && unificationMatch?.generalRating ? unificationMatch.generalRating : 4.5;
-      const finalRatingsCount = isUnified && unificationMatch?.ratingsCount ? unificationMatch.ratingsCount : 1;
+      const finalGeneralRating = isUnified && unificationMatch && unificationMatch.ratingsCount > 0 && typeof unificationMatch.generalRating === 'number' ? unificationMatch.generalRating : 0;
+      const finalRatingsCount = isUnified && unificationMatch && typeof unificationMatch.ratingsCount === 'number' ? unificationMatch.ratingsCount : 0;
 
       const coffeeObj: CoffeeType = {
         id: `coffee-ai-${idSuffix}`,
@@ -235,8 +235,8 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
       authApi.registerCommunityItem('coffee', coffeeObj).catch(() => {});
     } else if (itemType === 'equipment') {
       const finalBrand = isUnified && unificationMatch?.brand ? unificationMatch.brand : (generatedResult.brand || 'Gear Brand');
-      const finalGeneralRating = isUnified && unificationMatch?.generalRating ? unificationMatch.generalRating : 4.5;
-      const finalRatingsCount = isUnified && unificationMatch?.ratingsCount ? unificationMatch.ratingsCount : 1;
+      const finalGeneralRating = isUnified && unificationMatch && unificationMatch.ratingsCount > 0 && typeof unificationMatch.generalRating === 'number' ? unificationMatch.generalRating : 0;
+      const finalRatingsCount = isUnified && unificationMatch && typeof unificationMatch.ratingsCount === 'number' ? unificationMatch.ratingsCount : 0;
 
       const eqObj: Equipment = {
         id: `eq-ai-${idSuffix}`,
@@ -247,18 +247,18 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
         settingsNotes: generatedResult.settingsNotes || (isUnified ? unificationMatch.settingsNotes : ''),
         maintenanceNotes: generatedResult.maintenanceNotes || '',
         generalNotes: generatedResult.generalNotes || '',
-        rating: 5,
+        rating: 0,
         generalRating: finalGeneralRating,
         generalRatingsCount: finalRatingsCount,
         isRegistered: isUnified,
         dateAcquired: new Date().toISOString().split('T')[0],
       };
       onAddEquipment(eqObj);
-      authApi.registerCommunityItem('equipment', eqObj, 5).catch(() => {});
+      authApi.registerCommunityItem('equipment', eqObj, 0).catch(() => {});
     } else if (itemType === 'cafe') {
       const finalCity = isUnified && unificationMatch?.city ? unificationMatch.city : (generatedResult.city || 'City');
-      const finalGeneralRating = isUnified && unificationMatch?.generalRating ? unificationMatch.generalRating : 4.5;
-      const finalRatingsCount = isUnified && unificationMatch?.ratingsCount ? unificationMatch.ratingsCount : 1;
+      const finalGeneralRating = isUnified && unificationMatch && unificationMatch.ratingsCount > 0 && typeof unificationMatch.generalRating === 'number' ? unificationMatch.generalRating : 0;
+      const finalRatingsCount = isUnified && unificationMatch && typeof unificationMatch.ratingsCount === 'number' ? unificationMatch.ratingsCount : 0;
 
       const cafeObj: Cafe = {
         id: `cafe-ai-${idSuffix}`,
@@ -266,7 +266,7 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
         address: generatedResult.address || (isUnified ? unificationMatch.address : 'Address unlisted'),
         city: finalCity,
         country: generatedResult.country || 'Country',
-        rating: 4.5,
+        rating: 0,
         generalRating: finalGeneralRating,
         generalRatingsCount: finalRatingsCount,
         favoriteDrink: generatedResult.favoriteDrink,
@@ -280,7 +280,7 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
         isRegistered: isUnified,
       };
       onAddCafe(cafeObj);
-      authApi.registerCommunityItem('cafe', cafeObj, 4.5).catch(() => {});
+      authApi.registerCommunityItem('cafe', cafeObj, 0).catch(() => {});
     } else {
       const noteObj: CustomNote = {
         id: `note-ai-${idSuffix}`,
@@ -508,7 +508,13 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
                       <p className="text-[11px] text-amber-800 leading-snug">
                         Another user has already added this item before:
                         <strong> {unificationMatch.name}</strong> ({unificationMatch.roaster || unificationMatch.brand || unificationMatch.city}).
-                        General community rating: <strong>★ {unificationMatch.generalRating?.toFixed(1) || '4.8'}</strong> ({unificationMatch.ratingsCount || unificationMatch.userCount || 1} baristas).
+                        General community rating: {unificationMatch.ratingsCount > 0 ? (
+                          <>
+                            <strong>★ {unificationMatch.generalRating?.toFixed(1)}</strong> ({unificationMatch.ratingsCount} {unificationMatch.ratingsCount === 1 ? 'barista' : 'baristas'}).
+                          </>
+                        ) : (
+                          <strong>Unrated (0 baristas).</strong>
+                        )}
                       </p>
                       <div className="flex flex-col gap-1.5 pt-1 text-[11px]">
                         <button

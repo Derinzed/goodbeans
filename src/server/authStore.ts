@@ -56,9 +56,6 @@ export interface StoredCommunityItem {
   userRatings: Record<string, number>;
   // Tasting notes evaluated by each user: userId -> string[]
   userTastingNotes?: Record<string, string[]>;
-  // Baseline initial seed rating for specialty roaster catalog
-  baseRating?: number;
-  baseRatingsCount?: number;
   generalRating: number;
   ratingsCount: number;
   userCount: number;
@@ -215,8 +212,6 @@ export class AuthStore {
       INITIAL_COFFEES.forEach((c) => {
         const cleanName = (c.name || '').trim();
         const cleanRoaster = (c.roaster || '').trim();
-        const baseRating = typeof c.communityRating === 'number' && c.communityRating > 0 ? c.communityRating : 4.7;
-        const baseCount = typeof c.communityRatingsCount === 'number' && c.communityRatingsCount > 0 ? c.communityRatingsCount : 24;
 
         initialCatalog.coffees.push({
           id: c.id,
@@ -224,11 +219,11 @@ export class AuthStore {
           secondary: cleanRoaster,
           type: 'coffee',
           userRatings: {},
-          baseRating,
-          baseRatingsCount: baseCount,
-          generalRating: baseRating,
-          ratingsCount: baseCount,
-          userCount: baseCount,
+          generalRating: 0,
+          ratingsCount: 0,
+          userCount: 0,
+          generalTastingNotes: [],
+          tastingNotesBreakdown: [],
           itemData: c,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -238,8 +233,6 @@ export class AuthStore {
       INITIAL_EQUIPMENT.forEach((eq) => {
         const cleanName = (eq.name || '').trim();
         const cleanBrand = (eq.brand || '').trim();
-        const baseRating = typeof eq.rating === 'number' && eq.rating > 0 ? eq.rating : 4.8;
-        const baseCount = 18;
 
         initialCatalog.equipment.push({
           id: eq.id,
@@ -247,11 +240,9 @@ export class AuthStore {
           secondary: cleanBrand,
           type: 'equipment',
           userRatings: {},
-          baseRating,
-          baseRatingsCount: baseCount,
-          generalRating: baseRating,
-          ratingsCount: baseCount,
-          userCount: baseCount,
+          generalRating: 0,
+          ratingsCount: 0,
+          userCount: 0,
           itemData: eq,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -261,8 +252,6 @@ export class AuthStore {
       INITIAL_CAFES.forEach((cafe) => {
         const cleanName = (cafe.name || '').trim();
         const cleanCity = (cafe.city || '').trim();
-        const baseRating = typeof cafe.rating === 'number' && cafe.rating > 0 ? cafe.rating : 4.8;
-        const baseCount = 35;
 
         initialCatalog.cafes.push({
           id: cafe.id,
@@ -270,11 +259,9 @@ export class AuthStore {
           secondary: cleanCity,
           type: 'cafe',
           userRatings: {},
-          baseRating,
-          baseRatingsCount: baseCount,
-          generalRating: baseRating,
-          ratingsCount: baseCount,
-          userCount: baseCount,
+          generalRating: 0,
+          ratingsCount: 0,
+          userCount: 0,
           itemData: cafe,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -283,6 +270,18 @@ export class AuthStore {
 
       fs.writeFileSync(COMMUNITY_ITEMS_FILE, JSON.stringify(initialCatalog, null, 2), 'utf-8');
     }
+
+    // Auto-clean any legacy base ratings from community_items.json
+    try {
+      if (fs.existsSync(COMMUNITY_ITEMS_FILE)) {
+        const raw = fs.readFileSync(COMMUNITY_ITEMS_FILE, 'utf-8');
+        if (raw && (raw.includes('"baseRating"') || raw.includes('"baseRatingsCount"'))) {
+          try {
+            AuthStore.recalculateAllRatings();
+          } catch {}
+        }
+      }
+    } catch {}
   }
 
   // Safe file reader helper
@@ -764,23 +763,15 @@ export class AuthStore {
             }
           });
         }
+        delete (item as any).baseRating;
+        delete (item as any).baseRatingsCount;
         const ratingsMap = item.userRatings || {};
-        const agg = this.calculateAggregateRating(
-          ratingsMap,
-          item.baseRating,
-          item.baseRatingsCount
-        );
+        const agg = this.calculateAggregateRating(ratingsMap);
         item.generalRating = agg.generalRating;
         item.ratingsCount = agg.ratingsCount;
         item.userCount = agg.userCount;
         if (item.type === 'coffee') {
-          const baseNotes = Array.isArray(item.itemData?.tastingNotesSummary)
-            ? item.itemData.tastingNotesSummary
-            : [];
-          const aggTasting = this.calculateAggregateTastingNotes(
-            item.userTastingNotes || {},
-            baseNotes
-          );
+          const aggTasting = this.calculateAggregateTastingNotes(item.userTastingNotes || {});
           item.generalTastingNotes = aggTasting.generalTastingNotes;
           item.tastingNotesBreakdown = aggTasting.tastingNotesBreakdown;
         }
@@ -849,11 +840,9 @@ export class AuthStore {
     this.writeJsonFile(COMMUNITY_ITEMS_FILE, data);
   }
 
-  // Calculate mathematically exact aggregate general rating across all user ratings (strictly registered accounts)
+  // Calculate mathematically exact aggregate general rating across all registered user ratings (defaults to 0 if unrated)
   private static calculateAggregateRating(
-    userRatings: Record<string, number>,
-    baseRating?: number,
-    baseRatingsCount?: number
+    userRatings: Record<string, number>
   ): { generalRating: number; ratingsCount: number; userCount: number } {
     // Only registered user accounts contribute to general ratings
     const registeredUserIds = new Set(this.getUsers().map((u) => u.id));
@@ -861,36 +850,36 @@ export class AuthStore {
       .filter(([uid, r]) => registeredUserIds.has(uid) && typeof r === 'number' && r > 0)
       .map(([, r]) => r);
 
-    const userSum = ratingsList.reduce((acc, r) => acc + r, 0);
     const userCount = ratingsList.length;
+    if (userCount === 0) {
+      return {
+        generalRating: 0,
+        ratingsCount: 0,
+        userCount: 0,
+      };
+    }
 
-    const baseCount = typeof baseRatingsCount === 'number' ? baseRatingsCount : 0;
-    const baseSum = typeof baseRating === 'number' ? baseRating * baseCount : 0;
-
-    const totalSum = userSum + baseSum;
-    const totalCount = userCount + baseCount;
-
-    const generalRating = totalCount > 0 ? Number((totalSum / totalCount).toFixed(1)) : 4.5;
+    const userSum = ratingsList.reduce((acc, r) => acc + r, 0);
+    const generalRating = Number((userSum / userCount).toFixed(1));
 
     return {
       generalRating,
-      ratingsCount: totalCount,
+      ratingsCount: userCount,
       userCount,
     };
   }
 
   // Calculate aggregate tasting notes across all user evaluations (registered accounts only, top 5 displayed in proper casing)
   public static calculateAggregateTastingNotes(
-    userTastingNotes: Record<string, string[]> = {},
-    baseNotes: string[] = []
+    userTastingNotes: Record<string, string[]> = {}
   ): {
     generalTastingNotes: string[];
     tastingNotesBreakdown: Array<{ note: string; count: number }>;
   } {
     const registeredUserIds = new Set(this.getUsers().map((u) => u.id));
-    const noteMap = new Map<string, { display: string; userIds: Set<string>; baseCount: number }>();
+    const noteMap = new Map<string, { display: string; userIds: Set<string> }>();
 
-    const registerNote = (noteStr: string, userId?: string, isBase = false) => {
+    const registerNote = (noteStr: string, userId: string) => {
       if (!noteStr || typeof noteStr !== 'string') return;
       const clean = noteStr.trim();
       if (!clean) return;
@@ -899,33 +888,24 @@ export class AuthStore {
 
       let existing = noteMap.get(key);
       if (!existing) {
-        existing = { display: proper, userIds: new Set(), baseCount: 0 };
+        existing = { display: proper, userIds: new Set() };
         noteMap.set(key, existing);
       }
-      if (userId) {
-        existing.userIds.add(userId);
-      }
-      if (isBase) {
-        existing.baseCount += 1;
-      }
+      existing.userIds.add(userId);
     };
-
-    if (Array.isArray(baseNotes)) {
-      baseNotes.forEach((bn) => registerNote(bn, undefined, true));
-    }
 
     if (userTastingNotes && typeof userTastingNotes === 'object') {
       Object.entries(userTastingNotes).forEach(([uid, notes]) => {
         // Enforce registered users only
         if (registeredUserIds.has(uid) && Array.isArray(notes)) {
-          notes.forEach((n) => registerNote(n, uid, false));
+          notes.forEach((n) => registerNote(n, uid));
         }
       });
     }
 
     const breakdown = Array.from(noteMap.values()).map((entry) => ({
       note: entry.display,
-      count: entry.userIds.size + entry.baseCount,
+      count: entry.userIds.size,
     }));
 
     breakdown.sort((a, b) => b.count - a.count || a.note.localeCompare(b.note));
@@ -1010,6 +990,8 @@ export class AuthStore {
       // Record this user's latest rating
       if (parsedRating !== undefined && userId) {
         existing.userRatings[userId] = parsedRating;
+      } else if (userId && (item.userRating === 0 || rating === 0)) {
+        delete existing.userRatings[userId];
       }
 
       // Record this user's tasting notes
@@ -1033,11 +1015,9 @@ export class AuthStore {
         });
       }
 
-      const agg = this.calculateAggregateRating(
-        existing.userRatings,
-        existing.baseRating,
-        existing.baseRatingsCount
-      );
+      delete (existing as any).baseRating;
+      delete (existing as any).baseRatingsCount;
+      const agg = this.calculateAggregateRating(existing.userRatings);
 
       existing.generalRating = agg.generalRating;
       existing.ratingsCount = agg.ratingsCount;
@@ -1046,10 +1026,7 @@ export class AuthStore {
       existing.itemData = { ...existing.itemData, ...item };
 
       if (type === 'coffee') {
-        const baseNotes = Array.isArray(existing.itemData?.tastingNotesSummary)
-          ? existing.itemData.tastingNotesSummary
-          : [];
-        const aggTasting = this.calculateAggregateTastingNotes(existing.userTastingNotes, baseNotes);
+        const aggTasting = this.calculateAggregateTastingNotes(existing.userTastingNotes || {});
         existing.generalTastingNotes = aggTasting.generalTastingNotes;
         existing.tastingNotesBreakdown = aggTasting.tastingNotesBreakdown;
       }
@@ -1068,10 +1045,8 @@ export class AuthStore {
         userTastingNotes[userId] = parsedNotes;
       }
 
-      const agg = this.calculateAggregateRating(userRatings, item.communityRating, item.communityRatingsCount);
-
-      const baseNotes = Array.isArray(item.tastingNotesSummary) ? item.tastingNotesSummary : [];
-      const aggTasting = this.calculateAggregateTastingNotes(userTastingNotes, baseNotes);
+      const agg = this.calculateAggregateRating(userRatings);
+      const aggTasting = this.calculateAggregateTastingNotes(userTastingNotes);
 
       const newItem: StoredCommunityItem = {
         id: item.id || `community-${type}-${Date.now()}`,
@@ -1080,8 +1055,6 @@ export class AuthStore {
         type,
         userRatings,
         userTastingNotes: type === 'coffee' ? userTastingNotes : undefined,
-        baseRating: item.communityRating || (parsedRating ? parsedRating : 4.5),
-        baseRatingsCount: item.communityRatingsCount || (parsedRating ? 1 : 0),
         generalRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
         userCount: agg.userCount,
@@ -1153,9 +1126,7 @@ export class AuthStore {
         if (updates.secondary) updatedItem.secondary = updates.secondary.trim();
 
         const agg = this.calculateAggregateRating(
-          updatedItem.userRatings || {},
-          updatedItem.baseRating,
-          updatedItem.baseRatingsCount
+          updatedItem.userRatings || {}
         );
         updatedItem.generalRating = agg.generalRating;
         updatedItem.ratingsCount = agg.ratingsCount;
@@ -1180,11 +1151,7 @@ export class AuthStore {
         const item = list[idx];
         if (item.userRatings && item.userRatings[raterKey] !== undefined) {
           delete item.userRatings[raterKey];
-          const agg = this.calculateAggregateRating(
-            item.userRatings,
-            item.baseRating,
-            item.baseRatingsCount
-          );
+          const agg = this.calculateAggregateRating(item.userRatings);
           item.generalRating = agg.generalRating;
           item.ratingsCount = agg.ratingsCount;
           item.userCount = agg.userCount;
@@ -1208,7 +1175,7 @@ export class AuthStore {
       if (idx !== -1) {
         const item = list[idx];
         item.userRatings = {};
-        const agg = this.calculateAggregateRating({}, item.baseRating, item.baseRatingsCount);
+        const agg = this.calculateAggregateRating({});
         item.generalRating = agg.generalRating;
         item.ratingsCount = agg.ratingsCount;
         item.userCount = agg.userCount;
@@ -1236,12 +1203,9 @@ export class AuthStore {
           rating,
         }));
 
-        const baseNotes = Array.isArray(item.itemData?.tastingNotesSummary)
-          ? item.itemData.tastingNotesSummary
-          : [];
         const aggTasting =
           item.type === 'coffee'
-            ? this.calculateAggregateTastingNotes(item.userTastingNotes || {}, baseNotes)
+            ? this.calculateAggregateTastingNotes(item.userTastingNotes || {})
             : undefined;
 
         return {
@@ -1252,8 +1216,6 @@ export class AuthStore {
           generalRating: item.generalRating,
           ratingsCount: item.ratingsCount,
           userCount: item.userCount,
-          baseRating: item.baseRating,
-          baseRatingsCount: item.baseRatingsCount,
           userRatings: ratingEntries,
           generalTastingNotes: aggTasting?.generalTastingNotes || item.generalTastingNotes || [],
           tastingNotesBreakdown: aggTasting?.tastingNotesBreakdown || item.tastingNotesBreakdown || [],
@@ -1273,7 +1235,7 @@ export class AuthStore {
   // Running catalog of all registered coffees across all users, community ratings, and defaults
   public static getRegisteredCoffees(): any[] {
     const users = this.getUsers();
-    const guests = this.getGuests();
+    const registeredUserIds = new Set(users.map((u) => u.id));
     const communityData = this.getCommunityItemsData();
     const coffeeMap = new Map<string, any>();
 
@@ -1283,8 +1245,24 @@ export class AuthStore {
       const cleanRoaster = (c.secondary || c.itemData?.roaster || '').trim();
       const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
 
-      const userRatings: Record<string, number> = { ...(c.userRatings || {}) };
-      const userTastingNotes: Record<string, string[]> = { ...(c.userTastingNotes || {}) };
+      const userRatings: Record<string, number> = {};
+      if (c.userRatings && typeof c.userRatings === 'object') {
+        Object.entries(c.userRatings).forEach(([uid, r]) => {
+          if (registeredUserIds.has(uid) && typeof r === 'number' && r > 0) {
+            userRatings[uid] = r;
+          }
+        });
+      }
+
+      const userTastingNotes: Record<string, string[]> = {};
+      if (c.userTastingNotes && typeof c.userTastingNotes === 'object') {
+        Object.entries(c.userTastingNotes).forEach(([uid, notes]) => {
+          if (registeredUserIds.has(uid) && Array.isArray(notes)) {
+            userTastingNotes[uid] = notes;
+          }
+        });
+      }
+
       const baseNotes: string[] = Array.isArray(c.itemData?.tastingNotesSummary)
         ? c.itemData.tastingNotesSummary
         : [];
@@ -1295,8 +1273,6 @@ export class AuthStore {
         roaster: cleanRoaster,
         userRatings,
         userTastingNotes,
-        baseRating: c.baseRating || 4.7,
-        baseRatingsCount: c.baseRatingsCount || 24,
         baseNotes,
         origin: c.itemData?.origin || { country: 'Single Origin' },
         variety: c.itemData?.variety || 'Arabica',
@@ -1345,8 +1321,6 @@ export class AuthStore {
               roaster: cleanRoaster || 'Artisan Roaster',
               userRatings: {},
               userTastingNotes: {},
-              baseRating: typeof uc.communityRating === 'number' && uc.communityRating > 0 ? uc.communityRating : 4.5,
-              baseRatingsCount: typeof uc.communityRatingsCount === 'number' ? uc.communityRatingsCount : 0,
               baseNotes,
               origin: uc.origin || { country: 'Single Origin' },
               variety: uc.variety || 'Arabica',
@@ -1369,10 +1343,10 @@ export class AuthStore {
       }
     });
 
-    // Compute aggregate for each item (applied ONLY to registered users)
+    // Compute aggregate for each item (strictly registered users, defaults to 0 if no ratings)
     return Array.from(coffeeMap.values()).map((item) => {
-      const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
-      const aggTasting = this.calculateAggregateTastingNotes(item.userTastingNotes, item.baseNotes);
+      const agg = this.calculateAggregateRating(item.userRatings);
+      const aggTasting = this.calculateAggregateTastingNotes(item.userTastingNotes);
 
       return {
         id: item.id,
@@ -1392,7 +1366,7 @@ export class AuthStore {
         ratingsCount: agg.ratingsCount,
         communityRatingsCount: agg.ratingsCount,
         userCount: agg.userCount,
-        isRecommended: agg.generalRating >= 4.5,
+        isRecommended: agg.ratingsCount > 0 && agg.generalRating >= 4.5,
       };
     }).sort((a, b) => b.generalRating - a.generalRating);
   }
@@ -1400,6 +1374,7 @@ export class AuthStore {
   // Running catalog of all registered equipment across all users and defaults
   public static getRegisteredEquipment(): any[] {
     const users = this.getUsers();
+    const registeredUserIds = new Set(users.map((u) => u.id));
     const communityData = this.getCommunityItemsData();
     const eqMap = new Map<string, any>();
 
@@ -1408,14 +1383,21 @@ export class AuthStore {
       const cleanBrand = (eq.secondary || eq.itemData?.brand || '').trim();
       const key = `${cleanName.toLowerCase()}::${cleanBrand.toLowerCase()}`;
 
+      const userRatings: Record<string, number> = {};
+      if (eq.userRatings && typeof eq.userRatings === 'object') {
+        Object.entries(eq.userRatings).forEach(([uid, r]) => {
+          if (registeredUserIds.has(uid) && typeof r === 'number' && r > 0) {
+            userRatings[uid] = r;
+          }
+        });
+      }
+
       eqMap.set(key, {
         id: eq.id,
         name: cleanName,
         brand: cleanBrand,
         category: eq.itemData?.category || 'Accessory',
-        userRatings: { ...(eq.userRatings || {}) },
-        baseRating: eq.baseRating || 4.8,
-        baseRatingsCount: eq.baseRatingsCount || 18,
+        userRatings,
         settingsNotes: eq.itemData?.settingsNotes || '',
         maintenanceNotes: eq.itemData?.maintenanceNotes || '',
         generalNotes: eq.itemData?.generalNotes || '',
@@ -1439,8 +1421,6 @@ export class AuthStore {
               brand: cleanBrand || 'Coffee Gear',
               category: ueq.category || 'Accessory',
               userRatings: {},
-              baseRating: 4.8,
-              baseRatingsCount: 0,
               settingsNotes: ueq.settingsNotes || '',
               maintenanceNotes: ueq.maintenanceNotes || '',
               generalNotes: ueq.generalNotes || '',
@@ -1456,7 +1436,7 @@ export class AuthStore {
     });
 
     return Array.from(eqMap.values()).map((item) => {
-      const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
+      const agg = this.calculateAggregateRating(item.userRatings);
 
       return {
         id: item.id,
@@ -1469,7 +1449,7 @@ export class AuthStore {
         generalRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
         userCount: agg.userCount,
-        isRecommended: agg.generalRating >= 4.5,
+        isRecommended: agg.ratingsCount > 0 && agg.generalRating >= 4.5,
       };
     }).sort((a, b) => b.generalRating - a.generalRating);
   }
@@ -1477,6 +1457,7 @@ export class AuthStore {
   // Running catalog of all registered cafes across all users and defaults
   public static getRegisteredCafes(): any[] {
     const users = this.getUsers();
+    const registeredUserIds = new Set(users.map((u) => u.id));
     const communityData = this.getCommunityItemsData();
     const cafeMap = new Map<string, any>();
 
@@ -1484,6 +1465,15 @@ export class AuthStore {
       const cleanName = (c.name || '').trim();
       const cleanCity = (c.secondary || c.itemData?.city || '').trim();
       const key = `${cleanName.toLowerCase()}::${cleanCity.toLowerCase()}`;
+
+      const userRatings: Record<string, number> = {};
+      if (c.userRatings && typeof c.userRatings === 'object') {
+        Object.entries(c.userRatings).forEach(([uid, r]) => {
+          if (registeredUserIds.has(uid) && typeof r === 'number' && r > 0) {
+            userRatings[uid] = r;
+          }
+        });
+      }
 
       cafeMap.set(key, {
         id: c.id,
@@ -1494,9 +1484,7 @@ export class AuthStore {
         vibes: Array.isArray(c.itemData?.vibes) ? c.itemData.vibes : [],
         favoriteDrink: c.itemData?.favoriteDrink || '',
         notes: c.itemData?.notes || '',
-        userRatings: { ...(c.userRatings || {}) },
-        baseRating: c.baseRating || 4.8,
-        baseRatingsCount: c.baseRatingsCount || 25,
+        userRatings,
       });
     });
 
@@ -1521,8 +1509,6 @@ export class AuthStore {
               favoriteDrink: uc.favoriteDrink || '',
               notes: uc.notes || '',
               userRatings: {},
-              baseRating: 4.8,
-              baseRatingsCount: 0,
             };
             cafeMap.set(key, existing);
           }
@@ -1535,7 +1521,7 @@ export class AuthStore {
     });
 
     return Array.from(cafeMap.values()).map((item) => {
-      const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
+      const agg = this.calculateAggregateRating(item.userRatings);
 
       return {
         id: item.id,
@@ -1549,7 +1535,7 @@ export class AuthStore {
         generalRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
         userCount: agg.userCount,
-        isRecommended: agg.generalRating >= 4.5,
+        isRecommended: agg.ratingsCount > 0 && agg.generalRating >= 4.5,
       };
     }).sort((a, b) => b.generalRating - a.generalRating);
   }

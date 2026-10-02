@@ -291,18 +291,20 @@ export default function App() {
             if (match) {
               return {
                 ...c,
-                generalRating: match.generalRating,
-                communityRating: match.generalRating,
-                communityRatingsCount: match.ratingsCount,
-                generalTastingNotes: match.generalTastingNotes,
-                tastingNotesBreakdown: match.tastingNotesBreakdown,
+                generalRating: match.ratingsCount > 0 ? match.generalRating : 0,
+                communityRating: match.ratingsCount > 0 ? match.generalRating : 0,
+                communityRatingsCount: match.ratingsCount || 0,
+                generalTastingNotes: match.generalTastingNotes || [],
+                tastingNotesBreakdown: match.tastingNotesBreakdown || [],
               };
             }
             return {
               ...c,
-              generalRating: undefined,
-              generalTastingNotes: undefined,
-              tastingNotesBreakdown: undefined,
+              generalRating: 0,
+              communityRating: 0,
+              communityRatingsCount: 0,
+              generalTastingNotes: [],
+              tastingNotesBreakdown: [],
             };
           })
         );
@@ -317,14 +319,14 @@ export default function App() {
             if (match) {
               return {
                 ...eq,
-                generalRating: match.generalRating,
-                generalRatingsCount: match.ratingsCount,
+                generalRating: match.ratingsCount > 0 ? match.generalRating : 0,
+                generalRatingsCount: match.ratingsCount || 0,
               };
             }
             return {
               ...eq,
-              generalRating: undefined,
-              generalRatingsCount: undefined,
+              generalRating: 0,
+              generalRatingsCount: 0,
             };
           })
         );
@@ -339,14 +341,14 @@ export default function App() {
             if (match) {
               return {
                 ...cafe,
-                generalRating: match.generalRating,
-                generalRatingsCount: match.ratingsCount,
+                generalRating: match.ratingsCount > 0 ? match.generalRating : 0,
+                generalRatingsCount: match.ratingsCount || 0,
               };
             }
             return {
               ...cafe,
-              generalRating: undefined,
-              generalRatingsCount: undefined,
+              generalRating: 0,
+              generalRatingsCount: 0,
             };
           })
         );
@@ -1518,6 +1520,8 @@ export default function App() {
         ) : currentView === 'equipment' ? (
           <EquipmentShelfView
             equipment={equipment}
+            registeredEquipment={registeredEquipment}
+            isRegisteredUser={Boolean(authToken && currentUser)}
             onAddEquipment={() => {
               setEditingEquipment(null);
               setIsEquipmentModalOpen(true);
@@ -1532,6 +1536,8 @@ export default function App() {
         ) : currentView === 'cafes' ? (
           <CafeShelfView
             cafes={cafes}
+            registeredCafes={registeredCafes}
+            isRegisteredUser={Boolean(authToken && currentUser)}
             onAddCafe={() => {
               setEditingCafe(null);
               setIsCafeModalOpen(true);

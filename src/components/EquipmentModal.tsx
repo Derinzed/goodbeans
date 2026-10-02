@@ -90,12 +90,12 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
       (!brand.trim() || re.brand.toLowerCase() === brand.trim().toLowerCase())
   );
 
-  const effectiveGeneralRating = matchingRegistered
+  const effectiveGeneralRating = matchingRegistered && matchingRegistered.ratingsCount > 0
     ? matchingRegistered.generalRating
-    : initialEquipment?.generalRating || rating || 4.5;
+    : 0;
   const effectiveRatingsCount = matchingRegistered
     ? matchingRegistered.ratingsCount
-    : initialEquipment?.generalRatingsCount || (rating > 0 ? 1 : 0);
+    : 0;
 
   const handleSelectRegistered = (re: RegisteredEquipment) => {
     setName(re.name);

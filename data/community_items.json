@@ -1,0 +1,1143 @@
+{
+  "coffees": [
+    {
+      "id": "coffee-onyx-tropical-weather",
+      "name": "Tropical Weather",
+      "secondary": "Onyx Coffee Lab",
+      "type": "coffee",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "generalTastingNotes": [],
+      "tastingNotesBreakdown": [],
+      "itemData": {
+        "id": "coffee-onyx-tropical-weather",
+        "name": "Tropical Weather",
+        "roaster": "Onyx Coffee Lab",
+        "origin": {
+          "country": "Ethiopia",
+          "region": "Worka Sakaro & Chelchele",
+          "farmOrStation": "Smallholder cooperatives",
+          "elevationMeters": 2100
+        },
+        "variety": "Ethiopian Heirloom varieties",
+        "process": "Natural",
+        "roastLevel": "Light",
+        "roastDate": "2026-09-18",
+        "userRating": 4.5,
+        "communityRating": 0,
+        "communityRatingsCount": 0,
+        "shelfIds": [
+          "currently-drinking",
+          "favorites"
+        ],
+        "tastingNotesSummary": [
+          "Candied Peach",
+          "Earl Grey",
+          "Floral Jasmine",
+          "Plum"
+        ],
+        "coverColor": "#E29548",
+        "bagBadgeText": "Artisanal Single-Origin Blend",
+        "description": "A brilliant marriage of washed and natural Ethiopian coffees that creates a vibrant cup tasting like candied peach, passion fruit tea, and fresh bergamot. Designed to showcase modern processing clarity with lush fruit sweetness.",
+        "dateAdded": "2026-09-20",
+        "isFavorite": true,
+        "tastingLogs": [
+          {
+            "id": "tlog-1",
+            "date": "2026-09-22",
+            "brewMethod": "V60 Pour Over",
+            "rating": 4.5,
+            "daysOffRoast": 4,
+            "notes": "Day 4 post roast: Intense bouquet of jasmine blossoms and ripe stone fruit on the grind aroma. In the cup, crisp Meyer lemon acidity opens up into sweet Georgia peach juice and lingering bergamot tea finish.",
+            "flavorTags": [
+              "Peach",
+              "Jasmine",
+              "Bergamot",
+              "Earl Grey"
+            ],
+            "sensoryScores": {
+              "acidity": 4.5,
+              "sweetness": 4.5,
+              "body": 3,
+              "clarity": 4.8,
+              "bitterness": 1.2
+            }
+          },
+          {
+            "id": "tlog-2",
+            "date": "2026-09-26",
+            "brewMethod": "V60 Pour Over",
+            "rating": 5,
+            "daysOffRoast": 8,
+            "notes": "Day 8 post roast: Settled in wonderfully! Body has rounded out into silky honey texture. Candied nectarine and black tea finish lasts for minutes.",
+            "flavorTags": [
+              "Candied Peach",
+              "Honey",
+              "Lavender",
+              "Black Tea"
+            ],
+            "sensoryScores": {
+              "acidity": 4.2,
+              "sweetness": 4.8,
+              "body": 3.5,
+              "clarity": 4.9,
+              "bitterness": 1
+            }
+          }
+        ],
+        "recipes": [
+          {
+            "id": "rec-tropical-v60",
+            "coffeeId": "coffee-onyx-tropical-weather",
+            "title": "High Clarity V60 Single-Cup",
+            "method": "v60",
+            "doseGrams": 15,
+            "waterGrams": 250,
+            "ratio": "1:16.7",
+            "grindSize": "Medium-Fine (23 clicks Comandante C40)",
+            "waterTempC": 93,
+            "totalTimeSeconds": 195,
+            "bloomGrams": 45,
+            "bloomTimeSeconds": 40,
+            "equipmentIds": [
+              "eq-comandante",
+              "eq-v60",
+              "eq-stagg-kettle",
+              "eq-acaia-lunar"
+            ],
+            "notes": "Gentle center pours with low agitation to maximize floral nuance and prevent stall.",
+            "isRecommended": true,
+            "createdAt": "2026-09-20",
+            "customVariables": [
+              {
+                "id": "cv-1",
+                "label": "Filter Paper",
+                "value": "Cafec Abaca Light Roast"
+              },
+              {
+                "id": "cv-2",
+                "label": "Water Mineral Profile",
+                "value": "Lotus Drops (Light & Floral 85ppm)"
+              },
+              {
+                "id": "cv-3",
+                "label": "Pour Rate",
+                "value": "4.5g / sec spiral"
+              },
+              {
+                "id": "cv-4",
+                "label": "Rao Agitation Swirl",
+                "value": "Single gentle swirl at bloom only"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s-1",
+                "timeSeconds": 0,
+                "title": "Bloom",
+                "waterAmountGrams": 45,
+                "instruction": "Saturate all grounds evenly within 10s. Swirl gently once and let bloom degas."
+              },
+              {
+                "id": "s-2",
+                "timeSeconds": 40,
+                "title": "First Main Pour",
+                "waterAmountGrams": 150,
+                "instruction": "Pour in steady spirals from center outward up to 150g."
+              },
+              {
+                "id": "s-3",
+                "timeSeconds": 85,
+                "title": "Final Pour & Drawdown",
+                "waterAmountGrams": 250,
+                "instruction": "Pour remainder steadily to 250g. One gentle tap to settle bed. Total drawdown ~3:15."
+              }
+            ]
+          },
+          {
+            "id": "rec-tropical-espresso",
+            "coffeeId": "coffee-onyx-tropical-weather",
+            "title": "Modern High-Yield Turbo Shot",
+            "method": "espresso",
+            "doseGrams": 17.5,
+            "waterGrams": 45,
+            "ratio": "1:2.6",
+            "grindSize": "Coarser espresso (16 clicks Comandante Red Clix)",
+            "waterTempC": 94,
+            "totalTimeSeconds": 22,
+            "equipmentIds": [
+              "eq-gaggia-classic",
+              "eq-comandante",
+              "eq-acaia-lunar"
+            ],
+            "notes": "Fast 6-bar flow shot that unlocks sparkling fruit notes without harsh astringency.",
+            "isRecommended": false,
+            "createdAt": "2026-09-23",
+            "customVariables": [
+              {
+                "id": "cv-esp-1",
+                "label": "Basket Size",
+                "value": "IMS 18g Precision Baristapro"
+              },
+              {
+                "id": "cv-esp-2",
+                "label": "Puck Screen",
+                "value": "0.8mm 150-micron mesh"
+              },
+              {
+                "id": "cv-esp-3",
+                "label": "Pre-infusion",
+                "value": "3s steam valve cracked"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s-esp-1",
+                "timeSeconds": 0,
+                "title": "Pre-infusion",
+                "instruction": "Crack valve for 3s gentle puck saturation."
+              },
+              {
+                "id": "s-esp-2",
+                "timeSeconds": 4,
+                "title": "Extraction",
+                "instruction": "Run pump to 45g yield in cup at ~18-22s."
+              }
+            ]
+          }
+        ]
+      },
+      "createdAt": "2026-10-02T21:04:51.580Z",
+      "updatedAt": "2026-10-02T21:04:51.580Z"
+    },
+    {
+      "id": "coffee-sey-chelbesa",
+      "name": "Chelbesa Village Washed",
+      "secondary": "Sey Coffee",
+      "type": "coffee",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "generalTastingNotes": [],
+      "tastingNotesBreakdown": [],
+      "itemData": {
+        "id": "coffee-sey-chelbesa",
+        "name": "Chelbesa Village Washed",
+        "roaster": "Sey Coffee",
+        "origin": {
+          "country": "Ethiopia",
+          "region": "Gedeo Zone, Yirgacheffe",
+          "farmOrStation": "Danche Washing Station",
+          "producer": "Smallholders of Chelbesa",
+          "elevationMeters": 2150
+        },
+        "variety": "1974-1975 JARC Selections & Kurume",
+        "process": "Washed",
+        "roastLevel": "Light",
+        "roastDate": "2026-09-12",
+        "userRating": 5,
+        "communityRating": 0,
+        "communityRatingsCount": 0,
+        "shelfIds": [
+          "currently-drinking",
+          "favorites",
+          "filter-geishas"
+        ],
+        "tastingNotesSummary": [
+          "Bergamot",
+          "White Peach",
+          "Jasmine Flower",
+          "Lemon Verbena"
+        ],
+        "coverColor": "#D3B478",
+        "bagBadgeText": "Ultra-Nordic Light Roast",
+        "description": "The archetype of washed Yirgacheffe elegance. Roasted by Brooklyn’s Sey Coffee in their minimalist Nordic profile, this coffee is crystalline, laser-focused, and exudes delicate floral perfumes.",
+        "dateAdded": "2026-09-15",
+        "isFavorite": true,
+        "tastingLogs": [
+          {
+            "id": "tlog-sey-1",
+            "date": "2026-09-25",
+            "brewMethod": "V60 Pour Over",
+            "rating": 5,
+            "daysOffRoast": 13,
+            "notes": "Resting 2 weeks is essential for Sey. The extraction is now breathtaking: white jasmine blossoms, delicate honeysuckle, and candied Meyer lemon zest. Tea-like silky mouthfeel.",
+            "flavorTags": [
+              "Jasmine",
+              "White Peach",
+              "Meyer Lemon",
+              "Honeysuckle"
+            ],
+            "sensoryScores": {
+              "acidity": 4.9,
+              "sweetness": 4.7,
+              "body": 2.8,
+              "clarity": 5,
+              "bitterness": 0.8
+            }
+          }
+        ],
+        "recipes": [
+          {
+            "id": "rec-sey-v60",
+            "coffeeId": "coffee-sey-chelbesa",
+            "title": "Sey Style High Extraction Pour",
+            "method": "v60",
+            "doseGrams": 16,
+            "waterGrams": 275,
+            "ratio": "1:17.2",
+            "grindSize": "Fine-Medium (4.1 on Fellow Ode Gen 2 SSP)",
+            "waterTempC": 98,
+            "totalTimeSeconds": 210,
+            "bloomGrams": 60,
+            "bloomTimeSeconds": 45,
+            "equipmentIds": [
+              "eq-fellow-ode",
+              "eq-v60",
+              "eq-stagg-kettle",
+              "eq-acaia-lunar"
+            ],
+            "notes": "Near-boiling water required for ultra-dense, ultra-light roasted Ethiopian seed.",
+            "isRecommended": true,
+            "createdAt": "2026-09-16",
+            "customVariables": [
+              {
+                "id": "cv-sey-1",
+                "label": "Water Temp",
+                "value": "98°C (208°F) Off-boil"
+              },
+              {
+                "id": "cv-sey-2",
+                "label": "Rest Time Recommendation",
+                "value": "Minimum 14–21 days off roast"
+              },
+              {
+                "id": "cv-sey-3",
+                "label": "TDS Target",
+                "value": "1.42% (21.5% Extraction Yield)"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s-sey-1",
+                "timeSeconds": 0,
+                "title": "Bloom",
+                "waterAmountGrams": 60,
+                "instruction": "Wet with 60g boiling water, vigorously swirl 3 times to prevent dry pockets."
+              },
+              {
+                "id": "s-sey-2",
+                "timeSeconds": 45,
+                "title": "First Pour",
+                "waterAmountGrams": 160,
+                "instruction": "Pour at 6g/s down the center in gentle circular motions."
+              },
+              {
+                "id": "s-sey-3",
+                "timeSeconds": 100,
+                "title": "Second Pour",
+                "waterAmountGrams": 275,
+                "instruction": "Pour out to 275g, gentle stir with glass rod, let drain completely."
+              }
+            ]
+          }
+        ]
+      },
+      "createdAt": "2026-10-02T21:04:51.580Z",
+      "updatedAt": "2026-10-02T21:04:51.580Z"
+    },
+    {
+      "id": "coffee-wendelboe-caballero",
+      "name": "Caballero Geisha Washed",
+      "secondary": "Tim Wendelboe",
+      "type": "coffee",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "generalTastingNotes": [],
+      "tastingNotesBreakdown": [],
+      "itemData": {
+        "id": "coffee-wendelboe-caballero",
+        "name": "Caballero Geisha Washed",
+        "roaster": "Tim Wendelboe",
+        "origin": {
+          "country": "Honduras",
+          "region": "Marcala, La Paz",
+          "farmOrStation": "Finca El Puente & Los Gavilanes",
+          "producer": "Marysabel Caballero & Moisés Herrera",
+          "elevationMeters": 1650
+        },
+        "variety": "Geisha (Panama Selection)",
+        "process": "Washed",
+        "roastLevel": "Light",
+        "roastDate": "2026-09-08",
+        "userRating": 5,
+        "communityRating": 0,
+        "communityRatingsCount": 0,
+        "shelfIds": [
+          "brewed",
+          "favorites",
+          "filter-geishas"
+        ],
+        "tastingNotesSummary": [
+          "Papaya",
+          "Bergamot Flower",
+          "Apricot Jam",
+          "Elderflower"
+        ],
+        "coverColor": "#5C382A",
+        "bagBadgeText": "Direct Trade Micro-Lot",
+        "description": "Cultivated by the legendary Caballero family in Honduras and roasted by World Barista Champion Tim Wendelboe in Oslo. Pristine floral aromatics accompanied by juicy papaya and lingering elderflower sweetness.",
+        "dateAdded": "2026-09-10",
+        "dateFinished": "2026-09-24",
+        "isFavorite": true,
+        "tastingLogs": [
+          {
+            "id": "tlog-tw-1",
+            "date": "2026-09-20",
+            "brewMethod": "AeroPress Inverted",
+            "rating": 5,
+            "daysOffRoast": 12,
+            "notes": "Absolute masterpiece. Poured into a tulip cupping glass. Explosive tropical perfume of fresh papaya and white blossoms. One of the best Geishas of the decade.",
+            "flavorTags": [
+              "Papaya",
+              "Elderflower",
+              "Apricot",
+              "Bergamot"
+            ],
+            "sensoryScores": {
+              "acidity": 4.8,
+              "sweetness": 5,
+              "body": 3.2,
+              "clarity": 4.9,
+              "bitterness": 0.6
+            }
+          }
+        ],
+        "recipes": [
+          {
+            "id": "rec-tw-aeropress",
+            "coffeeId": "coffee-wendelboe-caballero",
+            "title": "Tim Wendelboe Competition AeroPress",
+            "method": "aeropress",
+            "doseGrams": 14,
+            "waterGrams": 200,
+            "ratio": "1:14.3",
+            "grindSize": "Medium-Coarse (26 clicks Comandante)",
+            "waterTempC": 90,
+            "totalTimeSeconds": 150,
+            "equipmentIds": [
+              "eq-aeropress-clear",
+              "eq-comandante",
+              "eq-stagg-kettle",
+              "eq-acaia-lunar"
+            ],
+            "notes": "Classic standard upright method with 3 gentle stirs and a 60s steep.",
+            "isRecommended": true,
+            "createdAt": "2026-09-11",
+            "customVariables": [
+              {
+                "id": "cv-tw-1",
+                "label": "Paper Filter Count",
+                "value": "2 rinsed paper filters"
+              },
+              {
+                "id": "cv-tw-2",
+                "label": "Press Duration",
+                "value": "Slow 30 second gentle plunge, stop at hiss"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s-tw-1",
+                "timeSeconds": 0,
+                "title": "Fill & Stir",
+                "waterAmountGrams": 200,
+                "instruction": "Pour 200g water @ 90°C straight in. Stir back and forth 3 times."
+              },
+              {
+                "id": "s-tw-2",
+                "timeSeconds": 60,
+                "title": "Second Stir & Plunge",
+                "instruction": "Stir 3 more times, insert plunger, gently press down for 30s."
+              }
+            ]
+          }
+        ]
+      },
+      "createdAt": "2026-10-02T21:04:51.580Z",
+      "updatedAt": "2026-10-02T21:04:51.580Z"
+    },
+    {
+      "id": "coffee-square-mile-sweetshop",
+      "name": "Sweetshop Espresso Blend",
+      "secondary": "Square Mile Coffee Roasters",
+      "type": "coffee",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "generalTastingNotes": [],
+      "tastingNotesBreakdown": [],
+      "itemData": {
+        "id": "coffee-square-mile-sweetshop",
+        "name": "Sweetshop Espresso Blend",
+        "roaster": "Square Mile Coffee Roasters",
+        "origin": {
+          "country": "Colombia & Ethiopia",
+          "region": "Huila & Guji",
+          "farmOrStation": "La Chorrera & Haro Wachu",
+          "elevationMeters": 1900
+        },
+        "variety": "Caturra, Castillo & Heirloom",
+        "process": "Washed & Natural",
+        "roastLevel": "Medium-Light",
+        "roastDate": "2026-09-21",
+        "userRating": 4,
+        "communityRating": 0,
+        "communityRatingsCount": 0,
+        "shelfIds": [
+          "want-to-brew",
+          "espresso-picks"
+        ],
+        "tastingNotesSummary": [
+          "Strawberry Jam",
+          "Milk Chocolate",
+          "Toffee",
+          "Custard"
+        ],
+        "coverColor": "#B0413E",
+        "bagBadgeText": "Seasonal Espresso Benchmark",
+        "description": "James Hoffmann’s flagship seasonal espresso blend that rejects traditional dark, bitter espresso in favor of fun, wild, sweet fruit tones like strawberry candies and silky milk chocolate.",
+        "dateAdded": "2026-09-24",
+        "isFavorite": false,
+        "tastingLogs": [],
+        "recipes": [
+          {
+            "id": "rec-sm-sweetshop",
+            "coffeeId": "coffee-square-mile-sweetshop",
+            "title": "Modern Sweetshop 1:2.2 Double Shot",
+            "method": "espresso",
+            "doseGrams": 18.5,
+            "waterGrams": 41,
+            "ratio": "1:2.2",
+            "grindSize": "Fine espresso (14 clicks Comandante Red Clix)",
+            "waterTempC": 93,
+            "totalTimeSeconds": 29,
+            "equipmentIds": [
+              "eq-gaggia-classic",
+              "eq-comandante",
+              "eq-acaia-lunar"
+            ],
+            "notes": "Thick crema, bright strawberry candy pop transitioning into sweet melted fudge.",
+            "isRecommended": true,
+            "createdAt": "2026-09-24",
+            "customVariables": [
+              {
+                "id": "cv-sm-1",
+                "label": "Portafilter Type",
+                "value": "Bottomless 58mm naked"
+              },
+              {
+                "id": "cv-sm-2",
+                "label": "Tamp Pressure",
+                "value": "15kg leveled with Normcore V4 spring"
+              },
+              {
+                "id": "cv-sm-3",
+                "label": "Milk Pairing Ratio",
+                "value": "Cortado 1:1 steamed whole milk"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s-sm-1",
+                "timeSeconds": 0,
+                "title": "Extraction",
+                "instruction": "Start timer at first pump sound. First drips at 7s, finish 41g at 28-30s."
+              }
+            ]
+          }
+        ]
+      },
+      "createdAt": "2026-10-02T21:04:51.580Z",
+      "updatedAt": "2026-10-02T21:04:51.580Z"
+    },
+    {
+      "id": "coffee-proud-mary-pink-bourbon",
+      "name": "Ghost Town Pink Bourbon",
+      "secondary": "Proud Mary Coffee",
+      "type": "coffee",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "generalTastingNotes": [],
+      "tastingNotesBreakdown": [],
+      "itemData": {
+        "id": "coffee-proud-mary-pink-bourbon",
+        "name": "Ghost Town Pink Bourbon",
+        "roaster": "Proud Mary Coffee",
+        "origin": {
+          "country": "Colombia",
+          "region": "San Adolfo, Huila",
+          "farmOrStation": "Finca La Palma",
+          "producer": "Rodrigo Sanchez",
+          "elevationMeters": 1750
+        },
+        "variety": "Pink Bourbon",
+        "process": "Thermal Shock",
+        "roastLevel": "Light",
+        "roastDate": "2026-09-19",
+        "userRating": 4.5,
+        "communityRating": 0,
+        "communityRatingsCount": 0,
+        "shelfIds": [
+          "currently-drinking"
+        ],
+        "tastingNotesSummary": [
+          "Watermelon Candy",
+          "Pink Bubblegum",
+          "Lychee",
+          "Rose Water"
+        ],
+        "coverColor": "#D95D80",
+        "bagBadgeText": "Deluxe Wild Exotic",
+        "description": "An astonishing showcase of thermal shock yeast inoculation. Tastes like pink bubblegum, fresh watermelon soda, and lychee sorbet. An adventure for the adventurous palate.",
+        "dateAdded": "2026-09-22",
+        "isFavorite": false,
+        "tastingLogs": [
+          {
+            "id": "tlog-pm-1",
+            "date": "2026-09-23",
+            "brewMethod": "V60 Pour Over",
+            "rating": 4.5,
+            "daysOffRoast": 4,
+            "notes": "Aromatics fill the whole kitchen with strawberry bubblegum and ripe melon. Incredibly sweet and exotic without tasting alcoholic or overly boozy.",
+            "flavorTags": [
+              "Watermelon Candy",
+              "Bubblegum",
+              "Lychee",
+              "Rose Water"
+            ],
+            "sensoryScores": {
+              "acidity": 4.4,
+              "sweetness": 5,
+              "body": 3.4,
+              "clarity": 4.5,
+              "bitterness": 1
+            }
+          }
+        ],
+        "recipes": [
+          {
+            "id": "rec-pm-v60",
+            "coffeeId": "coffee-proud-mary-pink-bourbon",
+            "title": "Thermal Shock Fruit Bomb Pour Over",
+            "method": "v60",
+            "doseGrams": 15,
+            "waterGrams": 240,
+            "ratio": "1:16.0",
+            "grindSize": "Medium (4.5 Fellow Ode Gen 2)",
+            "waterTempC": 91,
+            "totalTimeSeconds": 180,
+            "bloomGrams": 50,
+            "bloomTimeSeconds": 40,
+            "equipmentIds": [
+              "eq-fellow-ode",
+              "eq-v60",
+              "eq-stagg-kettle",
+              "eq-acaia-lunar"
+            ],
+            "notes": "Slightly lower temperature (91°C) preserves delicate aromatic esters and candy sweetness.",
+            "isRecommended": true,
+            "createdAt": "2026-09-22",
+            "customVariables": [
+              {
+                "id": "cv-pm-1",
+                "label": "Brew Temperature",
+                "value": "91°C to avoid over-extracting fermentation"
+              },
+              {
+                "id": "cv-pm-2",
+                "label": "Bypass Water Option",
+                "value": "Add 15g cold mineral water after brew for crisp iced cup"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s-pm-1",
+                "timeSeconds": 0,
+                "title": "Bloom",
+                "waterAmountGrams": 50,
+                "instruction": "Wet grounds with 50g water and let bloom rest for 40s."
+              },
+              {
+                "id": "s-pm-2",
+                "timeSeconds": 40,
+                "title": "Main Pour",
+                "waterAmountGrams": 240,
+                "instruction": "Continuous smooth center pour finishing at 1:30. Total drawdown 3:00."
+              }
+            ]
+          }
+        ]
+      },
+      "createdAt": "2026-10-02T21:04:51.580Z",
+      "updatedAt": "2026-10-02T21:04:51.580Z"
+    },
+    {
+      "id": "coffee-blue-bottle-bella",
+      "name": "Bella Donovan Blend",
+      "secondary": "Blue Bottle Coffee",
+      "type": "coffee",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "generalTastingNotes": [],
+      "tastingNotesBreakdown": [],
+      "itemData": {
+        "id": "coffee-blue-bottle-bella",
+        "name": "Bella Donovan Blend",
+        "roaster": "Blue Bottle Coffee",
+        "origin": {
+          "country": "Ethiopia & Sumatra",
+          "region": "Sidama & Aceh",
+          "elevationMeters": 1600
+        },
+        "variety": "Heirloom & Typica",
+        "process": "Washed & Wet-Hulled",
+        "roastLevel": "Medium-Dark",
+        "roastDate": "2026-09-02",
+        "userRating": 3.5,
+        "communityRating": 0,
+        "communityRatingsCount": 0,
+        "shelfIds": [
+          "brewed"
+        ],
+        "tastingNotesSummary": [
+          "Dark Chocolate",
+          "Raspberry Jam",
+          "Molasses",
+          "Cedar"
+        ],
+        "coverColor": "#2C3E50",
+        "bagBadgeText": "Historic Dark Blend",
+        "description": "The original Blue Bottle blend named after a beloved feline. Rich, dark, comforting, blending African fruit with earthy Indonesian cedar and heavy dark cacao body.",
+        "dateAdded": "2026-09-05",
+        "dateFinished": "2026-09-18",
+        "isFavorite": false,
+        "tastingLogs": [
+          {
+            "id": "tlog-bb-1",
+            "date": "2026-09-08",
+            "brewMethod": "French Press",
+            "rating": 3.5,
+            "daysOffRoast": 6,
+            "notes": "Deep bittersweet chocolate and jammy blackberry notes. Perfect morning comfort cup with a splash of oat milk.",
+            "flavorTags": [
+              "Dark Chocolate",
+              "Molasses",
+              "Raspberry Jam"
+            ],
+            "sensoryScores": {
+              "acidity": 2.1,
+              "sweetness": 3.8,
+              "body": 4.8,
+              "clarity": 2.5,
+              "bitterness": 3.6
+            }
+          }
+        ],
+        "recipes": [
+          {
+            "id": "rec-bb-frenchpress",
+            "coffeeId": "coffee-blue-bottle-bella",
+            "title": "Full Body French Press Immersion",
+            "method": "french-press",
+            "doseGrams": 30,
+            "waterGrams": 500,
+            "ratio": "1:16.7",
+            "grindSize": "Coarse",
+            "waterTempC": 92,
+            "totalTimeSeconds": 300,
+            "equipmentIds": [
+              "eq-stagg-kettle",
+              "eq-acaia-lunar"
+            ],
+            "notes": "Coarse grind, break crust at 4:00, scoop foam, press gently.",
+            "isRecommended": true,
+            "createdAt": "2026-09-06",
+            "customVariables": [
+              {
+                "id": "cv-bb-1",
+                "label": "Crust Break Time",
+                "value": "4 minutes steep before crust break"
+              },
+              {
+                "id": "cv-bb-2",
+                "label": "Foam Skim",
+                "value": "Skim floating crema foam for clean silt-free cup"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s-bb-1",
+                "timeSeconds": 0,
+                "title": "Fill",
+                "waterAmountGrams": 500,
+                "instruction": "Pour all 500g boiling water over grounds. Place lid on top to retain heat."
+              },
+              {
+                "id": "s-bb-2",
+                "timeSeconds": 240,
+                "title": "Break Crust & Skim",
+                "instruction": "Stir surface grounds, skim top foam with two spoons."
+              },
+              {
+                "id": "s-bb-3",
+                "timeSeconds": 300,
+                "title": "Plunge & Serve",
+                "instruction": "Insert filter screen just below water level and pour into warm mugs."
+              }
+            ]
+          }
+        ]
+      },
+      "createdAt": "2026-10-02T21:04:51.580Z",
+      "updatedAt": "2026-10-02T21:04:51.580Z"
+    }
+  ],
+  "equipment": [
+    {
+      "id": "eq-comandante",
+      "name": "Comandante C40 MK4 Nitro Blade",
+      "secondary": "Comandante",
+      "type": "equipment",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "eq-comandante",
+        "name": "Comandante C40 MK4 Nitro Blade",
+        "brand": "Comandante",
+        "category": "Grinder",
+        "status": "Active",
+        "dateAcquired": "2024-03-15",
+        "settingsNotes": "V60: 22-26 clicks. AeroPress: 18-21 clicks. Cupping: 28 clicks. Espresso (Red Clix): 24-28 clicks.",
+        "maintenanceNotes": "Burrs brushed after each bag. Seasoned with Grindz tablets every 3 months. Zero clicked at flush handle stop.",
+        "generalNotes": "Gold standard hand grinder. Unrivaled unimodal particle distribution and sweetness clarity in washed high-elevation Ethiopians.",
+        "rating": 5
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "eq-fellow-ode",
+      "name": "Ode Brew Grinder Gen 2 (SSP MP Burrs)",
+      "secondary": "Fellow",
+      "type": "equipment",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "eq-fellow-ode",
+        "name": "Ode Brew Grinder Gen 2 (SSP MP Burrs)",
+        "brand": "Fellow",
+        "category": "Grinder",
+        "status": "Active",
+        "dateAcquired": "2024-08-10",
+        "settingsNotes": "V60 1-cup: 4.1 to 4.3. Chemex: 6.0 to 6.2. Fellow Aiden batch: 5.2. Auto-stop works flawlessly.",
+        "maintenanceNotes": "Chute ionizer cleaned bi-weekly with dry brush. Zero calibrated at chirp -1 click.",
+        "generalNotes": "SSP Multi-Purpose burrs bring out extreme acidity clarity and juicy stone fruit notes.",
+        "rating": 4.5
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "eq-v60",
+      "name": "Hario V60 Ceramic Dripper 02 (White)",
+      "secondary": "Hario",
+      "type": "equipment",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "eq-v60",
+        "name": "Hario V60 Ceramic Dripper 02 (White)",
+        "brand": "Hario",
+        "category": "Pour Over / Dripper",
+        "status": "Active",
+        "dateAcquired": "2023-01-20",
+        "settingsNotes": "Preheat thoroughly with 200ml boiling water. Best with Cafec Abaca or boxed Hario tabless filters.",
+        "maintenanceNotes": "Dishwasher safe. Occasional Cafiza soak to remove residual coffee oils.",
+        "generalNotes": "The classic cone dripper. The spiral ribs allow uniform air escape and fast bypass when desired.",
+        "rating": 5
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "eq-stagg-kettle",
+      "name": "Stagg EKG Electric Gooseneck Kettle",
+      "secondary": "Fellow",
+      "type": "equipment",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "eq-stagg-kettle",
+        "name": "Stagg EKG Electric Gooseneck Kettle",
+        "brand": "Fellow",
+        "category": "Kettle",
+        "status": "Active",
+        "dateAcquired": "2023-11-05",
+        "settingsNotes": "Light roasts: 93°C–96°C. Medium roasts: 90°C–92°C. Dark roasts: 85°C–88°C. Hold temperature active for 60 min.",
+        "maintenanceNotes": "Descaled monthly with citric acid solution (1 tbsp per full boil). Never use abrasive pads on the matte finish.",
+        "generalNotes": "Precision flow restrictor allows slow 3.5g/sec center pour without turbulent channeling.",
+        "rating": 4.5
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "eq-acaia-lunar",
+      "name": "Lunar Precision Espresso & Pour Scale",
+      "secondary": "Acaia",
+      "type": "equipment",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "eq-acaia-lunar",
+        "name": "Lunar Precision Espresso & Pour Scale",
+        "brand": "Acaia",
+        "category": "Scale",
+        "status": "Active",
+        "dateAcquired": "2024-02-18",
+        "settingsNotes": "0.1g resolution with auto-tare and auto-timer on flow detection. Bluetooth synced to brew logging.",
+        "maintenanceNotes": "Charge via USB-C every 4 weeks. Calibrated with 100g calibration weight every 6 months.",
+        "generalNotes": "Water-resistant aluminum anodized chassis. Ultra-fast response time prevents overfilling espresso shots.",
+        "rating": 5
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "eq-gaggia-classic",
+      "name": "Gaggia Classic Pro (9-Bar OPV Mod)",
+      "secondary": "Gaggia",
+      "type": "equipment",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "eq-gaggia-classic",
+        "name": "Gaggia Classic Pro (9-Bar OPV Mod)",
+        "brand": "Gaggia",
+        "category": "Espresso Machine",
+        "status": "Active",
+        "dateAcquired": "2023-09-01",
+        "settingsNotes": "OPV spring modified to 9 bar. Preheat 20 minutes with portafilter locked in. Temperature surfing: purge 5s after steam switch flick.",
+        "maintenanceNotes": "Backflushed with Cafiza weekly. Group gasket replaced with silicone Cafelat 8.5mm ring.",
+        "generalNotes": "True commercial 58mm group. With IMS basket and puck screen, pulls creamy, syrupy double shots.",
+        "rating": 4
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "eq-aeropress-clear",
+      "name": "AeroPress Clear Tritan",
+      "secondary": "AeroPress",
+      "type": "equipment",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "eq-aeropress-clear",
+        "name": "AeroPress Clear Tritan",
+        "brand": "AeroPress",
+        "category": "Immersion",
+        "status": "Active",
+        "dateAcquired": "2024-05-12",
+        "settingsNotes": "Standard inverted: 12g fine-medium, 200g water @ 85°C. Stir 20s, steep until 1:30, press 30s.",
+        "maintenanceNotes": "Rinse immediately. Rubber plunger stored extended to preserve seal elasticity.",
+        "generalNotes": "Indestructible travel companion with crystal clear chamber to inspect bloom clarity.",
+        "rating": 4.5
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    }
+  ],
+  "cafes": [
+    {
+      "id": "cafe-sey-brooklyn",
+      "name": "Sey Coffee",
+      "secondary": "Brooklyn, NY",
+      "type": "cafe",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "cafe-sey-brooklyn",
+        "name": "Sey Coffee",
+        "address": "18 Grattan St, Brooklyn, NY 11206",
+        "city": "Brooklyn, NY",
+        "country": "United States",
+        "rating": 5,
+        "favoriteDrink": "Washed Ethiopian Chelbesa Pour Over & Flat White",
+        "vibes": [
+          "Nordic Light Roast",
+          "Plant-Filled Greenhouse",
+          "Natural Skylight",
+          "High Clarity"
+        ],
+        "dateVisited": "2026-08-14",
+        "notes": "A sanctuary of modern light roast coffee in Bushwick. Skylit, lush greenery, and pour overs brewed on Kalita and V60 with surgical precision.",
+        "roasterOrBeansServed": "Sey Coffee (In-house roastery)",
+        "isFavorite": true
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "cafe-wendelboe-oslo",
+      "name": "Tim Wendelboe Coffee Bar",
+      "secondary": "Oslo",
+      "type": "cafe",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "cafe-wendelboe-oslo",
+        "name": "Tim Wendelboe Coffee Bar",
+        "address": "Olaf Ryes plass 3A, 0552 Oslo, Norway",
+        "city": "Oslo",
+        "country": "Norway",
+        "rating": 5,
+        "favoriteDrink": "Caballero Geisha & Signature Coffee Shot with Tonic",
+        "vibes": [
+          "Iconic Roastery",
+          "Minimalist Scandinavian",
+          "World Champion",
+          "Cupping Room"
+        ],
+        "dateVisited": "2026-06-20",
+        "notes": "The legendary birthplace of modern light roasting. Clean, serene espresso bar where every single coffee is dialed to perfection.",
+        "roasterOrBeansServed": "Tim Wendelboe",
+        "isFavorite": true
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "cafe-onyx-1907",
+      "name": "Onyx Coffee Lab (The 1907)",
+      "secondary": "Rogers, AR",
+      "type": "cafe",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "cafe-onyx-1907",
+        "name": "Onyx Coffee Lab (The 1907)",
+        "address": "101 E Walnut St, Rogers, AR 72756",
+        "city": "Rogers, AR",
+        "country": "United States",
+        "rating": 4.5,
+        "favoriteDrink": "Southern Weather Espresso & Monarch Cappuccino",
+        "vibes": [
+          "Architectural Marvel",
+          "Modbar Counter",
+          "Specialty Pastries",
+          "Multi-Floor"
+        ],
+        "dateVisited": "2026-04-12",
+        "notes": "An absolute coffee paradise built inside an old historic marble building. Under-counter Modbar heads, cold brew taps, and an open cupping lab.",
+        "roasterOrBeansServed": "Onyx Coffee Lab",
+        "isFavorite": false
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "cafe-dayglow-silverlake",
+      "name": "Dayglow Coffee",
+      "secondary": "Los Angeles, CA",
+      "type": "cafe",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "cafe-dayglow-silverlake",
+        "name": "Dayglow Coffee",
+        "address": "3206 Sunset Blvd, Los Angeles, CA 90026",
+        "city": "Los Angeles, CA",
+        "country": "United States",
+        "rating": 4.5,
+        "favoriteDrink": "The Picasso (Espresso, vanilla, tonic & sparkling water)",
+        "vibes": [
+          "Multi-Roaster Curation",
+          "Mid-Century Aesthetic",
+          "Creative Signatures",
+          "Vinyl Beats"
+        ],
+        "dateVisited": "2026-07-04",
+        "notes": "The ultimate boutique multi-roaster showcase in Silver Lake. Features rare roasters from across Europe and Japan like DAK, Friedhats, and La Cabra.",
+        "roasterOrBeansServed": "DAK, Friedhats, La Cabra & Dayglow",
+        "isFavorite": false
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "cafe-proud-mary-melbourne",
+      "name": "Proud Mary Cafe",
+      "secondary": "Melbourne",
+      "type": "cafe",
+      "userRatings": {},
+      "generalRating": 0,
+      "ratingsCount": 0,
+      "userCount": 0,
+      "itemData": {
+        "id": "cafe-proud-mary-melbourne",
+        "name": "Proud Mary Cafe",
+        "address": "172 Oxford St, Collingwood VIC 3066, Australia",
+        "city": "Melbourne",
+        "country": "Australia",
+        "rating": 5,
+        "favoriteDrink": "Ghost Town Thermal Shock & Pour Over Flight",
+        "vibes": [
+          "Melbourne Coffee Capital",
+          "Brunch Masterclass",
+          "Exotic Varietals",
+          "Warm Brick"
+        ],
+        "dateVisited": "2026-03-01",
+        "notes": "Quintessential Melbourne specialty institution. Mind-blowing Geshas and thermal shock lots paired with phenomenal Australian cafe fare.",
+        "roasterOrBeansServed": "Proud Mary Coffee Roasters",
+        "isFavorite": true
+      },
+      "createdAt": "2026-10-02T21:04:51.581Z",
+      "updatedAt": "2026-10-02T21:04:51.581Z"
+    }
+  ]
+}

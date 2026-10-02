@@ -14,8 +14,9 @@ import {
   Coffee,
   Sparkles,
 } from 'lucide-react';
-import { Cafe } from '../types/coffee';
+import { Cafe, RegisteredCafe } from '../types/coffee';
 import { StarRatingDisplay, StarRatingInput } from './StarRating';
+import { getGeneralCafeInfo } from '../utils/communityLookup';
 
 interface CafeShelfViewProps {
   cafes: Cafe[];
@@ -24,6 +25,8 @@ interface CafeShelfViewProps {
   onDeleteCafe: (cafeId: string) => void;
   onToggleFavorite: (cafeId: string) => void;
   onQuickRate: (cafeId: string, rating: number) => void;
+  registeredCafes?: RegisteredCafe[];
+  isRegisteredUser?: boolean;
 }
 
 export const CafeShelfView: React.FC<CafeShelfViewProps> = ({
@@ -33,6 +36,8 @@ export const CafeShelfView: React.FC<CafeShelfViewProps> = ({
   onDeleteCafe,
   onToggleFavorite,
   onQuickRate,
+  registeredCafes = [],
+  isRegisteredUser = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string>('All');
@@ -259,14 +264,21 @@ export const CafeShelfView: React.FC<CafeShelfViewProps> = ({
                       size="sm"
                       label="Your Cafe Rating"
                     />
-                    {cafe.generalRating && (
-                      <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
-                        <span className="text-[#8C7A6D]">General Rating:</span>
-                        <span className="font-semibold text-[#8C4F1A] font-mono">
-                          ★ {cafe.generalRating.toFixed(1)} {cafe.generalRatingsCount ? `(${cafe.generalRatingsCount} visits)` : ''}
-                        </span>
-                      </div>
-                    )}
+                    {(() => {
+                      const generalInfo = getGeneralCafeInfo(cafe, registeredCafes);
+                      return (
+                        <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
+                          <span className="text-[#8C7A6D]">General Rating:</span>
+                          <span className="font-semibold text-[#8C4F1A] font-mono">
+                            {generalInfo.ratingsCount > 0 ? (
+                              <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'visit' : 'visits'})</>
+                            ) : (
+                              <span className="text-[#A8988A] font-normal">Unrated (0)</span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Favorite Drink */}

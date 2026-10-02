@@ -12,9 +12,10 @@ import {
   BookmarkMinus,
   Trash2,
 } from 'lucide-react';
-import { Coffee, Shelf, RoastLevel, ProcessType } from '../types/coffee';
+import { Coffee, Shelf, RoastLevel, ProcessType, RegisteredCoffee } from '../types/coffee';
 import { CoffeeBagCover } from './CoffeeBagCover';
 import { StarRatingDisplay, StarRatingInput } from './StarRating';
+import { getGeneralCoffeeInfo } from '../utils/communityLookup';
 
 interface CoffeeShelvesViewProps {
   coffees: Coffee[];
@@ -30,6 +31,7 @@ interface CoffeeShelvesViewProps {
   onRemoveFromShelf: (coffeeId: string, shelfId: string) => void;
   onRemoveFromAllShelves: (coffeeId: string) => void;
   onDeleteCoffee: (coffeeId: string) => void;
+  registeredCoffees?: RegisteredCoffee[];
 }
 
 export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
@@ -46,6 +48,7 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
   onRemoveFromShelf,
   onRemoveFromAllShelves,
   onDeleteCoffee,
+  registeredCoffees = [],
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,7 +98,7 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
     })
     .sort((a, b) => {
       if (sortBy === 'rating') {
-        return (b.userRating || b.communityRating) - (a.userRating || a.communityRating);
+        return (b.userRating || 0) - (a.userRating || 0);
       }
       if (sortBy === 'roastDate') {
         return (b.roastDate || '').localeCompare(a.roastDate || '');
@@ -274,7 +277,9 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
         viewMode === 'grid' ? (
           /* GRID VIEW (Goodreads Book Cover aesthetic) */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filteredCoffees.map((coffee) => (
+            {filteredCoffees.map((coffee) => {
+              const generalInfo = getGeneralCoffeeInfo(coffee, registeredCoffees);
+              return (
               <div
                 key={coffee.id}
                 className="bg-white rounded-xl border border-[#E5DACD] hover:border-[#D5C4B2] shadow-xs hover:shadow-md transition-all p-4 flex flex-col justify-between group cursor-pointer relative"
@@ -385,7 +390,11 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                     <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
                       <span className="text-[#8C7A6D]">General Rating:</span>
                       <span className="font-semibold text-[#8C4F1A] font-mono">
-                        ★ {(coffee.generalRating || coffee.communityRating || 4.5).toFixed(1)} {coffee.communityRatingsCount ? `(${coffee.communityRatingsCount} baristas)` : ''}
+                        {generalInfo.ratingsCount > 0 ? (
+                          <>★ {generalInfo.generalRating.toFixed(1)} ({generalInfo.ratingsCount} {generalInfo.ratingsCount === 1 ? 'barista' : 'baristas'})</>
+                        ) : (
+                          <span className="text-[#A8988A] font-normal">Unrated (0)</span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -417,11 +426,11 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                   </div>
 
                   {/* Flavor Tags: General Consensus or Personal */}
-                  {((coffee.generalTastingNotes && coffee.generalTastingNotes.length > 0) ||
+                  {((generalInfo.generalTastingNotes && generalInfo.generalTastingNotes.length > 0) ||
                     (coffee.tastingNotesSummary && coffee.tastingNotesSummary.length > 0)) && (
                     <div className="flex flex-wrap gap-1 pt-1">
-                      {coffee.generalTastingNotes && coffee.generalTastingNotes.length > 0
-                        ? coffee.generalTastingNotes.slice(0, 3).map((f) => (
+                      {generalInfo.generalTastingNotes && generalInfo.generalTastingNotes.length > 0
+                        ? generalInfo.generalTastingNotes.slice(0, 3).map((f) => (
                             <span
                               key={f}
                               className="text-[10px] px-1.5 py-0.5 bg-[#FAF3EC] text-[#8C4F1A] border border-[#E8DACB] rounded font-semibold"
@@ -483,7 +492,8 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                   </span>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           /* TABLE VIEW (Goodreads Spreadsheet / Shelf list) */
@@ -546,12 +556,23 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                         />
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5 font-mono text-xs text-[#8C4F1A] font-semibold whitespace-nowrap">
-                          <span>★ {(coffee.generalRating || coffee.communityRating || 4.5).toFixed(1)}</span>
-                          <span className="text-[11px] text-[#8C7A6D] font-normal">
-                            ({coffee.communityRatingsCount || 0})
-                          </span>
-                        </div>
+                        {(() => {
+                          const itemGeneralInfo = getGeneralCoffeeInfo(coffee, registeredCoffees);
+                          return (
+                            <div className="flex items-center gap-1.5 font-mono text-xs text-[#8C4F1A] font-semibold whitespace-nowrap">
+                              {itemGeneralInfo.ratingsCount > 0 ? (
+                                <>
+                                  <span>★ {itemGeneralInfo.generalRating.toFixed(1)}</span>
+                                  <span className="text-[11px] text-[#8C7A6D] font-normal">
+                                    ({itemGeneralInfo.ratingsCount} {itemGeneralInfo.ratingsCount === 1 ? 'barista' : 'baristas'})
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-[#A8988A] font-normal text-[11px]">Unrated (0)</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-wrap gap-1">

@@ -96,12 +96,12 @@ export const CafeModal: React.FC<CafeModalProps> = ({
       (!city.trim() || rc.city.toLowerCase() === city.trim().toLowerCase())
   );
 
-  const effectiveGeneralRating = matchingRegistered
+  const effectiveGeneralRating = matchingRegistered && matchingRegistered.ratingsCount > 0
     ? matchingRegistered.generalRating
-    : initialCafe?.generalRating || rating || 4.5;
+    : 0;
   const effectiveRatingsCount = matchingRegistered
     ? matchingRegistered.ratingsCount
-    : initialCafe?.generalRatingsCount || (rating > 0 ? 1 : 0);
+    : 0;
 
   const handleSelectRegistered = (rc: RegisteredCafe) => {
     setName(rc.name);
