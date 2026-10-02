@@ -54,15 +54,40 @@ export interface StoredCommunityItem {
   type: 'coffee' | 'equipment' | 'cafe';
   // Ratings given by each user or session: userId -> rating (0.5 to 5.0)
   userRatings: Record<string, number>;
+  // Tasting notes evaluated by each user: userId -> string[]
+  userTastingNotes?: Record<string, string[]>;
   // Baseline initial seed rating for specialty roaster catalog
   baseRating?: number;
   baseRatingsCount?: number;
   generalRating: number;
   ratingsCount: number;
   userCount: number;
+  // Aggregated top 5 tasting notes in proper casing
+  generalTastingNotes?: string[];
+  // Full tasting notes breakdown with counts
+  tastingNotesBreakdown?: Array<{ note: string; count: number }>;
   itemData: any;
   createdAt: string;
   updatedAt: string;
+}
+
+export function toProperCasing(str: string): string {
+  if (!str) return '';
+  return str
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => {
+      if (!word) return '';
+      if (word.includes('-')) {
+        return word
+          .split('-')
+          .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
+          .join('-');
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
 }
 
 function normalizeString(str: string): string {
@@ -323,6 +348,36 @@ export class AuthStore {
       updatedAt: new Date().toISOString(),
     };
     this.writeJsonFile(GUESTS_FILE, guests);
+
+    try {
+      if (Array.isArray(data.coffees)) {
+        data.coffees.forEach((c) => {
+          if (c && c.name) {
+            this.recordCommunityItem(
+              'coffee',
+              c,
+              `guest-${guestId}`,
+              c.userRating,
+              Array.isArray(c.tastingNotesSummary) ? c.tastingNotesSummary : undefined
+            );
+          }
+        });
+      }
+      if (Array.isArray(data.equipment)) {
+        data.equipment.forEach((eq) => {
+          if (eq && eq.name) {
+            this.recordCommunityItem('equipment', eq, `guest-${guestId}`, eq.rating);
+          }
+        });
+      }
+      if (Array.isArray(data.cafes)) {
+        data.cafes.forEach((cf) => {
+          if (cf && cf.name) {
+            this.recordCommunityItem('cafe', cf, `guest-${guestId}`, cf.rating);
+          }
+        });
+      }
+    } catch {}
   }
 
   public static findByUsername(username: string): StoredUser | null {
@@ -450,6 +505,37 @@ export class AuthStore {
     };
     users[index].updatedAt = new Date().toISOString();
     this.saveUsers(users);
+
+    try {
+      if (Array.isArray(data.coffees)) {
+        data.coffees.forEach((c) => {
+          if (c && c.name) {
+            this.recordCommunityItem(
+              'coffee',
+              c,
+              userId,
+              c.userRating,
+              Array.isArray(c.tastingNotesSummary) ? c.tastingNotesSummary : undefined
+            );
+          }
+        });
+      }
+      if (Array.isArray(data.equipment)) {
+        data.equipment.forEach((eq) => {
+          if (eq && eq.name) {
+            this.recordCommunityItem('equipment', eq, userId, eq.rating);
+          }
+        });
+      }
+      if (Array.isArray(data.cafes)) {
+        data.cafes.forEach((cf) => {
+          if (cf && cf.name) {
+            this.recordCommunityItem('cafe', cf, userId, cf.rating);
+          }
+        });
+      }
+    } catch {}
+
     return users[index];
   }
 
@@ -641,6 +727,17 @@ export class AuthStore {
         item.generalRating = agg.generalRating;
         item.ratingsCount = agg.ratingsCount;
         item.userCount = agg.userCount;
+        if (item.type === 'coffee') {
+          const baseNotes = Array.isArray(item.itemData?.tastingNotesSummary)
+            ? item.itemData.tastingNotesSummary
+            : [];
+          const aggTasting = this.calculateAggregateTastingNotes(
+            item.userTastingNotes || {},
+            baseNotes
+          );
+          item.generalTastingNotes = aggTasting.generalTastingNotes;
+          item.tastingNotesBreakdown = aggTasting.tastingNotesBreakdown;
+        }
         item.updatedAt = new Date().toISOString();
       }
     };
@@ -734,12 +831,69 @@ export class AuthStore {
     };
   }
 
-  // Record an item or user rating in the community catalog
+  // Calculate aggregate tasting notes across all user evaluations (case-insensitive, top 5 displayed in proper casing)
+  public static calculateAggregateTastingNotes(
+    userTastingNotes: Record<string, string[]> = {},
+    baseNotes: string[] = []
+  ): {
+    generalTastingNotes: string[];
+    tastingNotesBreakdown: Array<{ note: string; count: number }>;
+  } {
+    const noteMap = new Map<string, { display: string; userIds: Set<string>; baseCount: number }>();
+
+    const registerNote = (noteStr: string, userId?: string, isBase = false) => {
+      if (!noteStr || typeof noteStr !== 'string') return;
+      const clean = noteStr.trim();
+      if (!clean) return;
+      const key = clean.toLowerCase();
+      const proper = toProperCasing(clean);
+
+      let existing = noteMap.get(key);
+      if (!existing) {
+        existing = { display: proper, userIds: new Set(), baseCount: 0 };
+        noteMap.set(key, existing);
+      }
+      if (userId) {
+        existing.userIds.add(userId);
+      }
+      if (isBase) {
+        existing.baseCount += 1;
+      }
+    };
+
+    if (Array.isArray(baseNotes)) {
+      baseNotes.forEach((bn) => registerNote(bn, undefined, true));
+    }
+
+    if (userTastingNotes && typeof userTastingNotes === 'object') {
+      Object.entries(userTastingNotes).forEach(([uid, notes]) => {
+        if (Array.isArray(notes)) {
+          notes.forEach((n) => registerNote(n, uid, false));
+        }
+      });
+    }
+
+    const breakdown = Array.from(noteMap.values()).map((entry) => ({
+      note: entry.display,
+      count: entry.userIds.size + entry.baseCount,
+    }));
+
+    breakdown.sort((a, b) => b.count - a.count || a.note.localeCompare(b.note));
+    const generalTastingNotes = breakdown.slice(0, 5).map((x) => x.note);
+
+    return {
+      generalTastingNotes,
+      tastingNotesBreakdown: breakdown,
+    };
+  }
+
+  // Record an item or user rating / tasting notes in the community catalog
   public static recordCommunityItem(
     type: 'coffee' | 'equipment' | 'cafe',
     item: any,
     userId: string = 'community-user',
-    rating?: number
+    rating?: number,
+    tastingNotes?: string[]
   ): StoredCommunityItem | null {
     const data = this.getCommunityItemsData();
     if (!data.coffees) data.coffees = [];
@@ -767,15 +921,42 @@ export class AuthStore {
         ? item.rating
         : undefined;
 
+    // Collect tasting notes if coffee
+    const parsedNotes: string[] = [];
+    if (Array.isArray(tastingNotes)) {
+      parsedNotes.push(...tastingNotes);
+    } else if (Array.isArray(item.tastingNotesSummary)) {
+      parsedNotes.push(...item.tastingNotesSummary);
+    } else if (Array.isArray(item.flavorNotes)) {
+      parsedNotes.push(...item.flavorNotes);
+    }
+    if (Array.isArray(item.tastingLogs)) {
+      item.tastingLogs.forEach((l: any) => {
+        if (Array.isArray(l.flavorTags)) parsedNotes.push(...l.flavorTags);
+      });
+    }
+
     if (existingIndex >= 0) {
       const existing = list[existingIndex];
       if (!existing.userRatings || typeof existing.userRatings !== 'object') {
         existing.userRatings = {};
       }
+      if (!existing.userTastingNotes || typeof existing.userTastingNotes !== 'object') {
+        existing.userTastingNotes = {};
+      }
 
       // Record this user's latest rating
       if (parsedRating !== undefined && userId) {
         existing.userRatings[userId] = parsedRating;
+      }
+
+      // Record this user's tasting notes
+      if (type === 'coffee' && userId) {
+        if (Array.isArray(tastingNotes)) {
+          existing.userTastingNotes[userId] = tastingNotes;
+        } else if (parsedNotes.length > 0) {
+          existing.userTastingNotes[userId] = parsedNotes;
+        }
       }
 
       const agg = this.calculateAggregateRating(
@@ -790,6 +971,15 @@ export class AuthStore {
       existing.updatedAt = new Date().toISOString();
       existing.itemData = { ...existing.itemData, ...item };
 
+      if (type === 'coffee') {
+        const baseNotes = Array.isArray(existing.itemData?.tastingNotesSummary)
+          ? existing.itemData.tastingNotesSummary
+          : [];
+        const aggTasting = this.calculateAggregateTastingNotes(existing.userTastingNotes, baseNotes);
+        existing.generalTastingNotes = aggTasting.generalTastingNotes;
+        existing.tastingNotesBreakdown = aggTasting.tastingNotesBreakdown;
+      }
+
       list[existingIndex] = existing;
       this.saveCommunityItemsData(data);
       return existing;
@@ -799,7 +989,15 @@ export class AuthStore {
         userRatings[userId] = parsedRating;
       }
 
+      const userTastingNotes: Record<string, string[]> = {};
+      if (type === 'coffee' && parsedNotes.length > 0 && userId) {
+        userTastingNotes[userId] = parsedNotes;
+      }
+
       const agg = this.calculateAggregateRating(userRatings, item.communityRating, item.communityRatingsCount);
+
+      const baseNotes = Array.isArray(item.tastingNotesSummary) ? item.tastingNotesSummary : [];
+      const aggTasting = this.calculateAggregateTastingNotes(userTastingNotes, baseNotes);
 
       const newItem: StoredCommunityItem = {
         id: item.id || `community-${type}-${Date.now()}`,
@@ -807,11 +1005,14 @@ export class AuthStore {
         secondary,
         type,
         userRatings,
+        userTastingNotes: type === 'coffee' ? userTastingNotes : undefined,
         baseRating: item.communityRating || (parsedRating ? parsedRating : 4.5),
         baseRatingsCount: item.communityRatingsCount || (parsedRating ? 1 : 0),
         generalRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
         userCount: agg.userCount,
+        generalTastingNotes: type === 'coffee' ? aggTasting.generalTastingNotes : undefined,
+        tastingNotesBreakdown: type === 'coffee' ? aggTasting.tastingNotesBreakdown : undefined,
         itemData: item,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -961,6 +1162,14 @@ export class AuthStore {
           rating,
         }));
 
+        const baseNotes = Array.isArray(item.itemData?.tastingNotesSummary)
+          ? item.itemData.tastingNotesSummary
+          : [];
+        const aggTasting =
+          item.type === 'coffee'
+            ? this.calculateAggregateTastingNotes(item.userTastingNotes || {}, baseNotes)
+            : undefined;
+
         return {
           id: item.id,
           name: item.name,
@@ -972,6 +1181,8 @@ export class AuthStore {
           baseRating: item.baseRating,
           baseRatingsCount: item.baseRatingsCount,
           userRatings: ratingEntries,
+          generalTastingNotes: aggTasting?.generalTastingNotes || item.generalTastingNotes || [],
+          tastingNotesBreakdown: aggTasting?.tastingNotesBreakdown || item.tastingNotesBreakdown || [],
           itemData: item.itemData || {},
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
@@ -988,6 +1199,7 @@ export class AuthStore {
   // Running catalog of all registered coffees across all users, community ratings, and defaults
   public static getRegisteredCoffees(): any[] {
     const users = this.getUsers();
+    const guests = this.getGuests();
     const communityData = this.getCommunityItemsData();
     const coffeeMap = new Map<string, any>();
 
@@ -998,27 +1210,31 @@ export class AuthStore {
       const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
 
       const userRatings: Record<string, number> = { ...(c.userRatings || {}) };
+      const userTastingNotes: Record<string, string[]> = { ...(c.userTastingNotes || {}) };
+      const baseNotes: string[] = Array.isArray(c.itemData?.tastingNotesSummary)
+        ? c.itemData.tastingNotesSummary
+        : [];
 
       coffeeMap.set(key, {
         id: c.id,
         name: cleanName,
         roaster: cleanRoaster,
         userRatings,
+        userTastingNotes,
         baseRating: c.baseRating || 4.7,
         baseRatingsCount: c.baseRatingsCount || 24,
+        baseNotes,
         origin: c.itemData?.origin || { country: 'Single Origin' },
         variety: c.itemData?.variety || 'Arabica',
         process: c.itemData?.process || 'Washed',
         roastLevel: c.itemData?.roastLevel || 'Medium',
         coverColor: c.itemData?.coverColor || '#C87D32',
         description: c.itemData?.description || '',
-        tastingNotesSummary: Array.isArray(c.itemData?.tastingNotesSummary)
-          ? c.itemData.tastingNotesSummary
-          : [],
+        tastingNotesSummary: baseNotes,
       });
     });
 
-    // 2. Scan all registered users and aggregate user ratings
+    // 2. Scan all registered users and aggregate user ratings and tasting notes
     users.forEach((u) => {
       const userCoffees = u.data?.coffees;
       if (Array.isArray(userCoffees)) {
@@ -1037,28 +1253,72 @@ export class AuthStore {
             }
           }
 
+          // User tasting notes
+          const userNotes: string[] = [];
+          if (Array.isArray(uc.tastingNotesSummary)) userNotes.push(...uc.tastingNotesSummary);
+          if (Array.isArray(uc.tastingLogs)) {
+            uc.tastingLogs.forEach((l: any) => {
+              if (Array.isArray(l.flavorTags)) userNotes.push(...l.flavorTags);
+            });
+          }
+
           let existing = coffeeMap.get(key);
           if (!existing) {
+            const baseNotes = Array.isArray(uc.tastingNotesSummary) ? uc.tastingNotesSummary : [];
             existing = {
               id: uc.id || `reg-coffee-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
               name: cleanName,
               roaster: cleanRoaster || 'Artisan Roaster',
               userRatings: {},
+              userTastingNotes: {},
               baseRating: typeof uc.communityRating === 'number' && uc.communityRating > 0 ? uc.communityRating : 4.5,
               baseRatingsCount: typeof uc.communityRatingsCount === 'number' ? uc.communityRatingsCount : 0,
+              baseNotes,
               origin: uc.origin || { country: 'Single Origin' },
               variety: uc.variety || 'Arabica',
               process: uc.process || 'Washed',
               roastLevel: uc.roastLevel || 'Medium',
               coverColor: uc.coverColor || '#C87D32',
               description: uc.description || '',
-              tastingNotesSummary: Array.isArray(uc.tastingNotesSummary) ? uc.tastingNotesSummary : [],
+              tastingNotesSummary: baseNotes,
             };
             coffeeMap.set(key, existing);
           }
 
           if (userRating > 0) {
             existing.userRatings[u.id] = userRating;
+          }
+          if (userNotes.length > 0) {
+            existing.userTastingNotes[u.id] = userNotes;
+          }
+        });
+      }
+    });
+
+    // 2b. Scan all guest sessions and include their ratings & notes
+    Object.entries(guests).forEach(([gid, g]) => {
+      const guestCoffees = g.data?.coffees;
+      if (Array.isArray(guestCoffees)) {
+        guestCoffees.forEach((gc: any) => {
+          if (!gc || !gc.name) return;
+          const cleanName = (gc.name || '').trim();
+          const cleanRoaster = (gc.roaster || '').trim();
+          const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
+          const existing = coffeeMap.get(key);
+          if (!existing) return;
+
+          const gRating = typeof gc.userRating === 'number' && gc.userRating > 0 ? gc.userRating : 0;
+          if (gRating > 0) existing.userRatings[`guest-${gid}`] = gRating;
+
+          const gNotes: string[] = [];
+          if (Array.isArray(gc.tastingNotesSummary)) gNotes.push(...gc.tastingNotesSummary);
+          if (Array.isArray(gc.tastingLogs)) {
+            gc.tastingLogs.forEach((l: any) => {
+              if (Array.isArray(l.flavorTags)) gNotes.push(...l.flavorTags);
+            });
+          }
+          if (gNotes.length > 0) {
+            existing.userTastingNotes[`guest-${gid}`] = gNotes;
           }
         });
       }
@@ -1067,6 +1327,7 @@ export class AuthStore {
     // Compute aggregate for each item
     return Array.from(coffeeMap.values()).map((item) => {
       const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
+      const aggTasting = this.calculateAggregateTastingNotes(item.userTastingNotes, item.baseNotes);
 
       return {
         id: item.id,
@@ -1079,6 +1340,8 @@ export class AuthStore {
         coverColor: item.coverColor,
         description: item.description,
         tastingNotesSummary: item.tastingNotesSummary,
+        generalTastingNotes: aggTasting.generalTastingNotes,
+        tastingNotesBreakdown: aggTasting.tastingNotesBreakdown,
         generalRating: agg.generalRating,
         communityRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
@@ -1142,6 +1405,21 @@ export class AuthStore {
 
           if (typeof ueq.rating === 'number' && ueq.rating > 0) {
             existing.userRatings[u.id] = ueq.rating;
+          }
+        });
+      }
+    });
+
+    const guests = this.getGuests();
+    Object.entries(guests).forEach(([gid, g]) => {
+      const guestGear = g.data?.equipment;
+      if (Array.isArray(guestGear)) {
+        guestGear.forEach((gq: any) => {
+          if (!gq || !gq.name) return;
+          const key = `${(gq.name || '').trim().toLowerCase()}::${(gq.brand || '').trim().toLowerCase()}`;
+          const existing = eqMap.get(key);
+          if (existing && typeof gq.rating === 'number' && gq.rating > 0) {
+            existing.userRatings[`guest-${gid}`] = gq.rating;
           }
         });
       }
@@ -1221,6 +1499,21 @@ export class AuthStore {
 
           if (typeof uc.rating === 'number' && uc.rating > 0) {
             existing.userRatings[u.id] = uc.rating;
+          }
+        });
+      }
+    });
+
+    const guests = this.getGuests();
+    Object.entries(guests).forEach(([gid, g]) => {
+      const guestCafes = (g as any).data?.cafes;
+      if (Array.isArray(guestCafes)) {
+        guestCafes.forEach((gc: any) => {
+          if (!gc || !gc.name) return;
+          const key = `${(gc.name || '').trim().toLowerCase()}::${(gc.city || '').trim().toLowerCase()}`;
+          const existing = cafeMap.get(key);
+          if (existing && typeof gc.rating === 'number' && gc.rating > 0) {
+            existing.userRatings[`guest-${gid}`] = gc.rating;
           }
         });
       }

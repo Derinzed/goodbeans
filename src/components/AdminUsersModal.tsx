@@ -1105,10 +1105,22 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                         filteredCatalogItems.map((item: any) => (
                           <tr key={item.id} className="hover:bg-[#FAF7F2] transition-colors">
                             <td className="py-3 px-4 font-semibold text-[#2B1D14]">
-                              {item.name}
+                              <div>{item.name}</div>
                               <span className="font-mono text-[10px] text-[#A8988A] block">
                                 ID: {item.id}
                               </span>
+                              {item.generalTastingNotes && item.generalTastingNotes.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {item.generalTastingNotes.slice(0, 3).map((n: string) => (
+                                    <span
+                                      key={n}
+                                      className="text-[9px] px-1.5 py-0.2 bg-[#FAF3EC] text-[#8C4F1A] border border-[#E8DACB] rounded font-medium"
+                                    >
+                                      {n}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </td>
                             <td className="py-3 px-3 text-[#6D5A4E] font-medium">
                               {item.secondary || '—'}
@@ -1250,6 +1262,34 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                         {/* Expanded User Breakdown Panel */}
                         {isExpanded && (
                           <div className="p-4 bg-[#FAF7F2] border-t border-[#EDE2D4] space-y-3">
+                            {item.type === 'coffee' && item.generalTastingNotes && item.generalTastingNotes.length > 0 && (
+                              <div className="p-3 bg-white rounded-lg border border-[#E0D5C7] space-y-1.5 shadow-2xs">
+                                <span className="text-[10px] uppercase font-bold text-[#8C4F1A] tracking-wider block">
+                                  Server Consensus Tasting Notes (Top 5 Proper Casing):
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {item.generalTastingNotes.map((note: string) => {
+                                    const count = item.tastingNotesBreakdown?.find(
+                                      (b: any) => b.note.toLowerCase() === note.toLowerCase()
+                                    )?.count;
+                                    return (
+                                      <span
+                                        key={note}
+                                        className="inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 bg-[#FAF3EC] text-[#553E2E] rounded border border-[#DFCFC0] font-semibold"
+                                      >
+                                        <span>{note}</span>
+                                        {count !== undefined && count > 0 && (
+                                          <span className="text-[10px] px-1.5 py-0.2 bg-[#E6DACB] text-[#554032] rounded-full font-mono">
+                                            {count}
+                                          </span>
+                                        )}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
                             <div className="flex items-center justify-between text-xs">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-[#8C4F1A]">

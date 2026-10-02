@@ -115,6 +115,8 @@ export interface Coffee {
   generalRating?: number; // General rating across all users
   shelfIds: string[];
   tastingNotesSummary: string[];
+  generalTastingNotes?: string[];
+  tastingNotesBreakdown?: Array<{ note: string; count: number }>;
   tastingLogs: TastingEntry[];
   recipes: BrewRecipe[];
   customNotes?: CoffeeCustomNote[];
@@ -198,6 +200,8 @@ export interface RegisteredCoffee {
   userCount: number;
   isRecommended: boolean;
   tastingNotesSummary?: string[];
+  generalTastingNotes?: string[];
+  tastingNotesBreakdown?: Array<{ note: string; count: number }>;
   description?: string;
   coverColor?: string;
 }

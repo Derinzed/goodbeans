@@ -294,6 +294,8 @@ export default function App() {
                 generalRating: match.generalRating,
                 communityRating: match.generalRating,
                 communityRatingsCount: match.ratingsCount,
+                generalTastingNotes: match.generalTastingNotes,
+                tastingNotesBreakdown: match.tastingNotesBreakdown,
               };
             }
             return c;
@@ -634,11 +636,14 @@ export default function App() {
     setIsCoffeeModalOpen(false);
     setEditingCoffee(null);
 
-    // Register with community items to average ratings across all users
+    // Register with community items to average ratings and aggregate tasting notes across all users
     try {
-      if (typeof coffeeData.userRating === 'number' && coffeeData.userRating > 0) {
-        await authApi.registerCommunityItem('coffee', coffeeData, coffeeData.userRating);
-      }
+      await authApi.registerCommunityItem(
+        'coffee',
+        coffeeData,
+        typeof coffeeData.userRating === 'number' && coffeeData.userRating > 0 ? coffeeData.userRating : undefined,
+        Array.isArray(coffeeData.tastingNotesSummary) ? coffeeData.tastingNotesSummary : undefined
+      );
       await fetchCommunityCatalog();
     } catch {}
   };
@@ -662,7 +667,12 @@ export default function App() {
     );
     if (updatedTarget) {
       try {
-        await authApi.registerCommunityItem('coffee', updatedTarget, rating);
+        await authApi.registerCommunityItem(
+          'coffee',
+          updatedTarget,
+          rating,
+          (updatedTarget as Coffee).tastingNotesSummary
+        );
         await fetchCommunityCatalog();
       } catch {}
     }
@@ -796,7 +806,12 @@ export default function App() {
 
     if (updatedTarget) {
       try {
-        await authApi.registerCommunityItem('coffee', updatedTarget, entry.rating);
+        await authApi.registerCommunityItem(
+          'coffee',
+          updatedTarget,
+          entry.rating,
+          entry.flavorTags.length > 0 ? entry.flavorTags : (updatedTarget as Coffee).tastingNotesSummary
+        );
         await fetchCommunityCatalog();
       } catch {}
     }
@@ -836,6 +851,25 @@ export default function App() {
       }
       await fetchCommunityCatalog();
     } catch {}
+  };
+
+  const handleQuickRateEquipment = async (equipmentId: string, rating: number) => {
+    let updatedTarget: Equipment | null = null;
+    setEquipment((prev) =>
+      prev.map((eq) => {
+        if (eq.id === equipmentId) {
+          updatedTarget = { ...eq, rating };
+          return updatedTarget;
+        }
+        return eq;
+      })
+    );
+    if (updatedTarget) {
+      try {
+        await authApi.registerCommunityItem('equipment', updatedTarget, rating);
+        await fetchCommunityCatalog();
+      } catch {}
+    }
   };
 
   const handleDeleteEquipment = (id: string) => {
@@ -1019,17 +1053,39 @@ export default function App() {
         setLastSyncedAt(new Date().toISOString());
         // Also register imported items to the community catalog
         if (Array.isArray(updatedCoffees)) {
-          updatedCoffees.forEach((c) => authApi.registerCommunityItem('coffee', c, c.userRating).catch(() => {}));
+          updatedCoffees.forEach((c) =>
+            authApi.registerCommunityItem('coffee', c, c.userRating, c.tastingNotesSummary).catch(() => {})
+          );
         }
         if (Array.isArray(updatedEquipment)) {
-          updatedEquipment.forEach((eq) => authApi.registerCommunityItem('equipment', eq, eq.rating).catch(() => {}));
+          updatedEquipment.forEach((eq) =>
+            authApi.registerCommunityItem('equipment', eq, eq.rating).catch(() => {})
+          );
         }
         if (Array.isArray(updatedCafes)) {
-          updatedCafes.forEach((cf) => authApi.registerCommunityItem('cafe', cf, cf.rating).catch(() => {}));
+          updatedCafes.forEach((cf) =>
+            authApi.registerCommunityItem('cafe', cf, cf.rating).catch(() => {})
+          );
         }
         fetchCommunityCatalog();
         setToastMessage('Data restored and updated in your server account!');
       } else {
+        if (Array.isArray(updatedCoffees)) {
+          updatedCoffees.forEach((c) =>
+            authApi.registerCommunityItem('coffee', c, c.userRating, c.tastingNotesSummary).catch(() => {})
+          );
+        }
+        if (Array.isArray(updatedEquipment)) {
+          updatedEquipment.forEach((eq) =>
+            authApi.registerCommunityItem('equipment', eq, eq.rating).catch(() => {})
+          );
+        }
+        if (Array.isArray(updatedCafes)) {
+          updatedCafes.forEach((cf) =>
+            authApi.registerCommunityItem('cafe', cf, cf.rating).catch(() => {})
+          );
+        }
+        fetchCommunityCatalog();
         setToastMessage('Data restored successfully!');
       }
     } catch {
@@ -1425,12 +1481,15 @@ export default function App() {
               setCoffees((prev) =>
                 prev.map((c) => (c.id === updated.id ? updated : c))
               );
-              if (typeof updated.userRating === 'number' && updated.userRating > 0) {
-                try {
-                  await authApi.registerCommunityItem('coffee', updated, updated.userRating);
-                  await fetchCommunityCatalog();
-                } catch {}
-              }
+              try {
+                await authApi.registerCommunityItem(
+                  'coffee',
+                  updated,
+                  typeof updated.userRating === 'number' && updated.userRating > 0 ? updated.userRating : undefined,
+                  Array.isArray(updated.tastingNotesSummary) ? updated.tastingNotesSummary : undefined
+                );
+                await fetchCommunityCatalog();
+              } catch {}
             }}
             onOpenAddRecipe={handleOpenAddRecipe}
             onOpenEditRecipe={handleOpenEditRecipe}
@@ -1458,6 +1517,7 @@ export default function App() {
               setIsEquipmentModalOpen(true);
             }}
             onDeleteEquipment={handleDeleteEquipment}
+            onQuickRate={handleQuickRateEquipment}
           />
         ) : currentView === 'cafes' ? (
           <CafeShelfView

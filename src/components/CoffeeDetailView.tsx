@@ -20,6 +20,7 @@ import {
   X,
   BookmarkMinus,
   FileText,
+  Globe,
 } from 'lucide-react';
 import { Coffee, BrewRecipe, TastingEntry, Equipment, Shelf, CoffeeCustomNote } from '../types/coffee';
 import { CoffeeBagCover } from './CoffeeBagCover';
@@ -66,6 +67,36 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteTags, setNewNoteTags] = useState('');
+  const [personalTagInput, setPersonalTagInput] = useState('');
+  const [isAddingPersonalTag, setIsAddingPersonalTag] = useState(false);
+
+  const handleAddPersonalTag = (tagToAdd?: string) => {
+    const rawTag = (tagToAdd !== undefined ? tagToAdd : personalTagInput).trim();
+    if (!rawTag) return;
+    const currentNotes = coffee.tastingNotesSummary || [];
+    if (currentNotes.some((t) => t.toLowerCase() === rawTag.toLowerCase())) {
+      setPersonalTagInput('');
+      setIsAddingPersonalTag(false);
+      return;
+    }
+    const updatedNotes = [...currentNotes, rawTag];
+    onUpdateCoffee({
+      ...coffee,
+      tastingNotesSummary: updatedNotes,
+    });
+    setPersonalTagInput('');
+    setIsAddingPersonalTag(false);
+  };
+
+  const handleRemovePersonalTag = (tagToRemove: string) => {
+    const updatedNotes = (coffee.tastingNotesSummary || []).filter(
+      (t) => t.toLowerCase() !== tagToRemove.toLowerCase()
+    );
+    onUpdateCoffee({
+      ...coffee,
+      tastingNotesSummary: updatedNotes,
+    });
+  };
 
   const handleAddCoffeeNote = (e: React.FormEvent) => {
     e.preventDefault();
@@ -348,48 +379,203 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
             </div>
           </div>
 
-          {/* Ratings Block: Community + User Rating */}
-          <div className="p-4 bg-[#FAF7F2] rounded-xl border border-[#E5DACD] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1 flex items-center gap-1.5">
-                <span>General Community Rating</span>
-                <span className="text-[10px] text-[#A8988A] font-normal lowercase">(aggregated across all baristas)</span>
+          {/* Dual Panel: General Information (Shared Community Aggregate) & Personal Evaluations */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* 1. General Information (Shared across all entries of this type, server-side aggregate) */}
+            <div className="p-4 bg-[#FAF7F2] rounded-xl border border-[#DECFC0] flex flex-col justify-between space-y-4">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-[#EAE0D3]">
+                  <div className="text-[11px] uppercase font-bold text-[#8C4F1A] tracking-wider flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-[#C87D32]" />
+                    <span>General Information</span>
+                  </div>
+                  <span className="text-[10px] text-[#8C7A6D] bg-[#F2EAE0] px-2 py-0.5 rounded font-mono font-medium">
+                    Server-Side Aggregate
+                  </span>
+                </div>
+
+                {/* General Rating */}
+                <div className="mb-3.5">
+                  <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1 flex items-center justify-between">
+                    <span>General Rating</span>
+                    <span className="text-[10px] text-[#A8988A] lowercase font-normal">all baristas aggregate</span>
+                  </div>
+                  <StarRatingDisplay
+                    rating={coffee.generalRating || coffee.communityRating || 4.5}
+                    count={coffee.communityRatingsCount}
+                    size="md"
+                  />
+                </div>
+
+                {/* General Tasting Notes: Top 5 Aggregated */}
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>General Tasting Notes (Top 5)</span>
+                    <span className="text-[10px] text-[#A8988A] lowercase font-normal">consensus proper casing</span>
+                  </div>
+                  {coffee.generalTastingNotes && coffee.generalTastingNotes.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {coffee.generalTastingNotes.slice(0, 5).map((note) => {
+                        const count = coffee.tastingNotesBreakdown?.find(
+                          (b) => b.note.toLowerCase() === note.toLowerCase()
+                        )?.count;
+                        const isAlreadyInPersonal = (coffee.tastingNotesSummary || []).some(
+                          (pt) => pt.toLowerCase() === note.toLowerCase()
+                        );
+                        return (
+                          <button
+                            key={note}
+                            type="button"
+                            onClick={() => !isAlreadyInPersonal && handleAddPersonalTag(note)}
+                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
+                              isAlreadyInPersonal
+                                ? 'bg-[#F2ECE3] text-[#4A3728] border-[#DFCFC0]'
+                                : 'bg-[#FAF3EC] hover:bg-[#F2E5D5] text-[#8C4F1A] border-[#E8DACB] hover:border-[#C87D32]'
+                            }`}
+                            title={
+                              isAlreadyInPersonal
+                                ? `Already in your personal notes: ${note}`
+                                : `Click to add "${note}" to your personal palate notes`
+                            }
+                          >
+                            <span>{note}</span>
+                            {count !== undefined && count > 0 && (
+                              <span className="text-[10px] px-1.5 py-0.2 bg-[#E6DACB] text-[#554032] rounded-full font-mono font-normal">
+                                {count}
+                              </span>
+                            )}
+                            {!isAlreadyInPersonal && (
+                              <Plus className="w-2.5 h-2.5 opacity-60 ml-0.5" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-[#8C7A6D] italic bg-[#F5ECE1] p-2.5 rounded-lg border border-[#E8DEC0]">
+                      Awaiting user evaluations. Rate or add personal notes below to contribute to the server-side consensus.
+                    </div>
+                  )}
+                </div>
               </div>
-              <StarRatingDisplay
-                rating={coffee.generalRating || coffee.communityRating || 4.5}
-                count={coffee.communityRatingsCount}
-                size="md"
-              />
+
+              <div className="text-[10px] text-[#9E8B7D] pt-2 border-t border-[#EAE0D3] leading-relaxed">
+                Shared across all entries of this roast on the server. Aggregated live from all baristas' evaluations.
+              </div>
             </div>
 
-            <div className="w-full sm:w-[280px] shrink-0 sm:border-l sm:border-[#DECFC0] sm:pl-6">
-              <StarRatingInput
-                value={coffee.userRating}
-                onChange={handleRatingChange}
-                label="Your Personal Rating"
-                size="md"
-              />
+            {/* 2. Personal Evaluations (User-specific & private) */}
+            <div className="p-4 bg-white rounded-xl border border-[#DECFC0] flex flex-col justify-between space-y-4 shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-[#F0E6DB]">
+                  <div className="text-[11px] uppercase font-bold text-[#2B1D14] tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#C87D32]" />
+                    <span>Your Personal Evaluations</span>
+                  </div>
+                  <span className="text-[10px] text-[#8C7A6D] bg-[#FAF5EE] px-2 py-0.5 rounded font-mono font-medium">
+                    User-Specific
+                  </span>
+                </div>
+
+                {/* Personal Rating */}
+                <div className="mb-3.5">
+                  <StarRatingInput
+                    value={coffee.userRating}
+                    onChange={handleRatingChange}
+                    label="Your Personal Rating"
+                    size="md"
+                  />
+                </div>
+
+                {/* Personal Tasting Notes */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider">
+                      Your Personal Tasting Notes
+                    </span>
+                    {!isAddingPersonalTag && (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingPersonalTag(true)}
+                        className="text-xs text-[#C87D32] hover:text-[#9B551C] font-semibold inline-flex items-center gap-1 hover:underline"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Note</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(coffee.tastingNotesSummary || []).map((flavor) => (
+                      <span
+                        key={flavor}
+                        className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 bg-[#FAF7F2] text-[#3D2C1F] font-medium rounded-md border border-[#E5DACD]"
+                      >
+                        <span>{flavor}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePersonalTag(flavor)}
+                          className="text-[#A8988A] hover:text-red-700 hover:bg-[#F2E5D5] p-0.5 rounded transition-colors"
+                          title={`Remove ${flavor}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+
+                    {isAddingPersonalTag ? (
+                      <div className="inline-flex items-center gap-1 bg-white p-1 rounded-md border border-[#C87D32] shadow-xs">
+                        <input
+                          type="text"
+                          value={personalTagInput}
+                          onChange={(e) => setPersonalTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddPersonalTag();
+                            } else if (e.key === 'Escape') {
+                              setIsAddingPersonalTag(false);
+                              setPersonalTagInput('');
+                            }
+                          }}
+                          placeholder="e.g. Jasmine, Stone Fruit"
+                          autoFocus
+                          className="text-xs px-2 py-0.5 w-36 outline-none bg-transparent text-[#2B1D14]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddPersonalTag()}
+                          className="px-2 py-0.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[11px] font-semibold rounded"
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingPersonalTag(false);
+                            setPersonalTagInput('');
+                          }}
+                          className="p-1 text-[#8C7A6D] hover:text-[#2B1D14]"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      (coffee.tastingNotesSummary || []).length === 0 && (
+                        <span className="text-xs text-[#9E8B7D] italic">
+                          No personal notes defined yet. Click "+ Add Note" to log your palate notes.
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-[#9E8B7D] pt-2 border-t border-[#F0E6DB] leading-relaxed">
+                Your personal notes are user-specific, saved persistently, and included when exporting or restoring your account data.
+              </div>
             </div>
           </div>
-
-          {/* Tasting Notes Summary Tags */}
-          {coffee.tastingNotesSummary.length > 0 && (
-            <div>
-              <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-2">
-                Flavor Profile
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {coffee.tastingNotesSummary.map((flavor) => (
-                  <span
-                    key={flavor}
-                    className="text-xs px-2.5 py-1 bg-[#F3ECE2] text-[#4A3728] font-medium rounded-md border border-[#E0D5C7]"
-                  >
-                    {flavor}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Description */}
           {coffee.description && (
@@ -715,6 +901,39 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
               <Plus className="w-4 h-4" />
               Log Tasting Session
             </button>
+          </div>
+
+          {/* Community Consensus vs Personal Palate Callout */}
+          <div className="bg-[#FAF7F2] p-4 rounded-xl border border-[#E5DACD] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="text-[10px] uppercase font-bold text-[#8C4F1A] tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-[#C87D32]" />
+                <span>Community Consensus Top 5 Notes</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {coffee.generalTastingNotes && coffee.generalTastingNotes.length > 0 ? (
+                  coffee.generalTastingNotes.map((n) => (
+                    <span
+                      key={n}
+                      className="text-xs px-2.5 py-0.5 bg-[#FAF3EC] text-[#553E2E] rounded border border-[#DFCFC0] font-semibold"
+                    >
+                      {n}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-[#8C7A6D] italic">No community evaluations yet</span>
+                )}
+              </div>
+            </div>
+
+            <div className="sm:border-l sm:border-[#DECFC0] sm:pl-4">
+              <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1">
+                Your Logged Flavor Tags ({coffee.tastingLogs.reduce((acc, l) => acc + (l.flavorTags || []).length, 0)})
+              </div>
+              <div className="text-xs text-[#4A3728] font-medium">
+                {Array.from(new Set(coffee.tastingLogs.flatMap((l) => l.flavorTags || []))).slice(0, 5).join(', ') || 'No session tags logged yet'}
+              </div>
+            </div>
           </div>
 
           {coffee.tastingLogs.length > 0 ? (

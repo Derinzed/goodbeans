@@ -11,13 +11,14 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Equipment, EquipmentCategory } from '../types/coffee';
-import { StarRatingDisplay } from './StarRating';
+import { StarRatingDisplay, StarRatingInput } from './StarRating';
 
 interface EquipmentShelfViewProps {
   equipment: Equipment[];
   onAddEquipment: () => void;
   onEditEquipment: (item: Equipment) => void;
   onDeleteEquipment: (id: string) => void;
+  onQuickRate?: (id: string, rating: number) => void;
 }
 
 const CATEGORIES: ('All' | EquipmentCategory)[] = [
@@ -36,6 +37,7 @@ export const EquipmentShelfView: React.FC<EquipmentShelfViewProps> = ({
   onAddEquipment,
   onEditEquipment,
   onDeleteEquipment,
+  onQuickRate,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<'All' | EquipmentCategory>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,21 +199,19 @@ export const EquipmentShelfView: React.FC<EquipmentShelfViewProps> = ({
                 <div className="text-xs text-[#7D6B5D] font-medium mb-2">{item.brand}</div>
 
                 {/* Dual Rating: Personal & General */}
-                <div className="mb-3 space-y-1">
-                  {item.rating && (
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-[#8C7A6D] text-[10px] uppercase font-semibold">Personal:</span>
-                      <StarRatingDisplay rating={item.rating} size="sm" />
-                    </div>
-                  )}
-                  {item.generalRating && (
-                    <div className="flex items-center justify-between text-[10px] text-[#7A6757] bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EDE2D4]">
-                      <span className="text-[#8C7A6D]">General Rating:</span>
-                      <span className="font-semibold text-[#8C4F1A] font-mono">
-                        ★ {item.generalRating.toFixed(1)} {item.generalRatingsCount ? `(${item.generalRatingsCount} baristas)` : ''}
-                      </span>
-                    </div>
-                  )}
+                <div className="mb-3 p-2.5 bg-[#FAF7F2] rounded-lg border border-[#EDE2D4] space-y-2">
+                  <StarRatingInput
+                    value={item.rating || 0}
+                    onChange={(newRating) => onQuickRate && onQuickRate(item.id, newRating)}
+                    label="Your Gear Rating"
+                    size="sm"
+                  />
+                  <div className="flex items-center justify-between text-[10px] text-[#7A6757] pt-1.5 border-t border-[#EDE2D4]">
+                    <span className="text-[#8C7A6D]">General Rating:</span>
+                    <span className="font-semibold text-[#8C4F1A] font-mono">
+                      ★ {(item.generalRating || 4.8).toFixed(1)} {item.generalRatingsCount ? `(${item.generalRatingsCount} baristas)` : ''}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Calibration / Settings Notes */}

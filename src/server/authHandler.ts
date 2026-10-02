@@ -740,7 +740,7 @@ export async function handleAuthRoutes(
   if (url === '/api/community/items/register' && method === 'POST') {
     try {
       const body = await readJsonBody(req);
-      const { type = 'coffee', item, rating } = body;
+      const { type = 'coffee', item, rating, tastingNotes } = body;
       if (!item || !item.name) {
         sendJson(res, 400, { error: 'Item with name is required' });
         return true;
@@ -749,7 +749,7 @@ export async function handleAuthRoutes(
       const user = token ? AuthStore.getUserByToken(token) : null;
       const guestId = (req.headers['x-guest-id'] as string) || body.userId;
       const effectiveUserId = user?.id || (guestId ? `guest-${guestId}` : 'community-user');
-      const registered = AuthStore.recordCommunityItem(type, item, effectiveUserId, rating);
+      const registered = AuthStore.recordCommunityItem(type, item, effectiveUserId, rating, tastingNotes);
       sendJson(res, 200, {
         success: true,
         registered,

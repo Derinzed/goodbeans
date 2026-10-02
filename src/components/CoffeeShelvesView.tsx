@@ -416,17 +416,28 @@ export const CoffeeShelvesView: React.FC<CoffeeShelvesViewProps> = ({
                     })}
                   </div>
 
-                  {/* Flavor Tags */}
-                  {coffee.tastingNotesSummary.length > 0 && (
+                  {/* Flavor Tags: General Consensus or Personal */}
+                  {((coffee.generalTastingNotes && coffee.generalTastingNotes.length > 0) ||
+                    (coffee.tastingNotesSummary && coffee.tastingNotesSummary.length > 0)) && (
                     <div className="flex flex-wrap gap-1 pt-1">
-                      {coffee.tastingNotesSummary.slice(0, 3).map((f) => (
-                        <span
-                          key={f}
-                          className="text-[10px] px-1.5 py-0.5 bg-[#FAF7F2] text-[#554032] border border-[#EDE2D4] rounded"
-                        >
-                          {f}
-                        </span>
-                      ))}
+                      {coffee.generalTastingNotes && coffee.generalTastingNotes.length > 0
+                        ? coffee.generalTastingNotes.slice(0, 3).map((f) => (
+                            <span
+                              key={f}
+                              className="text-[10px] px-1.5 py-0.5 bg-[#FAF3EC] text-[#8C4F1A] border border-[#E8DACB] rounded font-semibold"
+                              title={`Community top note: ${f}`}
+                            >
+                              {f}
+                            </span>
+                          ))
+                        : coffee.tastingNotesSummary.slice(0, 3).map((f) => (
+                            <span
+                              key={f}
+                              className="text-[10px] px-1.5 py-0.5 bg-[#FAF7F2] text-[#554032] border border-[#EDE2D4] rounded"
+                            >
+                              {f}
+                            </span>
+                          ))}
                     </div>
                   )}
                 </div>
