@@ -35,6 +35,7 @@ import {
   ArrowUpDown,
   Eraser,
   Sliders,
+  AlertTriangle,
 } from 'lucide-react';
 import { authApi, AdminUserSummary } from '../services/authApi';
 
@@ -43,6 +44,7 @@ interface AdminUsersModalProps {
   onClose: () => void;
   token: string | null;
   currentUserId: string;
+  onRefreshCatalog?: () => void;
 }
 
 export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
@@ -50,6 +52,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   onClose,
   token,
   currentUserId,
+  onRefreshCatalog,
 }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'community' | 'ratings' | 'raw-data'>('users');
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
@@ -58,6 +61,11 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Emergency System Purge state
+  const [isResetSystemOpen, setIsResetSystemOpen] = useState(false);
+  const [resetSystemConfirmText, setResetSystemConfirmText] = useState('');
+  const [isResettingSystem, setIsResettingSystem] = useState(false);
 
   // Ratings & Community state
   const [ratingsBreakdown, setRatingsBreakdown] = useState<{
@@ -691,6 +699,42 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
     setTimeout(() => setCopiedRaw(false), 2000);
   };
 
+  const handleEmergencySystemReset = async () => {
+    if (!token) return;
+    if (resetSystemConfirmText.trim().toUpperCase() !== 'RESET') {
+      setError('Please type "RESET" in all capital letters to confirm this irreversible emergency purge.');
+      return;
+    }
+    setIsResettingSystem(true);
+    setError(null);
+    try {
+      const res = await authApi.emergencySystemReset(token);
+      if (res.success) {
+        setActionSuccess(
+          res.message ||
+            'Emergency system reset completed. All coffees, equipment, cafes, and non-admin users reverted to 0.'
+        );
+        setIsResetSystemOpen(false);
+        setResetSystemConfirmText('');
+        await fetchUsers();
+        await fetchRatingsBreakdown();
+        if (activeTab === 'raw-data') {
+          await fetchRawDatabase();
+        }
+        if (onRefreshCatalog) {
+          onRefreshCatalog();
+        }
+        setTimeout(() => setActionSuccess(null), 5000);
+      } else {
+        setError(res.error || 'Failed to execute emergency system reset.');
+      }
+    } catch {
+      setError('Network error executing system reset.');
+    } finally {
+      setIsResettingSystem(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#FAF7F2] border border-[#E5DACD] text-[#2C241E] w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
@@ -715,6 +759,20 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setResetSystemConfirmText('');
+                setError(null);
+                setIsResetSystemOpen(true);
+              }}
+              className="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 border border-rose-300 text-rose-800 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+              title="Emergency: Reset server registry to 0 (coffees, equipment, cafes, non-admin users)"
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              <span className="hidden sm:inline">Reset Server (0)</span>
+              <span className="sm:hidden">Reset</span>
+            </button>
             <button
               onClick={() => {
                 if (activeTab === 'users') fetchUsers();
@@ -1364,7 +1422,19 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                       How Administrators Access Server Raw Data
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetSystemConfirmText('');
+                        setIsResetSystemOpen(true);
+                      }}
+                      className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-xs font-semibold text-rose-700 rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                      title="Emergency: Revert all stored server information to 0"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Emergency Reset (Revert to 0)</span>
+                    </button>
                     <button
                       onClick={handleCleanSessions}
                       className="px-2.5 py-1.5 bg-[#FAF7F2] hover:bg-[#F2E8DC] border border-[#D5C7B8] text-xs font-semibold text-[#3A291E] rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
@@ -1415,6 +1485,34 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* Emergency Reset Callout Banner */}
+              <div className="p-4 bg-rose-50/80 border border-rose-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-2 bg-rose-100 rounded-lg text-rose-700 mt-0.5 shrink-0">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h5 className="font-serif font-bold text-sm text-rose-950">
+                      Emergency Server Purge &amp; Factory Reset to Zero
+                    </h5>
+                    <p className="text-xs text-rose-800 mt-0.5 leading-relaxed">
+                      Removes all community coffees, equipment, and cafes from the server registry. Deletes all non-admin user accounts and guest caches to revert stored data to 0. Administrator accounts remain active, and users can re-populate their data anytime by importing their backup JSON files.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetSystemConfirmText('');
+                    setIsResetSystemOpen(true);
+                  }}
+                  className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shrink-0 shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Execute Reset to 0</span>
+                </button>
               </div>
 
               {/* Raw Table Selector & Filter */}
@@ -2076,6 +2174,106 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 7: EMERGENCY FULL SYSTEM RESET */}
+      {isResetSystemOpen && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
+          <div className="bg-[#FAF7F2] border-2 border-rose-300 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-start gap-3 border-b border-[#E5DACD] pb-3">
+              <div className="p-2.5 bg-rose-100 rounded-xl text-rose-700 shrink-0 mt-0.5">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-serif font-bold text-lg text-rose-950">
+                  Full Server Registry Reset (Revert to 0)
+                </h4>
+                <p className="text-xs text-rose-800 mt-0.5">
+                  Emergency &amp; testing action: reverts all stored server-side information to zero.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsResetSystemOpen(false);
+                  setResetSystemConfirmText('');
+                }}
+                disabled={isResettingSystem}
+                className="text-[#8C7A6D] hover:text-[#2B1D14] cursor-pointer p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-white rounded-xl p-3.5 border border-rose-200 text-xs text-[#4A3728] space-y-2">
+              <div className="font-bold text-rose-900 flex items-center gap-1.5">
+                <span>The following data will be permanently removed from the server:</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-[#6D5A4E] ml-1">
+                <li><strong>All equipment</strong> removed from server registry (reverted to 0)</li>
+                <li><strong>All cafes</strong> removed from server registry (reverted to 0)</li>
+                <li><strong>All coffees &amp; tasting notes</strong> removed from server registry (reverted to 0)</li>
+                <li><strong>All non-admin users</strong> deleted from server storage</li>
+                <li><strong>All guest session caches</strong> wiped from server</li>
+              </ul>
+              <div className="p-2 bg-[#FAF3EC] rounded-lg border border-[#EDE2D4] text-[11px] text-[#7A6757] mt-2">
+                💡 <strong>Restoration note:</strong> Your current admin login will remain active. Users may still restore their saved JSON backups at any time, which will re-populate the server-side registry.
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#2B1D14] block">
+                Type <span className="font-mono font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">RESET</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={resetSystemConfirmText}
+                onChange={(e) => setResetSystemConfirmText(e.target.value)}
+                placeholder="Type RESET here"
+                disabled={isResettingSystem}
+                className="w-full px-3 py-2 bg-white rounded-lg border border-[#D5C7B8] text-xs font-mono tracking-widest text-[#2B1D14] focus:outline-none focus:ring-2 focus:ring-rose-500 uppercase placeholder:normal-case placeholder:tracking-normal"
+              />
+            </div>
+
+            {error && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs">
+                {error}
+              </div>
+            )}
+
+            <div className="pt-2 flex items-center justify-end gap-2 border-t border-[#E5DACD]">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsResetSystemOpen(false);
+                  setResetSystemConfirmText('');
+                }}
+                disabled={isResettingSystem}
+                className="px-3.5 py-2 bg-white hover:bg-[#F2E8DC] border border-[#D5C7B8] rounded-lg text-xs font-semibold text-[#6D5A4E] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleEmergencySystemReset}
+                disabled={isResettingSystem || resetSystemConfirmText.trim().toUpperCase() !== 'RESET'}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                {isResettingSystem ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Purging Server Registry...</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>Execute Reset to 0</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

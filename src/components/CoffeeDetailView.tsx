@@ -21,6 +21,7 @@ import {
   BookmarkMinus,
   FileText,
   Globe,
+  Users,
 } from 'lucide-react';
 import { Coffee, BrewRecipe, TastingEntry, Equipment, Shelf, CoffeeCustomNote } from '../types/coffee';
 import { CoffeeBagCover } from './CoffeeBagCover';
@@ -42,6 +43,8 @@ interface CoffeeDetailViewProps {
   onRemoveFromShelf?: (coffeeId: string, shelfId: string) => void;
   onRemoveFromAllShelves?: (coffeeId: string) => void;
   onDeleteCoffee?: (coffeeId: string) => void;
+  isRegisteredUser?: boolean;
+  onOpenAuthModal?: () => void;
 }
 
 export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
@@ -60,6 +63,8 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
   onRemoveFromShelf,
   onRemoveFromAllShelves,
   onDeleteCoffee,
+  isRegisteredUser = false,
+  onOpenAuthModal,
 }) => {
   const [activeTab, setActiveTab] = useState<'recipes' | 'tastings' | 'notes' | 'overview'>('recipes');
   const [isShelfDropdownOpen, setIsShelfDropdownOpen] = useState(false);
@@ -389,8 +394,12 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
                     <Globe className="w-3.5 h-3.5 text-[#C87D32]" />
                     <span>General Information</span>
                   </div>
-                  <span className="text-[10px] text-[#8C7A6D] bg-[#F2EAE0] px-2 py-0.5 rounded font-mono font-medium">
-                    Server-Side Aggregate
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
+                    isRegisteredUser
+                      ? 'text-[#8C7A6D] bg-[#F2EAE0]'
+                      : 'text-amber-800 bg-amber-100 border border-amber-200'
+                  }`}>
+                    {isRegisteredUser ? 'Registered Consensus' : 'Registered Users Only'}
                   </span>
                 </div>
 
@@ -398,7 +407,7 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
                 <div className="mb-3.5">
                   <div className="text-[10px] uppercase font-bold text-[#8C7A6D] tracking-wider mb-1 flex items-center justify-between">
                     <span>General Rating</span>
-                    <span className="text-[10px] text-[#A8988A] lowercase font-normal">all baristas aggregate</span>
+                    <span className="text-[10px] text-[#A8988A] lowercase font-normal">registered baristas aggregate</span>
                   </div>
                   <StarRatingDisplay
                     rating={coffee.generalRating || coffee.communityRating || 4.5}
@@ -453,14 +462,37 @@ export const CoffeeDetailView: React.FC<CoffeeDetailViewProps> = ({
                     </div>
                   ) : (
                     <div className="text-xs text-[#8C7A6D] italic bg-[#F5ECE1] p-2.5 rounded-lg border border-[#E8DEC0]">
-                      Awaiting user evaluations. Rate or add personal notes below to contribute to the server-side consensus.
+                      Awaiting registered barista evaluations. Rate or add personal notes below to contribute to the server-side consensus.
                     </div>
                   )}
                 </div>
+
+                {!isRegisteredUser && (
+                  <div className="mt-3 p-2.5 bg-amber-50/90 border border-amber-200/80 rounded-lg text-xs text-[#6B5342] space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-semibold text-amber-900 text-[11px]">
+                      <Users className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                      <span>General information applies only to registered users</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-[#7A6757]">
+                      Guest ratings remain in your local session. To contribute your ratings and tasting notes to the server-wide general consensus, please sign in.
+                    </p>
+                    {onOpenAuthModal && (
+                      <button
+                        type="button"
+                        onClick={onOpenAuthModal}
+                        className="px-2.5 py-1 bg-[#C87D32] hover:bg-[#B06B26] text-white text-[11px] font-semibold rounded-md shadow-2xs transition-colors cursor-pointer"
+                      >
+                        Sign In / Register
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="text-[10px] text-[#9E8B7D] pt-2 border-t border-[#EAE0D3] leading-relaxed">
-                Shared across all entries of this roast on the server. Aggregated live from all baristas' evaluations.
+                {isRegisteredUser
+                  ? "Shared across all entries of this roast on the server. Aggregated live from registered baristas' evaluations."
+                  : "General consensus ratings and tasting notes are contributed exclusively by registered members."}
               </div>
             </div>
 

@@ -324,6 +324,28 @@ export const authApi = {
     return res.json();
   },
 
+  async emergencySystemReset(
+    token: string
+  ): Promise<{
+    success: boolean;
+    summary?: {
+      removedUsers: number;
+      removedCoffees: number;
+      removedEquipment: number;
+      removedCafes: number;
+      removedGuests: number;
+      remainingAdmins: number;
+    };
+    message?: string;
+    error?: string;
+  }> {
+    const res = await fetch('/api/admin/system/reset', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
   async getRawDatabase(token: string): Promise<any> {
     const res = await fetch('/api/admin/raw-data', {
       headers: { Authorization: `Bearer ${token}` },

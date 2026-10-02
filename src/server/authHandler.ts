@@ -717,6 +717,29 @@ export async function handleAuthRoutes(
     }
   }
 
+  // 9d. POST /api/admin/system/reset (Emergency Full System Purge: removes non-admin users, guest sessions, and reverts all community coffees/equipment/cafes to 0)
+  if (url === '/api/admin/system/reset' && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    try {
+      const summary = AuthStore.emergencySystemReset();
+      sendJson(res, 200, {
+        success: true,
+        summary,
+        message: `Emergency reset complete. Reverted stored community registry to 0 (${summary.removedCoffees} coffees, ${summary.removedEquipment} equipment, ${summary.removedCafes} cafes). Purged ${summary.removedUsers} non-admin accounts and ${summary.removedGuests} guest sessions.`,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to execute emergency system reset' });
+      return true;
+    }
+  }
+
   // 10. GET /api/community/items (Running list of registered items with general ratings)
   if (url === '/api/community/items' && method === 'GET') {
     try {
@@ -736,7 +759,7 @@ export async function handleAuthRoutes(
     }
   }
 
-  // 10b. POST /api/community/items/register (Register or rate an item directly)
+  // 10b. POST /api/community/items/register (Register or rate an item directly - registered users only)
   if (url === '/api/community/items/register' && method === 'POST') {
     try {
       const body = await readJsonBody(req);
@@ -747,9 +770,16 @@ export async function handleAuthRoutes(
       }
       const token = getBearerToken(req);
       const user = token ? AuthStore.getUserByToken(token) : null;
-      const guestId = (req.headers['x-guest-id'] as string) || body.userId;
-      const effectiveUserId = user?.id || (guestId ? `guest-${guestId}` : 'community-user');
-      const registered = AuthStore.recordCommunityItem(type, item, effectiveUserId, rating, tastingNotes);
+      if (!user) {
+        // General information applies ONLY to registered accounts
+        sendJson(res, 200, {
+          success: true,
+          message: 'General community information is restricted to registered accounts only. Please sign in to contribute evaluations.',
+          registered: null,
+        });
+        return true;
+      }
+      const registered = AuthStore.recordCommunityItem(type, item, user.id, rating, tastingNotes);
       sendJson(res, 200, {
         success: true,
         registered,

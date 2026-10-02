@@ -298,7 +298,12 @@ export default function App() {
                 tastingNotesBreakdown: match.tastingNotesBreakdown,
               };
             }
-            return c;
+            return {
+              ...c,
+              generalRating: undefined,
+              generalTastingNotes: undefined,
+              tastingNotesBreakdown: undefined,
+            };
           })
         );
 
@@ -316,7 +321,11 @@ export default function App() {
                 generalRatingsCount: match.ratingsCount,
               };
             }
-            return eq;
+            return {
+              ...eq,
+              generalRating: undefined,
+              generalRatingsCount: undefined,
+            };
           })
         );
 
@@ -334,7 +343,11 @@ export default function App() {
                 generalRatingsCount: match.ratingsCount,
               };
             }
-            return cafe;
+            return {
+              ...cafe,
+              generalRating: undefined,
+              generalRatingsCount: undefined,
+            };
           })
         );
       }
@@ -636,16 +649,18 @@ export default function App() {
     setIsCoffeeModalOpen(false);
     setEditingCoffee(null);
 
-    // Register with community items to average ratings and aggregate tasting notes across all users
-    try {
-      await authApi.registerCommunityItem(
-        'coffee',
-        coffeeData,
-        typeof coffeeData.userRating === 'number' && coffeeData.userRating > 0 ? coffeeData.userRating : undefined,
-        Array.isArray(coffeeData.tastingNotesSummary) ? coffeeData.tastingNotesSummary : undefined
-      );
-      await fetchCommunityCatalog();
-    } catch {}
+    // Register with community items to average ratings and aggregate tasting notes across all registered users
+    if (authToken && currentUser) {
+      try {
+        await authApi.registerCommunityItem(
+          'coffee',
+          coffeeData,
+          typeof coffeeData.userRating === 'number' && coffeeData.userRating > 0 ? coffeeData.userRating : undefined,
+          Array.isArray(coffeeData.tastingNotesSummary) ? coffeeData.tastingNotesSummary : undefined
+        );
+        await fetchCommunityCatalog();
+      } catch {}
+    }
   };
 
   const handleToggleFavorite = (coffeeId: string) => {
@@ -665,7 +680,7 @@ export default function App() {
         return c;
       })
     );
-    if (updatedTarget) {
+    if (updatedTarget && authToken && currentUser) {
       try {
         await authApi.registerCommunityItem(
           'coffee',
@@ -804,7 +819,7 @@ export default function App() {
     setIsTastingModalOpen(false);
     setTastingModalCoffee(null);
 
-    if (updatedTarget) {
+    if (updatedTarget && authToken && currentUser) {
       try {
         await authApi.registerCommunityItem(
           'coffee',
@@ -845,12 +860,14 @@ export default function App() {
     setIsEquipmentModalOpen(false);
     setEditingEquipment(null);
 
-    try {
-      if (typeof equipmentData.rating === 'number' && equipmentData.rating > 0) {
-        await authApi.registerCommunityItem('equipment', equipmentData, equipmentData.rating);
-      }
-      await fetchCommunityCatalog();
-    } catch {}
+    if (authToken && currentUser) {
+      try {
+        if (typeof equipmentData.rating === 'number' && equipmentData.rating > 0) {
+          await authApi.registerCommunityItem('equipment', equipmentData, equipmentData.rating);
+        }
+        await fetchCommunityCatalog();
+      } catch {}
+    }
   };
 
   const handleQuickRateEquipment = async (equipmentId: string, rating: number) => {
@@ -864,7 +881,7 @@ export default function App() {
         return eq;
       })
     );
-    if (updatedTarget) {
+    if (updatedTarget && authToken && currentUser) {
       try {
         await authApi.registerCommunityItem('equipment', updatedTarget, rating);
         await fetchCommunityCatalog();
@@ -888,12 +905,14 @@ export default function App() {
     setIsCafeModalOpen(false);
     setEditingCafe(null);
 
-    try {
-      if (typeof cafeData.rating === 'number' && cafeData.rating > 0) {
-        await authApi.registerCommunityItem('cafe', cafeData, cafeData.rating);
-      }
-      await fetchCommunityCatalog();
-    } catch {}
+    if (authToken && currentUser) {
+      try {
+        if (typeof cafeData.rating === 'number' && cafeData.rating > 0) {
+          await authApi.registerCommunityItem('cafe', cafeData, cafeData.rating);
+        }
+        await fetchCommunityCatalog();
+      } catch {}
+    }
   };
 
   const handleDeleteCafe = (cafeId: string) => {
@@ -917,7 +936,7 @@ export default function App() {
         return c;
       })
     );
-    if (updatedTarget) {
+    if (updatedTarget && authToken && currentUser) {
       try {
         await authApi.registerCommunityItem('cafe', updatedTarget, rating);
         await fetchCommunityCatalog();
@@ -1070,22 +1089,6 @@ export default function App() {
         fetchCommunityCatalog();
         setToastMessage('Data restored and updated in your server account!');
       } else {
-        if (Array.isArray(updatedCoffees)) {
-          updatedCoffees.forEach((c) =>
-            authApi.registerCommunityItem('coffee', c, c.userRating, c.tastingNotesSummary).catch(() => {})
-          );
-        }
-        if (Array.isArray(updatedEquipment)) {
-          updatedEquipment.forEach((eq) =>
-            authApi.registerCommunityItem('equipment', eq, eq.rating).catch(() => {})
-          );
-        }
-        if (Array.isArray(updatedCafes)) {
-          updatedCafes.forEach((cf) =>
-            authApi.registerCommunityItem('cafe', cf, cf.rating).catch(() => {})
-          );
-        }
-        fetchCommunityCatalog();
         setToastMessage('Data restored successfully!');
       }
     } catch {
@@ -1481,15 +1484,17 @@ export default function App() {
               setCoffees((prev) =>
                 prev.map((c) => (c.id === updated.id ? updated : c))
               );
-              try {
-                await authApi.registerCommunityItem(
-                  'coffee',
-                  updated,
-                  typeof updated.userRating === 'number' && updated.userRating > 0 ? updated.userRating : undefined,
-                  Array.isArray(updated.tastingNotesSummary) ? updated.tastingNotesSummary : undefined
-                );
-                await fetchCommunityCatalog();
-              } catch {}
+              if (authToken && currentUser) {
+                try {
+                  await authApi.registerCommunityItem(
+                    'coffee',
+                    updated,
+                    typeof updated.userRating === 'number' && updated.userRating > 0 ? updated.userRating : undefined,
+                    Array.isArray(updated.tastingNotesSummary) ? updated.tastingNotesSummary : undefined
+                  );
+                  await fetchCommunityCatalog();
+                } catch {}
+              }
             }}
             onOpenAddRecipe={handleOpenAddRecipe}
             onOpenEditRecipe={handleOpenEditRecipe}
@@ -1504,6 +1509,11 @@ export default function App() {
             onRemoveFromShelf={handleRemoveFromShelf}
             onRemoveFromAllShelves={handleRemoveFromAllShelves}
             onDeleteCoffee={handleDeleteCoffee}
+            isRegisteredUser={Boolean(authToken && currentUser)}
+            onOpenAuthModal={() => {
+              setAuthModalMode('login');
+              setIsAuthModalOpen(true);
+            }}
           />
         ) : currentView === 'equipment' ? (
           <EquipmentShelfView
@@ -1954,6 +1964,20 @@ export default function App() {
         onClose={() => setIsAdminModalOpen(false)}
         token={authToken}
         currentUserId={currentUser?.id || ''}
+        onRefreshCatalog={async () => {
+          await fetchCommunityCatalog();
+          if (currentUser?.role === 'admin' && authToken) {
+            try {
+              const me = await authApi.getMe(authToken);
+              if (me.success && me.data) {
+                setCoffees(me.data.coffees || []);
+                setEquipment(me.data.equipment || []);
+                setCafes(me.data.cafes || []);
+                setNotes(me.data.notes || []);
+              }
+            } catch {}
+          }
+        }}
       />
 
       {/* Floating In-App Toast Feedback */}

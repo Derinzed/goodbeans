@@ -348,36 +348,6 @@ export class AuthStore {
       updatedAt: new Date().toISOString(),
     };
     this.writeJsonFile(GUESTS_FILE, guests);
-
-    try {
-      if (Array.isArray(data.coffees)) {
-        data.coffees.forEach((c) => {
-          if (c && c.name) {
-            this.recordCommunityItem(
-              'coffee',
-              c,
-              `guest-${guestId}`,
-              c.userRating,
-              Array.isArray(c.tastingNotesSummary) ? c.tastingNotesSummary : undefined
-            );
-          }
-        });
-      }
-      if (Array.isArray(data.equipment)) {
-        data.equipment.forEach((eq) => {
-          if (eq && eq.name) {
-            this.recordCommunityItem('equipment', eq, `guest-${guestId}`, eq.rating);
-          }
-        });
-      }
-      if (Array.isArray(data.cafes)) {
-        data.cafes.forEach((cf) => {
-          if (cf && cf.name) {
-            this.recordCommunityItem('cafe', cf, `guest-${guestId}`, cf.rating);
-          }
-        });
-      }
-    } catch {}
   }
 
   public static findByUsername(username: string): StoredUser | null {
@@ -703,6 +673,66 @@ export class AuthStore {
     return true;
   }
 
+  // Emergency full reset: removes all equipment, cafes, coffees, and non-admin users from server registry
+  public static emergencySystemReset(): {
+    removedUsers: number;
+    removedCoffees: number;
+    removedEquipment: number;
+    removedCafes: number;
+    removedGuests: number;
+    remainingAdmins: number;
+  } {
+    // 1. Purge all non-admin users
+    const allUsers = this.getUsers();
+    const adminUsers = allUsers.filter((u) => u.role === 'admin');
+    const removedUsers = allUsers.length - adminUsers.length;
+
+    // Reset admin user libraries to clean baseline state
+    adminUsers.forEach((admin) => {
+      admin.data = {
+        coffees: [],
+        equipment: [],
+        cafes: [],
+        notes: [],
+        shelves: [],
+      };
+      admin.updatedAt = new Date().toISOString();
+    });
+    this.saveUsers(adminUsers);
+
+    // 2. Keep only sessions of surviving admins
+    const adminUserIds = new Set(adminUsers.map((a) => a.id));
+    const allSessions = this.getSessions();
+    const adminSessions = allSessions.filter((s) => adminUserIds.has(s.userId));
+    this.saveSessions(adminSessions);
+
+    // 3. Purge all guest session caches
+    const allGuests = this.getGuests();
+    const removedGuests = Object.keys(allGuests).length;
+    this.writeJsonFile(GUESTS_FILE, {});
+
+    // 4. Revert community items registry to 0
+    const communityData = this.getCommunityItemsData();
+    const removedCoffees = (communityData.coffees || []).length;
+    const removedEquipment = (communityData.equipment || []).length;
+    const removedCafes = (communityData.cafes || []).length;
+
+    this.saveCommunityItemsData({
+      coffees: [],
+      equipment: [],
+      cafes: [],
+    });
+
+    return {
+      removedUsers,
+      removedCoffees,
+      removedEquipment,
+      removedCafes,
+      removedGuests,
+      remainingAdmins: adminUsers.length,
+    };
+  }
+
   public static recalculateAllRatings(): {
     recalculatedCoffees: number;
     recalculatedEquipment: number;
@@ -716,8 +746,24 @@ export class AuthStore {
       recalculatedCafes: (communityData.cafes || []).length,
     };
 
+    const registeredUserIds = new Set(this.getUsers().map((u) => u.id));
     const processItems = (items: StoredCommunityItem[]) => {
       for (const item of items) {
+        if (item.userRatings) {
+          Object.keys(item.userRatings).forEach((uid) => {
+            if (!registeredUserIds.has(uid)) {
+              delete item.userRatings[uid];
+            }
+          });
+        }
+        const itemUserTastingNotes = item.userTastingNotes;
+        if (itemUserTastingNotes) {
+          Object.keys(itemUserTastingNotes).forEach((uid) => {
+            if (!registeredUserIds.has(uid)) {
+              delete itemUserTastingNotes[uid];
+            }
+          });
+        }
         const ratingsMap = item.userRatings || {};
         const agg = this.calculateAggregateRating(
           ratingsMap,
@@ -803,15 +849,17 @@ export class AuthStore {
     this.writeJsonFile(COMMUNITY_ITEMS_FILE, data);
   }
 
-  // Calculate mathematically exact aggregate general rating across all user ratings
+  // Calculate mathematically exact aggregate general rating across all user ratings (strictly registered accounts)
   private static calculateAggregateRating(
     userRatings: Record<string, number>,
     baseRating?: number,
     baseRatingsCount?: number
   ): { generalRating: number; ratingsCount: number; userCount: number } {
-    const ratingsList = Object.values(userRatings || {}).filter(
-      (r): r is number => typeof r === 'number' && r > 0
-    );
+    // Only registered user accounts contribute to general ratings
+    const registeredUserIds = new Set(this.getUsers().map((u) => u.id));
+    const ratingsList = Object.entries(userRatings || {})
+      .filter(([uid, r]) => registeredUserIds.has(uid) && typeof r === 'number' && r > 0)
+      .map(([, r]) => r);
 
     const userSum = ratingsList.reduce((acc, r) => acc + r, 0);
     const userCount = ratingsList.length;
@@ -831,7 +879,7 @@ export class AuthStore {
     };
   }
 
-  // Calculate aggregate tasting notes across all user evaluations (case-insensitive, top 5 displayed in proper casing)
+  // Calculate aggregate tasting notes across all user evaluations (registered accounts only, top 5 displayed in proper casing)
   public static calculateAggregateTastingNotes(
     userTastingNotes: Record<string, string[]> = {},
     baseNotes: string[] = []
@@ -839,6 +887,7 @@ export class AuthStore {
     generalTastingNotes: string[];
     tastingNotesBreakdown: Array<{ note: string; count: number }>;
   } {
+    const registeredUserIds = new Set(this.getUsers().map((u) => u.id));
     const noteMap = new Map<string, { display: string; userIds: Set<string>; baseCount: number }>();
 
     const registerNote = (noteStr: string, userId?: string, isBase = false) => {
@@ -867,7 +916,8 @@ export class AuthStore {
 
     if (userTastingNotes && typeof userTastingNotes === 'object') {
       Object.entries(userTastingNotes).forEach(([uid, notes]) => {
-        if (Array.isArray(notes)) {
+        // Enforce registered users only
+        if (registeredUserIds.has(uid) && Array.isArray(notes)) {
           notes.forEach((n) => registerNote(n, uid, false));
         }
       });
@@ -936,6 +986,18 @@ export class AuthStore {
       });
     }
 
+    // General information applies ONLY to registered accounts.
+    // Guests/unauthenticated sessions cannot create entries or modify community ratings/notes.
+    const user = userId ? this.findById(userId) : null;
+    const isRegisteredUser = Boolean(user && user.role !== undefined);
+
+    if (!isRegisteredUser) {
+      if (existingIndex >= 0) {
+        return list[existingIndex];
+      }
+      return null;
+    }
+
     if (existingIndex >= 0) {
       const existing = list[existingIndex];
       if (!existing.userRatings || typeof existing.userRatings !== 'object') {
@@ -957,6 +1019,18 @@ export class AuthStore {
         } else if (parsedNotes.length > 0) {
           existing.userTastingNotes[userId] = parsedNotes;
         }
+      }
+
+      // Ensure no legacy guest IDs linger in user evaluations
+      const registeredUserIds = new Set(this.getUsers().map((u) => u.id));
+      Object.keys(existing.userRatings).forEach((uid) => {
+        if (!registeredUserIds.has(uid)) delete existing.userRatings[uid];
+      });
+      const existingUserTastingNotes = existing.userTastingNotes;
+      if (existingUserTastingNotes) {
+        Object.keys(existingUserTastingNotes).forEach((uid) => {
+          if (!registeredUserIds.has(uid)) delete existingUserTastingNotes[uid];
+        });
       }
 
       const agg = this.calculateAggregateRating(
@@ -1295,36 +1369,7 @@ export class AuthStore {
       }
     });
 
-    // 2b. Scan all guest sessions and include their ratings & notes
-    Object.entries(guests).forEach(([gid, g]) => {
-      const guestCoffees = g.data?.coffees;
-      if (Array.isArray(guestCoffees)) {
-        guestCoffees.forEach((gc: any) => {
-          if (!gc || !gc.name) return;
-          const cleanName = (gc.name || '').trim();
-          const cleanRoaster = (gc.roaster || '').trim();
-          const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
-          const existing = coffeeMap.get(key);
-          if (!existing) return;
-
-          const gRating = typeof gc.userRating === 'number' && gc.userRating > 0 ? gc.userRating : 0;
-          if (gRating > 0) existing.userRatings[`guest-${gid}`] = gRating;
-
-          const gNotes: string[] = [];
-          if (Array.isArray(gc.tastingNotesSummary)) gNotes.push(...gc.tastingNotesSummary);
-          if (Array.isArray(gc.tastingLogs)) {
-            gc.tastingLogs.forEach((l: any) => {
-              if (Array.isArray(l.flavorTags)) gNotes.push(...l.flavorTags);
-            });
-          }
-          if (gNotes.length > 0) {
-            existing.userTastingNotes[`guest-${gid}`] = gNotes;
-          }
-        });
-      }
-    });
-
-    // Compute aggregate for each item
+    // Compute aggregate for each item (applied ONLY to registered users)
     return Array.from(coffeeMap.values()).map((item) => {
       const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
       const aggTasting = this.calculateAggregateTastingNotes(item.userTastingNotes, item.baseNotes);
@@ -1410,21 +1455,6 @@ export class AuthStore {
       }
     });
 
-    const guests = this.getGuests();
-    Object.entries(guests).forEach(([gid, g]) => {
-      const guestGear = g.data?.equipment;
-      if (Array.isArray(guestGear)) {
-        guestGear.forEach((gq: any) => {
-          if (!gq || !gq.name) return;
-          const key = `${(gq.name || '').trim().toLowerCase()}::${(gq.brand || '').trim().toLowerCase()}`;
-          const existing = eqMap.get(key);
-          if (existing && typeof gq.rating === 'number' && gq.rating > 0) {
-            existing.userRatings[`guest-${gid}`] = gq.rating;
-          }
-        });
-      }
-    });
-
     return Array.from(eqMap.values()).map((item) => {
       const agg = this.calculateAggregateRating(item.userRatings, item.baseRating, item.baseRatingsCount);
 
@@ -1499,21 +1529,6 @@ export class AuthStore {
 
           if (typeof uc.rating === 'number' && uc.rating > 0) {
             existing.userRatings[u.id] = uc.rating;
-          }
-        });
-      }
-    });
-
-    const guests = this.getGuests();
-    Object.entries(guests).forEach(([gid, g]) => {
-      const guestCafes = (g as any).data?.cafes;
-      if (Array.isArray(guestCafes)) {
-        guestCafes.forEach((gc: any) => {
-          if (!gc || !gc.name) return;
-          const key = `${(gc.name || '').trim().toLowerCase()}::${(gc.city || '').trim().toLowerCase()}`;
-          const existing = cafeMap.get(key);
-          if (existing && typeof gc.rating === 'number' && gc.rating > 0) {
-            existing.userRatings[`guest-${gid}`] = gc.rating;
           }
         });
       }
