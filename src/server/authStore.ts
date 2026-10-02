@@ -468,6 +468,191 @@ export class AuthStore {
     return true;
   }
 
+  public static createUserByAdmin(
+    username: string,
+    password: string,
+    role: 'admin' | 'user' = 'user',
+    initialData?: UserDataPayload
+  ): StoredUser {
+    const users = this.getUsers();
+    const cleanUsername = username.trim();
+
+    if (users.some((u) => u.username.toLowerCase() === cleanUsername.toLowerCase())) {
+      throw new Error(`Username "${cleanUsername}" is already taken.`);
+    }
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = hashPassword(password, salt);
+
+    const newUser: StoredUser = {
+      id: `user-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+      username: cleanUsername,
+      passwordHash,
+      salt,
+      role,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: '',
+      updatedAt: new Date().toISOString(),
+      data: initialData || {},
+    };
+
+    users.push(newUser);
+    this.saveUsers(users);
+    return newUser;
+  }
+
+  public static updateUserRole(userId: string, newRole: 'admin' | 'user'): boolean {
+    const users = this.getUsers();
+    const index = users.findIndex((u) => u.id === userId);
+    if (index === -1) return false;
+    users[index].role = newRole;
+    users[index].updatedAt = new Date().toISOString();
+    this.saveUsers(users);
+    return true;
+  }
+
+  public static resetUserPassword(userId: string, newPassword: string): boolean {
+    const users = this.getUsers();
+    const index = users.findIndex((u) => u.id === userId);
+    if (index === -1) return false;
+    const salt = crypto.randomBytes(16).toString('hex');
+    users[index].salt = salt;
+    users[index].passwordHash = hashPassword(newPassword, salt);
+    users[index].updatedAt = new Date().toISOString();
+    this.saveUsers(users);
+    return true;
+  }
+
+  public static deleteGuest(guestId: string): boolean {
+    const guests = this.getGuests();
+    if (!guests[guestId]) return false;
+    delete guests[guestId];
+    this.writeJsonFile(GUESTS_FILE, guests);
+    return true;
+  }
+
+  public static cleanStaleSessions(): { removedCount: number; remainingCount: number } {
+    const sessions = this.getSessions();
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const active = sessions.filter((s) => s.createdAt > thirtyDaysAgo);
+    const removedCount = sessions.length - active.length;
+    this.saveSessions(active);
+    return { removedCount, remainingCount: active.length };
+  }
+
+  public static getUserFullData(userId: string): { user: any; data: UserDataPayload } | null {
+    const user = this.findById(userId);
+    if (!user) return null;
+    const { passwordHash, salt, ...safeUser } = user;
+    return {
+      user: safeUser,
+      data: user.data || {},
+    };
+  }
+
+  public static deleteUserItem(
+    userId: string,
+    category: 'coffees' | 'equipment' | 'cafes' | 'customNotes',
+    itemId: string
+  ): boolean {
+    const users = this.getUsers();
+    const index = users.findIndex((u) => u.id === userId);
+    if (index === -1) return false;
+
+    const userData = users[index].data || {};
+    const list = (userData as any)[category];
+    if (!Array.isArray(list)) return false;
+
+    const initialLen = list.length;
+    (userData as any)[category] = list.filter((item: any) => item.id !== itemId);
+    if ((userData as any)[category].length === initialLen) return false;
+
+    users[index].data = userData;
+    users[index].updatedAt = new Date().toISOString();
+    this.saveUsers(users);
+    return true;
+  }
+
+  public static addItemToUser(
+    userId: string,
+    category: 'coffees' | 'equipment' | 'cafes',
+    item: any
+  ): any {
+    const users = this.getUsers();
+    const index = users.findIndex((u) => u.id === userId);
+    if (index === -1) throw new Error('User not found');
+
+    const userData = users[index].data || {};
+    if (!Array.isArray((userData as any)[category])) {
+      (userData as any)[category] = [];
+    }
+
+    const newItem = {
+      ...item,
+      id: item.id || `admin_gen_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: item.createdAt || new Date().toISOString(),
+    };
+
+    (userData as any)[category].unshift(newItem);
+    users[index].data = userData;
+    users[index].updatedAt = new Date().toISOString();
+    this.saveUsers(users);
+    return newItem;
+  }
+
+  public static clearUserData(userId: string): boolean {
+    const users = this.getUsers();
+    const index = users.findIndex((u) => u.id === userId);
+    if (index === -1) return false;
+
+    users[index].data = {
+      coffees: [],
+      equipment: [],
+      cafes: [],
+      customNotes: [],
+      customShelves: [],
+    };
+    users[index].updatedAt = new Date().toISOString();
+    this.saveUsers(users);
+    return true;
+  }
+
+  public static recalculateAllRatings(): {
+    recalculatedCoffees: number;
+    recalculatedEquipment: number;
+    recalculatedCafes: number;
+  } {
+    const communityData = this.getCommunityItemsData();
+
+    const tally = {
+      recalculatedCoffees: (communityData.coffees || []).length,
+      recalculatedEquipment: (communityData.equipment || []).length,
+      recalculatedCafes: (communityData.cafes || []).length,
+    };
+
+    const processItems = (items: StoredCommunityItem[]) => {
+      for (const item of items) {
+        const ratingsMap = item.userRatings || {};
+        const agg = this.calculateAggregateRating(
+          ratingsMap,
+          item.baseRating,
+          item.baseRatingsCount
+        );
+        item.generalRating = agg.generalRating;
+        item.ratingsCount = agg.ratingsCount;
+        item.userCount = agg.userCount;
+        item.updatedAt = new Date().toISOString();
+      }
+    };
+
+    processItems(communityData.coffees || []);
+    processItems(communityData.equipment || []);
+    processItems(communityData.cafes || []);
+
+    this.saveCommunityItemsData(communityData);
+    return tally;
+  }
+
   public static getAllUsersSummary(): any[] {
     const users = this.getUsers();
     return users.map((u) => {
@@ -636,6 +821,168 @@ export class AuthStore {
       this.saveCommunityItemsData(data);
       return newItem;
     }
+  }
+
+  public static deleteCommunityItem(itemId: string): boolean {
+    const data = this.getCommunityItemsData();
+    let found = false;
+
+    if (Array.isArray(data.coffees)) {
+      const idx = data.coffees.findIndex((c) => c.id === itemId);
+      if (idx !== -1) {
+        data.coffees.splice(idx, 1);
+        found = true;
+      }
+    }
+    if (!found && Array.isArray(data.equipment)) {
+      const idx = data.equipment.findIndex((e) => e.id === itemId);
+      if (idx !== -1) {
+        data.equipment.splice(idx, 1);
+        found = true;
+      }
+    }
+    if (!found && Array.isArray(data.cafes)) {
+      const idx = data.cafes.findIndex((c) => c.id === itemId);
+      if (idx !== -1) {
+        data.cafes.splice(idx, 1);
+        found = true;
+      }
+    }
+
+    if (found) {
+      this.saveCommunityItemsData(data);
+    }
+    return found;
+  }
+
+  public static updateCommunityItem(
+    itemId: string,
+    updates: Partial<StoredCommunityItem>
+  ): StoredCommunityItem | null {
+    const data = this.getCommunityItemsData();
+    const lists = [data.coffees, data.equipment, data.cafes];
+
+    for (const list of lists) {
+      if (!Array.isArray(list)) continue;
+      const idx = list.findIndex((x) => x.id === itemId);
+      if (idx !== -1) {
+        const item = list[idx];
+        const updatedItem = {
+          ...item,
+          ...updates,
+          itemData: { ...item.itemData, ...(updates.itemData || {}) },
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (updates.name) updatedItem.name = updates.name.trim();
+        if (updates.secondary) updatedItem.secondary = updates.secondary.trim();
+
+        const agg = this.calculateAggregateRating(
+          updatedItem.userRatings || {},
+          updatedItem.baseRating,
+          updatedItem.baseRatingsCount
+        );
+        updatedItem.generalRating = agg.generalRating;
+        updatedItem.ratingsCount = agg.ratingsCount;
+        updatedItem.userCount = agg.userCount;
+
+        list[idx] = updatedItem;
+        this.saveCommunityItemsData(data);
+        return updatedItem;
+      }
+    }
+    return null;
+  }
+
+  public static deleteCommunityItemRating(itemId: string, raterKey: string): boolean {
+    const data = this.getCommunityItemsData();
+    const lists = [data.coffees, data.equipment, data.cafes];
+
+    for (const list of lists) {
+      if (!Array.isArray(list)) continue;
+      const idx = list.findIndex((x) => x.id === itemId);
+      if (idx !== -1) {
+        const item = list[idx];
+        if (item.userRatings && item.userRatings[raterKey] !== undefined) {
+          delete item.userRatings[raterKey];
+          const agg = this.calculateAggregateRating(
+            item.userRatings,
+            item.baseRating,
+            item.baseRatingsCount
+          );
+          item.generalRating = agg.generalRating;
+          item.ratingsCount = agg.ratingsCount;
+          item.userCount = agg.userCount;
+          item.updatedAt = new Date().toISOString();
+          list[idx] = item;
+          this.saveCommunityItemsData(data);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  public static resetCommunityItemRatings(itemId: string): boolean {
+    const data = this.getCommunityItemsData();
+    const lists = [data.coffees, data.equipment, data.cafes];
+
+    for (const list of lists) {
+      if (!Array.isArray(list)) continue;
+      const idx = list.findIndex((x) => x.id === itemId);
+      if (idx !== -1) {
+        const item = list[idx];
+        item.userRatings = {};
+        const agg = this.calculateAggregateRating({}, item.baseRating, item.baseRatingsCount);
+        item.generalRating = agg.generalRating;
+        item.ratingsCount = agg.ratingsCount;
+        item.userCount = agg.userCount;
+        item.updatedAt = new Date().toISOString();
+        list[idx] = item;
+        this.saveCommunityItemsData(data);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static getDetailedRatingsBreakdown(): any {
+    const communityData = this.getCommunityItemsData();
+    const users = this.getUsers();
+    const userMap = new Map(users.map((u) => [u.id, u.username]));
+
+    const formatList = (items: StoredCommunityItem[]) =>
+      (items || []).map((item) => {
+        const ratingEntries = Object.entries(item.userRatings || {}).map(([userId, rating]) => ({
+          userId,
+          username:
+            userMap.get(userId) ||
+            (userId.startsWith('guest-') ? `Guest (${userId.slice(6, 14)})` : userId),
+          rating,
+        }));
+
+        return {
+          id: item.id,
+          name: item.name,
+          secondary: item.secondary,
+          type: item.type,
+          generalRating: item.generalRating,
+          ratingsCount: item.ratingsCount,
+          userCount: item.userCount,
+          baseRating: item.baseRating,
+          baseRatingsCount: item.baseRatingsCount,
+          userRatings: ratingEntries,
+          itemData: item.itemData || {},
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        };
+      });
+
+    return {
+      coffees: formatList(communityData.coffees),
+      equipment: formatList(communityData.equipment),
+      cafes: formatList(communityData.cafes),
+    };
   }
 
   // Running catalog of all registered coffees across all users, community ratings, and defaults

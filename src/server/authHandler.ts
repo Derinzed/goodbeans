@@ -282,6 +282,275 @@ export async function handleAuthRoutes(
     return true;
   }
 
+  // 7c. POST /api/admin/users (Admin manually creates a user)
+  if (url === '/api/admin/users' && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    try {
+      const body = await readJsonBody(req);
+      const { username, password, role = 'user', initialData } = body;
+      if (!username || !password) {
+        sendJson(res, 400, { error: 'Username and password are required' });
+        return true;
+      }
+      const created = AuthStore.createUserByAdmin(username, password, role, initialData);
+      sendJson(res, 201, {
+        success: true,
+        user: {
+          id: created.id,
+          username: created.username,
+          role: created.role,
+          createdAt: created.createdAt,
+        },
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message || 'Failed to create user' });
+      return true;
+    }
+  }
+
+  // 7d. PUT /api/admin/users/:userId/role (Admin updates user role)
+  if (url.match(/^\/api\/admin\/users\/[^/]+\/role/) && method === 'PUT') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const targetUserId = url.split('/')[4];
+    try {
+      const body = await readJsonBody(req);
+      const { role } = body;
+      if (role !== 'admin' && role !== 'user') {
+        sendJson(res, 400, { error: 'Role must be admin or user' });
+        return true;
+      }
+      if (targetUserId === user.id && role !== 'admin') {
+        sendJson(res, 400, { error: 'You cannot demote your own admin account.' });
+        return true;
+      }
+      const updated = AuthStore.updateUserRole(targetUserId, role);
+      if (updated) {
+        sendJson(res, 200, { success: true, message: `Role updated to ${role}.` });
+      } else {
+        sendJson(res, 404, { error: 'User not found' });
+      }
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to update role' });
+      return true;
+    }
+  }
+
+  // 7e. PUT /api/admin/users/:userId/password (Admin resets user password)
+  if (url.match(/^\/api\/admin\/users\/[^/]+\/password/) && method === 'PUT') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const targetUserId = url.split('/')[4];
+    try {
+      const body = await readJsonBody(req);
+      const { newPassword } = body;
+      if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 3) {
+        sendJson(res, 400, { error: 'New password must be at least 3 characters long.' });
+        return true;
+      }
+      const updated = AuthStore.resetUserPassword(targetUserId, newPassword);
+      if (updated) {
+        sendJson(res, 200, { success: true, message: 'Password reset successfully.' });
+      } else {
+        sendJson(res, 404, { error: 'User not found' });
+      }
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to reset password' });
+      return true;
+    }
+  }
+
+  // 7f. GET /api/admin/ratings (Preview all ratings with user breakdowns)
+  if (url === '/api/admin/ratings' && method === 'GET') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    try {
+      const breakdown = AuthStore.getDetailedRatingsBreakdown();
+      sendJson(res, 200, {
+        success: true,
+        ...breakdown,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to fetch ratings breakdown' });
+      return true;
+    }
+  }
+
+  // 7g. POST /api/admin/community/items (Admin manually adds community catalog entry)
+  if (url === '/api/admin/community/items' && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    try {
+      const body = await readJsonBody(req);
+      const { type = 'coffee', item, rating } = body;
+      if (!item || !item.name) {
+        sendJson(res, 400, { error: 'Item with name is required' });
+        return true;
+      }
+      const created = AuthStore.recordCommunityItem(type, item, user.id, rating);
+      sendJson(res, 201, {
+        success: true,
+        item: created,
+        message: 'Community entry created successfully.',
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to create community entry' });
+      return true;
+    }
+  }
+
+  // 7h. PUT /api/admin/community/items/:itemId (Admin updates community entry)
+  if (url.match(/^\/api\/admin\/community\/items\/[^/]+$/) && method === 'PUT') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const itemId = url.split('/')[5];
+    try {
+      const body = await readJsonBody(req);
+      const updated = AuthStore.updateCommunityItem(itemId, body);
+      if (updated) {
+        sendJson(res, 200, { success: true, item: updated, message: 'Item updated successfully.' });
+      } else {
+        sendJson(res, 404, { error: 'Community item not found' });
+      }
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to update community item' });
+      return true;
+    }
+  }
+
+  // 7i. DELETE /api/admin/community/items/:itemId (Admin deletes community entry)
+  if (url.match(/^\/api\/admin\/community\/items\/[^/]+$/) && method === 'DELETE') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const itemId = url.split('/')[5];
+    const deleted = AuthStore.deleteCommunityItem(itemId);
+    if (deleted) {
+      sendJson(res, 200, { success: true, message: 'Item deleted from community catalog.' });
+    } else {
+      sendJson(res, 404, { error: 'Community item not found' });
+    }
+    return true;
+  }
+
+  // 7j. DELETE /api/admin/community/items/:itemId/ratings/:raterUserId (Admin deletes specific user rating)
+  if (url.match(/^\/api\/admin\/community\/items\/[^/]+\/ratings\/[^/]+/) && method === 'DELETE') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const parts = url.split('/');
+    const itemId = parts[5];
+    const raterKey = parts[7];
+    const deleted = AuthStore.deleteCommunityItemRating(itemId, raterKey);
+    if (deleted) {
+      sendJson(res, 200, { success: true, message: 'Rating deleted successfully.' });
+    } else {
+      sendJson(res, 404, { error: 'Rating not found for this item' });
+    }
+    return true;
+  }
+
+  // 7k. POST /api/admin/community/items/:itemId/reset-ratings (Admin resets all ratings on an item)
+  if (url.match(/^\/api\/admin\/community\/items\/[^/]+\/reset-ratings/) && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const itemId = url.split('/')[5];
+    const reset = AuthStore.resetCommunityItemRatings(itemId);
+    if (reset) {
+      sendJson(res, 200, { success: true, message: 'All user ratings for this item have been reset.' });
+    } else {
+      sendJson(res, 404, { error: 'Community item not found' });
+    }
+    return true;
+  }
+
+  // 7l. DELETE /api/admin/guests/:guestId (Admin clears a guest library)
+  if (url.startsWith('/api/admin/guests/') && method === 'DELETE') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const guestId = url.replace('/api/admin/guests/', '').split('?')[0];
+    const deleted = AuthStore.deleteGuest(guestId);
+    if (deleted) {
+      sendJson(res, 200, { success: true, message: `Guest session ${guestId} removed.` });
+    } else {
+      sendJson(res, 404, { error: 'Guest session not found' });
+    }
+    return true;
+  }
+
+  // 7m. POST /api/admin/sessions/clean (Admin cleans stale sessions)
+  if (url === '/api/admin/sessions/clean' && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const result = AuthStore.cleanStaleSessions();
+    sendJson(res, 200, {
+      success: true,
+      ...result,
+      message: `Cleaned ${result.removedCount} expired sessions. ${result.remainingCount} active sessions remain.`,
+    });
+    return true;
+  }
+
   // 8. DELETE /api/admin/users/:userId (Admin deletes a user)
   if (url.startsWith('/api/admin/users/') && method === 'DELETE') {
     const token = getBearerToken(req);
@@ -329,6 +598,123 @@ export async function handleAuthRoutes(
       exportedAt: new Date().toISOString(),
     });
     return true;
+  }
+
+  // 9b. GET /api/admin/users/:userId/data (Admin inspects detailed user library)
+  if (url.match(/^\/api\/admin\/users\/[^/]+\/data$/) && method === 'GET') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied.' });
+      return true;
+    }
+
+    const targetUserId = url.split('/')[4];
+    const details = AuthStore.getUserFullData(targetUserId);
+    if (!details) {
+      sendJson(res, 404, { error: 'User not found' });
+      return true;
+    }
+
+    sendJson(res, 200, {
+      success: true,
+      ...details,
+    });
+    return true;
+  }
+
+  // 9c. DELETE /api/admin/users/:userId/data/:category/:itemId (Admin deletes an entry from user's library)
+  if (url.match(/^\/api\/admin\/users\/[^/]+\/data\/[^/]+\/[^/]+$/) && method === 'DELETE') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied.' });
+      return true;
+    }
+
+    const parts = url.split('/');
+    const targetUserId = parts[4];
+    const category = parts[6] as 'coffees' | 'equipment' | 'cafes' | 'customNotes';
+    const itemId = parts[7];
+
+    const deleted = AuthStore.deleteUserItem(targetUserId, category, itemId);
+    if (deleted) {
+      sendJson(res, 200, { success: true, message: `Removed item from user's ${category}.` });
+    } else {
+      sendJson(res, 404, { error: 'Item not found in user library.' });
+    }
+    return true;
+  }
+
+  // 9d. POST /api/admin/users/:userId/data/:category (Admin injects an item into user's library)
+  if (url.match(/^\/api\/admin\/users\/[^/]+\/data\/[^/]+$/) && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied.' });
+      return true;
+    }
+
+    const parts = url.split('/');
+    const targetUserId = parts[4];
+    const category = parts[6] as 'coffees' | 'equipment' | 'cafes';
+
+    try {
+      const body = await readJsonBody(req);
+      const item = body.item || body;
+      const created = AuthStore.addItemToUser(targetUserId, category, item);
+      sendJson(res, 201, {
+        success: true,
+        item: created,
+        message: `Successfully added to user's ${category}.`,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message || 'Failed to add item to user' });
+      return true;
+    }
+  }
+
+  // 9e. POST /api/admin/users/:userId/clear (Admin wipes user's library items)
+  if (url.match(/^\/api\/admin\/users\/[^/]+\/clear$/) && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied.' });
+      return true;
+    }
+
+    const targetUserId = url.split('/')[4];
+    const cleared = AuthStore.clearUserData(targetUserId);
+    if (cleared) {
+      sendJson(res, 200, { success: true, message: 'User library wiped successfully.' });
+    } else {
+      sendJson(res, 404, { error: 'User not found.' });
+    }
+    return true;
+  }
+
+  // 9f. POST /api/admin/ratings/recalculate (Admin forces recalculation of all ratings)
+  if (url === '/api/admin/ratings/recalculate' && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied.' });
+      return true;
+    }
+
+    try {
+      const tally = AuthStore.recalculateAllRatings();
+      sendJson(res, 200, {
+        success: true,
+        ...tally,
+        message: `Recalculated ratings for ${tally.recalculatedCoffees} coffees, ${tally.recalculatedEquipment} gear, and ${tally.recalculatedCafes} cafes.`,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to recalculate ratings' });
+      return true;
+    }
   }
 
   // 10. GET /api/community/items (Running list of registered items with general ratings)
