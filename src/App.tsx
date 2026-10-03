@@ -25,6 +25,7 @@ import {
   LogIn,
   Shield,
   CheckCircle,
+  AlertCircle,
 } from 'lucide-react';
 import {
   Coffee,
@@ -652,17 +653,21 @@ export default function App() {
       return;
     }
     try {
-      await authApi.registerCommunityItem(
+      const res = await authApi.registerCommunityItem(
         'coffee',
         targetCoffee,
         typeof targetCoffee.userRating === 'number' && targetCoffee.userRating > 0 ? targetCoffee.userRating : undefined,
         Array.isArray(targetCoffee.tastingNotesSummary) ? targetCoffee.tastingNotesSummary : undefined,
         false
       );
+      if (res && res.error) {
+        setToastMessage(res.error);
+        return;
+      }
       await fetchCommunityCatalog();
       setToastMessage(`"${targetCoffee.name}" registered to community catalog!`);
-    } catch {
-      setToastMessage('Failed to register coffee to community catalog.');
+    } catch (err: any) {
+      setToastMessage(err?.message || 'Failed to register coffee to community catalog.');
     }
   };
 
@@ -869,13 +874,17 @@ export default function App() {
     if (authToken && currentUser) {
       try {
         if (registerToCommunity) {
-          await authApi.registerCommunityItem(
+          const res = await authApi.registerCommunityItem(
             'equipment',
             cleanEquipment,
             typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0 ? cleanEquipment.rating : undefined,
             undefined,
             false
           );
+          if (res && res.error) {
+            setToastMessage(res.error);
+            return;
+          }
           setToastMessage(`"${cleanEquipment.name}" registered to community equipment catalog!`);
         } else if (typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0) {
           await authApi.registerCommunityItem('equipment', cleanEquipment, cleanEquipment.rating, undefined, true);
@@ -892,17 +901,21 @@ export default function App() {
       return;
     }
     try {
-      await authApi.registerCommunityItem(
+      const res = await authApi.registerCommunityItem(
         'equipment',
         targetEquipment,
         typeof targetEquipment.rating === 'number' && targetEquipment.rating > 0 ? targetEquipment.rating : undefined,
         undefined,
         false
       );
+      if (res && res.error) {
+        setToastMessage(res.error);
+        return;
+      }
       await fetchCommunityCatalog();
       setToastMessage(`"${targetEquipment.name}" registered to community equipment catalog!`);
-    } catch {
-      setToastMessage('Failed to register equipment to community catalog.');
+    } catch (err: any) {
+      setToastMessage(err?.message || 'Failed to register equipment to community catalog.');
     }
   };
 
@@ -945,13 +958,17 @@ export default function App() {
     if (authToken && currentUser) {
       try {
         if (registerToCommunity) {
-          await authApi.registerCommunityItem(
+          const res = await authApi.registerCommunityItem(
             'cafe',
             cleanCafe,
             typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0 ? cleanCafe.rating : undefined,
             undefined,
             false
           );
+          if (res && res.error) {
+            setToastMessage(res.error);
+            return;
+          }
           setToastMessage(`"${cleanCafe.name}" registered to community cafe catalog!`);
         } else if (typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0) {
           await authApi.registerCommunityItem('cafe', cleanCafe, cleanCafe.rating, undefined, true);
@@ -968,17 +985,21 @@ export default function App() {
       return;
     }
     try {
-      await authApi.registerCommunityItem(
+      const res = await authApi.registerCommunityItem(
         'cafe',
         targetCafe,
         typeof targetCafe.rating === 'number' && targetCafe.rating > 0 ? targetCafe.rating : undefined,
         undefined,
         false
       );
+      if (res && res.error) {
+        setToastMessage(res.error);
+        return;
+      }
       await fetchCommunityCatalog();
       setToastMessage(`"${targetCafe.name}" registered to community cafe catalog!`);
-    } catch {
-      setToastMessage('Failed to register cafe to community catalog.');
+    } catch (err: any) {
+      setToastMessage(err?.message || 'Failed to register cafe to community catalog.');
     }
   };
 
@@ -2053,8 +2074,24 @@ export default function App() {
 
       {/* Floating In-App Toast Feedback */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#261F1A] text-white px-4 py-2.5 rounded-xl shadow-lg border border-[#3D3128] text-xs flex items-center gap-2 animate-fade-in pointer-events-none">
-          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-xs flex items-center gap-2 animate-fade-in pointer-events-none max-w-md ${
+            toastMessage.toLowerCase().includes('may not be submitted') ||
+            toastMessage.toLowerCase().includes('cannot be submitted') ||
+            toastMessage.toLowerCase().includes('rejected') ||
+            toastMessage.toLowerCase().includes('failed')
+              ? 'bg-[#2A1815] text-[#FFE8E6] border border-rose-900/80 shadow-rose-950/40'
+              : 'bg-[#261F1A] text-white border border-[#3D3128]'
+          }`}
+        >
+          {toastMessage.toLowerCase().includes('may not be submitted') ||
+          toastMessage.toLowerCase().includes('cannot be submitted') ||
+          toastMessage.toLowerCase().includes('rejected') ||
+          toastMessage.toLowerCase().includes('failed') ? (
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          ) : (
+            <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          )}
           <span>{toastMessage}</span>
         </div>
       )}

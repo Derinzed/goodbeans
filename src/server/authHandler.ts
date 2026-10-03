@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { AuthStore } from './authStore.ts';
 import { sanitizeUserData } from '../utils/communityLookup.ts';
+import { reviewCommunitySubmission } from './aiModeration.ts';
 
 // Helper to extract bearer token
 function getBearerToken(req: IncomingMessage): string | null {
@@ -505,6 +506,18 @@ export async function handleAuthRoutes(
         sendJson(res, 400, { error: 'Item with name is required' });
         return true;
       }
+
+      // AI Content Review before adding to community catalog
+      const reviewResult = await reviewCommunitySubmission(type, item);
+      if (!reviewResult.approved) {
+        sendJson(res, 400, {
+          success: false,
+          error: `Entry may not be submitted: ${reviewResult.reason || 'Information must be PG-rated and coffee-oriented.'}`,
+          reason: reviewResult.reason,
+        });
+        return true;
+      }
+
       const created = AuthStore.recordCommunityItem(type, item, user.id, rating);
       sendJson(res, 201, {
         success: true,
@@ -867,6 +880,17 @@ export async function handleAuthRoutes(
         });
         return true;
       }
+      // AI Content Review: ensure submission is PG-rated, non-explicit, and coffee-oriented
+      const reviewResult = await reviewCommunitySubmission(type, item);
+      if (!reviewResult.approved) {
+        sendJson(res, 400, {
+          success: false,
+          error: `Entry may not be submitted: ${reviewResult.reason || 'Information must be PG-rated and coffee-oriented.'}`,
+          reason: reviewResult.reason,
+        });
+        return true;
+      }
+
       const registered = AuthStore.recordCommunityItem(
         type,
         item,
