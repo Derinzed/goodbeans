@@ -8,7 +8,8 @@ interface CoffeeModalProps {
   initialCoffee?: Coffee | null;
   shelves: Shelf[];
   registeredCoffees?: RegisteredCoffee[];
-  onSave: (coffee: Coffee) => void;
+  isRegisteredUser?: boolean;
+  onSave: (coffee: Coffee, registerToCommunity?: boolean) => void;
   onClose: () => void;
 }
 
@@ -48,6 +49,7 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
   initialCoffee,
   shelves,
   registeredCoffees = [],
+  isRegisteredUser = false,
   onSave,
   onClose,
 }) => {
@@ -71,6 +73,7 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
     initialCoffee?.roastDate || new Date().toISOString().split('T')[0]
   );
   const [userRating, setUserRating] = useState<number>(initialCoffee?.userRating || 0);
+  const [registerToCommunity, setRegisterToCommunity] = useState(true);
   const [selectedShelfIds, setSelectedShelfIds] = useState<string[]>(
     initialCoffee?.shelfIds || ['currently-drinking']
   );
@@ -206,7 +209,7 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
       isFavorite: initialCoffee?.isFavorite || false,
     };
 
-    onSave(coffeeData);
+    onSave(coffeeData, !isEditing && !matchingRegistered && registerToCommunity);
   };
 
   // Filter registered coffees for recommendations display
@@ -318,18 +321,50 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
               </div>
 
               {matchingRegistered ? (
-                <div className="flex items-start gap-1.5 text-[11px] text-[#3B5A3E] bg-emerald-50/80 p-2 rounded-lg border border-emerald-200">
-                  <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600" />
-                  <span>
-                    Linked with registered item: <strong>{matchingRegistered.name}</strong> by <strong>{matchingRegistered.roaster}</strong>. General rating is computed from all baristas. (You may still customize the name below to track as your own distinct item).
-                  </span>
+                <div className="p-2.5 bg-emerald-50/80 rounded-lg border border-emerald-200 space-y-1.5 text-xs text-[#2E4A32]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-800 text-[11px]">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Linked with Registered Catalog Coffee</span>
+                    </div>
+                    <span className="text-[10px] font-mono bg-emerald-100 text-emerald-900 px-1.5 py-0.5 rounded">
+                      General Consensus
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60 text-[11px]">
+                    <span className="text-[#4A634E]">General Rating:</span>
+                    <div className="flex items-center gap-1 font-mono font-semibold text-emerald-900">
+                      <StarRatingDisplay
+                        rating={matchingRegistered.generalRating}
+                        count={matchingRegistered.ratingsCount}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
                 </div>
               ) : name.trim() ? (
-                <div className="flex items-start gap-1.5 text-[11px] text-[#6B5A4E] bg-white/70 p-2 rounded-lg border border-[#E5DACD]">
-                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#C87D32]" />
-                  <span>
-                    Custom bean: <strong>"{name}"</strong> will be registered as a new item in the community library, tracking its own general rating starting from your review.
-                  </span>
+                <div className="p-2.5 bg-white/90 rounded-lg border border-[#E5DACD] space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#8C4F1A]">
+                    <Info className="w-3.5 h-3.5 text-[#C87D32]" />
+                    <span>Unregistered Custom Coffee Bean</span>
+                  </div>
+                  {isRegisteredUser ? (
+                    <label className="flex items-start gap-2 cursor-pointer pt-1 border-t border-[#F0E6DB]">
+                      <input
+                        type="checkbox"
+                        checked={registerToCommunity}
+                        onChange={(e) => setRegisterToCommunity(e.target.checked)}
+                        className="mt-0.5 rounded border-[#DACDC0] text-[#C87D32] focus:ring-[#C87D32] w-3.5 h-3.5"
+                      />
+                      <span className="text-[11px] text-[#553E2F] leading-tight">
+                        Register <strong>"{name.trim()}"</strong> to the site's shared community catalog upon saving
+                      </span>
+                    </label>
+                  ) : (
+                    <p className="text-[11px] text-[#7A6757] leading-relaxed pt-1 border-t border-[#F0E6DB]">
+                      This coffee will be stored in your personal library. Sign in to contribute evaluations and register beans to the site.
+                    </p>
+                  )}
                 </div>
               ) : null}
             </div>

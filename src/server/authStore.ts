@@ -38,6 +38,85 @@ export interface UserDataPayload {
   [key: string]: any;
 }
 
+// Deeply merges two user data payloads so no custom coffees, gear, cafes, notes, or shelves are ever lost or duplicated
+export function mergeUserDataPayload(
+  existingData: UserDataPayload = {},
+  incomingData: UserDataPayload = {}
+): UserDataPayload {
+  const merged: UserDataPayload = { ...(existingData || {}) };
+
+  const mergeList = (existingList: any[] = [], incomingList: any[] = [], secondaryKey?: string) => {
+    const result: any[] = [];
+
+    const isMatch = (a: any, b: any): boolean => {
+      if (!a || !b) return false;
+      const aId = a.id ? String(a.id).trim() : '';
+      const bId = b.id ? String(b.id).trim() : '';
+      if (aId && bId && aId === bId) return true;
+
+      const aName = a.name ? String(a.name).trim().toLowerCase() : '';
+      const bName = b.name ? String(b.name).trim().toLowerCase() : '';
+      if (aName && bName && aName === bName) {
+        if (!secondaryKey) return true;
+        const aSec = a[secondaryKey] ? String(a[secondaryKey]).trim().toLowerCase() : '';
+        const bSec = b[secondaryKey] ? String(b[secondaryKey]).trim().toLowerCase() : '';
+        return aSec === bSec;
+      }
+      return false;
+    };
+
+    (Array.isArray(existingList) ? existingList : []).forEach((item) => {
+      if (!item) return;
+      const idx = result.findIndex((r) => isMatch(r, item));
+      if (idx === -1) {
+        result.push({ ...item });
+      } else {
+        result[idx] = { ...result[idx], ...item };
+      }
+    });
+
+    (Array.isArray(incomingList) ? incomingList : []).forEach((item) => {
+      if (!item) return;
+      const idx = result.findIndex((r) => isMatch(r, item));
+      if (idx === -1) {
+        result.push({ ...item });
+      } else {
+        result[idx] = {
+          ...result[idx],
+          ...item,
+          tastingLogs:
+            Array.isArray(result[idx].tastingLogs) || Array.isArray(item.tastingLogs)
+              ? [...(result[idx].tastingLogs || []), ...(item.tastingLogs || [])].filter(
+                  (val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i
+                )
+              : item.tastingLogs || result[idx].tastingLogs,
+          recipes:
+            Array.isArray(result[idx].recipes) || Array.isArray(item.recipes)
+              ? [...(result[idx].recipes || []), ...(item.recipes || [])].filter(
+                  (val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i
+                )
+              : item.recipes || result[idx].recipes,
+        };
+      }
+    });
+
+    return result;
+  };
+
+  merged.coffees = mergeList(existingData?.coffees, incomingData?.coffees, 'roaster');
+  merged.equipment = mergeList(existingData?.equipment, incomingData?.equipment, 'brand');
+  merged.cafes = mergeList(existingData?.cafes, incomingData?.cafes, 'city');
+  merged.notes = mergeList(existingData?.notes, incomingData?.notes);
+  merged.shelves = mergeList(existingData?.shelves, incomingData?.shelves);
+
+  if (incomingData?.theme) merged.theme = incomingData.theme;
+  if (incomingData?.primaryHue) merged.primaryHue = incomingData.primaryHue;
+  if (incomingData?.secondaryHue) merged.secondaryHue = incomingData.secondaryHue;
+  if (incomingData?.backgroundColor) merged.backgroundColor = incomingData.backgroundColor;
+
+  return sanitizeUserData(merged);
+}
+
 export interface StoredUser {
   id: string;
   username: string;
@@ -192,16 +271,23 @@ export class AuthStore {
       } catch {}
     }
 
-    // Merge users so neither file loses registered accounts
+    // Merge users so neither file loses registered accounts or custom items
     const userMap = new Map<string, StoredUser>();
     (Array.isArray(backupList) ? backupList : []).forEach((u) => {
-      if (u && u.id) userMap.set(u.id, u);
+      if (u && u.id) userMap.set(u.id, { ...u, data: sanitizeUserData(u.data || {}) });
     });
     (Array.isArray(usersList) ? usersList : []).forEach((u) => {
       if (u && u.id) {
         const existing = userMap.get(u.id);
-        if (!existing || (u.updatedAt && (!existing.updatedAt || u.updatedAt >= existing.updatedAt))) {
-          userMap.set(u.id, u);
+        if (!existing) {
+          userMap.set(u.id, { ...u, data: sanitizeUserData(u.data || {}) });
+        } else {
+          const mergedData = mergeUserDataPayload(existing.data, u.data);
+          const isUNewer = u.updatedAt && (!existing.updatedAt || u.updatedAt >= existing.updatedAt);
+          userMap.set(u.id, {
+            ...(isUNewer ? u : existing),
+            data: mergedData,
+          });
         }
       }
     });
@@ -400,6 +486,101 @@ export class AuthStore {
           itemData: cafe,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+        });
+      }
+    });
+
+    // 5. Merge any custom items present in user accounts into communityData so catalog items are never dropped across redeployments
+    mergedUsers.forEach((u) => {
+      if (Array.isArray(u.data?.coffees)) {
+        u.data.coffees.forEach((c: any) => {
+          if (!c || !c.name) return;
+          const cleanName = (c.name || '').trim();
+          const cleanRoaster = (c.roaster || '').trim();
+          const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
+          const existing = mergedCoffees.find(
+            (x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key || (c.id && x.id === c.id)
+          );
+          if (!existing) {
+            mergedCoffees.push({
+              id: c.id || `coffee-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              name: cleanName,
+              secondary: cleanRoaster,
+              type: 'coffee',
+              userRatings: typeof c.userRating === 'number' && c.userRating > 0 ? { [u.id]: c.userRating } : {},
+              generalRating: typeof c.userRating === 'number' && c.userRating > 0 ? c.userRating : 0,
+              ratingsCount: typeof c.userRating === 'number' && c.userRating > 0 ? 1 : 0,
+              userCount: 1,
+              generalTastingNotes: Array.isArray(c.tastingNotesSummary) ? c.tastingNotesSummary : [],
+              tastingNotesBreakdown: [],
+              itemData: c,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          } else if (typeof c.userRating === 'number' && c.userRating > 0) {
+            existing.userRatings = existing.userRatings || {};
+            existing.userRatings[u.id] = c.userRating;
+          }
+        });
+      }
+
+      if (Array.isArray(u.data?.equipment)) {
+        u.data.equipment.forEach((eq: any) => {
+          if (!eq || !eq.name) return;
+          const cleanName = (eq.name || '').trim();
+          const cleanBrand = (eq.brand || '').trim();
+          const key = `${cleanName.toLowerCase()}::${cleanBrand.toLowerCase()}`;
+          const existing = mergedEquipment.find(
+            (x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key || (eq.id && x.id === eq.id)
+          );
+          if (!existing) {
+            mergedEquipment.push({
+              id: eq.id || `eq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              name: cleanName,
+              secondary: cleanBrand,
+              type: 'equipment',
+              userRatings: typeof eq.rating === 'number' && eq.rating > 0 ? { [u.id]: eq.rating } : {},
+              generalRating: typeof eq.rating === 'number' && eq.rating > 0 ? eq.rating : 0,
+              ratingsCount: typeof eq.rating === 'number' && eq.rating > 0 ? 1 : 0,
+              userCount: 1,
+              itemData: eq,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          } else if (typeof eq.rating === 'number' && eq.rating > 0) {
+            existing.userRatings = existing.userRatings || {};
+            existing.userRatings[u.id] = eq.rating;
+          }
+        });
+      }
+
+      if (Array.isArray(u.data?.cafes)) {
+        u.data.cafes.forEach((cafe: any) => {
+          if (!cafe || !cafe.name) return;
+          const cleanName = (cafe.name || '').trim();
+          const cleanCity = (cafe.city || '').trim();
+          const key = `${cleanName.toLowerCase()}::${cleanCity.toLowerCase()}`;
+          const existing = mergedCafes.find(
+            (x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key || (cafe.id && x.id === cafe.id)
+          );
+          if (!existing) {
+            mergedCafes.push({
+              id: cafe.id || `cafe-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              name: cleanName,
+              secondary: cleanCity,
+              type: 'cafe',
+              userRatings: typeof cafe.rating === 'number' && cafe.rating > 0 ? { [u.id]: cafe.rating } : {},
+              generalRating: typeof cafe.rating === 'number' && cafe.rating > 0 ? cafe.rating : 0,
+              ratingsCount: typeof cafe.rating === 'number' && cafe.rating > 0 ? 1 : 0,
+              userCount: 1,
+              itemData: cafe,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          } else if (typeof cafe.rating === 'number' && cafe.rating > 0) {
+            existing.userRatings = existing.userRatings || {};
+            existing.userRatings[u.id] = cafe.rating;
+          }
         });
       }
     });
@@ -690,14 +871,10 @@ export class AuthStore {
 
     if (existingIndex >= 0) {
       const existing = users[existingIndex];
-      if (
-        clientData &&
-        typeof clientData === 'object' &&
-        (!existing.data?.coffees || existing.data.coffees.length === 0) &&
-        Array.isArray(clientData.coffees) &&
-        clientData.coffees.length > 0
-      ) {
-        existing.data = sanitizeUserData({ ...existing.data, ...clientData });
+      const incoming = clientData || vault.data;
+      if (incoming && typeof incoming === 'object') {
+        const mergedData = mergeUserDataPayload(existing.data, incoming);
+        existing.data = mergedData;
         existing.updatedAt = new Date().toISOString();
         users[existingIndex] = existing;
         this.saveUsers(users);
@@ -1056,7 +1233,7 @@ export class AuthStore {
         const agg = this.calculateAggregateRating(ratingsMap);
         item.generalRating = agg.generalRating;
         item.ratingsCount = agg.ratingsCount;
-        item.userCount = agg.userCount;
+        item.userCount = this.countCurrentItemOwners(item.type, item.name, item.secondary) || agg.ratingsCount;
         if (item.type === 'coffee') {
           const aggTasting = this.calculateAggregateTastingNotes(item.userTastingNotes || {});
           item.generalTastingNotes = aggTasting.generalTastingNotes;
@@ -1143,30 +1320,81 @@ export class AuthStore {
   // Calculate mathematically exact aggregate general rating across all registered user ratings (defaults to 0 if unrated)
   private static calculateAggregateRating(
     userRatings: Record<string, number>
-  ): { generalRating: number; ratingsCount: number; userCount: number } {
+  ): { generalRating: number; ratingsCount: number } {
     // Only registered user accounts contribute to general ratings
     const registeredUserIds = new Set(this.getUsers().map((u) => u.id));
     const ratingsList = Object.entries(userRatings || {})
       .filter(([uid, r]) => registeredUserIds.has(uid) && typeof r === 'number' && r > 0)
       .map(([, r]) => r);
 
-    const userCount = ratingsList.length;
-    if (userCount === 0) {
+    const ratingsCount = ratingsList.length;
+    if (ratingsCount === 0) {
       return {
         generalRating: 0,
         ratingsCount: 0,
-        userCount: 0,
       };
     }
 
     const userSum = ratingsList.reduce((acc, r) => acc + r, 0);
-    const generalRating = Number((userSum / userCount).toFixed(1));
+    const generalRating = Number((userSum / ratingsCount).toFixed(1));
 
     return {
       generalRating,
-      ratingsCount: userCount,
-      userCount,
+      ratingsCount,
     };
+  }
+
+  // Count active registered users who currently have this item in their active shelves / library
+  public static countCurrentItemOwners(
+    type: 'coffee' | 'equipment' | 'cafe',
+    name: string,
+    secondary: string
+  ): number {
+    const users = this.getUsers();
+    const cleanName = (name || '').trim().toLowerCase();
+    const cleanSec = (secondary || '').trim().toLowerCase();
+    const key = `${cleanName}::${cleanSec}`;
+
+    const owners = new Set<string>();
+    users.forEach((u) => {
+      const data = u.data || {};
+      if (type === 'coffee' && Array.isArray(data.coffees)) {
+        if (
+          data.coffees.some((c: any) => {
+            if (!c || !c.name) return false;
+            const cn = (c.name || '').trim().toLowerCase();
+            const cr = (c.roaster || '').trim().toLowerCase();
+            return `${cn}::${cr}` === key || (cn === cleanName && (!cleanSec || !cr || cr === cleanSec));
+          })
+        ) {
+          owners.add(u.id);
+        }
+      } else if (type === 'equipment' && Array.isArray(data.equipment)) {
+        if (
+          data.equipment.some((eq: any) => {
+            if (!eq || !eq.name) return false;
+            const cn = (eq.name || '').trim().toLowerCase();
+            const cb = (eq.brand || '').trim().toLowerCase();
+            return `${cn}::${cb}` === key || (cn === cleanName && (!cleanSec || !cb || cb === cleanSec));
+          })
+        ) {
+          owners.add(u.id);
+        }
+      } else if (type === 'cafe' && Array.isArray(data.cafes)) {
+        if (
+          data.cafes.some((cafe: any) => {
+            if (!cafe || !cafe.name) return false;
+            const cn = (cafe.name || '').trim().toLowerCase();
+            const cc = (cafe.city || '').trim().toLowerCase();
+            return `${cn}::${cc}` === key || (cn === cleanName && (!cleanSec || !cc || cc === cleanSec));
+          })
+        ) {
+          owners.add(u.id);
+        }
+      }
+    });
+
+    return owners.size;
   }
 
   // Calculate aggregate tasting notes across all user evaluations (registered accounts only, top 5 displayed in proper casing)
@@ -1322,7 +1550,7 @@ export class AuthStore {
 
       existing.generalRating = agg.generalRating;
       existing.ratingsCount = agg.ratingsCount;
-      existing.userCount = agg.userCount;
+      existing.userCount = this.countCurrentItemOwners(type, cleanName, secondary) || agg.ratingsCount;
       existing.updatedAt = new Date().toISOString();
       existing.itemData = { ...existing.itemData, ...item };
 
@@ -1353,6 +1581,7 @@ export class AuthStore {
 
       const agg = this.calculateAggregateRating(userRatings);
       const aggTasting = this.calculateAggregateTastingNotes(userTastingNotes);
+      const liveOwnerCount = this.countCurrentItemOwners(type, cleanName, secondary);
 
       const newItem: StoredCommunityItem = {
         id: item.id || `community-${type}-${Date.now()}`,
@@ -1363,7 +1592,7 @@ export class AuthStore {
         userTastingNotes: type === 'coffee' ? userTastingNotes : undefined,
         generalRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
-        userCount: agg.userCount,
+        userCount: liveOwnerCount > 0 ? liveOwnerCount : agg.ratingsCount > 0 ? agg.ratingsCount : 1,
         generalTastingNotes: type === 'coffee' ? aggTasting.generalTastingNotes : undefined,
         tastingNotesBreakdown: type === 'coffee' ? aggTasting.tastingNotesBreakdown : undefined,
         itemData: item,
@@ -1436,7 +1665,11 @@ export class AuthStore {
         );
         updatedItem.generalRating = agg.generalRating;
         updatedItem.ratingsCount = agg.ratingsCount;
-        updatedItem.userCount = agg.userCount;
+        updatedItem.userCount = this.countCurrentItemOwners(
+          updatedItem.type,
+          updatedItem.name,
+          updatedItem.secondary
+        ) || agg.ratingsCount;
 
         list[idx] = updatedItem;
         this.saveCommunityItemsData(data);
@@ -1460,7 +1693,7 @@ export class AuthStore {
           const agg = this.calculateAggregateRating(item.userRatings);
           item.generalRating = agg.generalRating;
           item.ratingsCount = agg.ratingsCount;
-          item.userCount = agg.userCount;
+          item.userCount = this.countCurrentItemOwners(item.type, item.name, item.secondary) || agg.ratingsCount;
           item.updatedAt = new Date().toISOString();
           list[idx] = item;
           this.saveCommunityItemsData(data);
@@ -1484,7 +1717,7 @@ export class AuthStore {
         const agg = this.calculateAggregateRating({});
         item.generalRating = agg.generalRating;
         item.ratingsCount = agg.ratingsCount;
-        item.userCount = agg.userCount;
+        item.userCount = this.countCurrentItemOwners(item.type, item.name, item.secondary);
         item.updatedAt = new Date().toISOString();
         list[idx] = item;
         this.saveCommunityItemsData(data);
@@ -1514,6 +1747,8 @@ export class AuthStore {
             ? this.calculateAggregateTastingNotes(item.userTastingNotes || {})
             : undefined;
 
+        const liveOwnerCount = this.countCurrentItemOwners(item.type, item.name, item.secondary);
+
         return {
           id: item.id,
           name: item.name,
@@ -1521,7 +1756,7 @@ export class AuthStore {
           type: item.type,
           generalRating: item.generalRating,
           ratingsCount: item.ratingsCount,
-          userCount: item.userCount,
+          userCount: liveOwnerCount > 0 ? liveOwnerCount : item.ratingsCount,
           userRatings: ratingEntries,
           generalTastingNotes: aggTasting?.generalTastingNotes || item.generalTastingNotes || [],
           tastingNotesBreakdown: aggTasting?.tastingNotesBreakdown || item.tastingNotesBreakdown || [],
@@ -1577,6 +1812,7 @@ export class AuthStore {
         id: c.id,
         name: cleanName,
         roaster: cleanRoaster,
+        currentOwners: new Set<string>(),
         userRatings,
         userTastingNotes,
         baseNotes,
@@ -1590,7 +1826,7 @@ export class AuthStore {
       });
     });
 
-    // 2. Scan all registered users and aggregate user ratings and tasting notes
+    // 2. Scan all registered users and aggregate user ratings, tasting notes, and active ownership
     users.forEach((u) => {
       const userCoffees = u.data?.coffees;
       if (Array.isArray(userCoffees)) {
@@ -1599,6 +1835,37 @@ export class AuthStore {
           const cleanName = (uc.name || '').trim();
           const cleanRoaster = (uc.roaster || '').trim();
           const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
+
+          let existing = coffeeMap.get(key);
+          if (!existing) {
+            const matchEntry = Array.from(coffeeMap.entries()).find(([k]) => k.startsWith(`${cleanName.toLowerCase()}::`));
+            if (matchEntry) {
+              existing = matchEntry[1];
+            }
+          }
+
+          if (!existing) {
+            existing = {
+              id: uc.id || `coffee-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+              name: cleanName,
+              roaster: cleanRoaster,
+              currentOwners: new Set<string>(),
+              userRatings: {},
+              userTastingNotes: {},
+              baseNotes: Array.isArray(uc.tastingNotesSummary) ? uc.tastingNotesSummary : [],
+              origin: uc.origin || { country: 'Single Origin' },
+              variety: uc.variety || 'Arabica',
+              process: uc.process || 'Washed',
+              roastLevel: uc.roastLevel || 'Medium',
+              coverColor: uc.coverColor || '#C87D32',
+              description: uc.description || '',
+              tastingNotesSummary: Array.isArray(uc.tastingNotesSummary) ? uc.tastingNotesSummary : [],
+            };
+            coffeeMap.set(key, existing);
+          }
+
+          // Mark user as active owner of this coffee
+          existing.currentOwners.add(u.id);
 
           // Personal rating or tasting logs average
           let userRating = typeof uc.userRating === 'number' && uc.userRating > 0 ? uc.userRating : 0;
@@ -1618,17 +1885,6 @@ export class AuthStore {
             });
           }
 
-          let existing = coffeeMap.get(key);
-          if (!existing) {
-            const matchEntry = Array.from(coffeeMap.entries()).find(([k]) => k.startsWith(`${cleanName.toLowerCase()}::`));
-            if (matchEntry) {
-              existing = matchEntry[1];
-            }
-          }
-
-          // Personal items do not register items into the community catalog; only populate ratings if registered
-          if (!existing) return;
-
           if (userRating > 0) {
             existing.userRatings[u.id] = userRating;
           }
@@ -1643,6 +1899,7 @@ export class AuthStore {
     return Array.from(coffeeMap.values()).map((item) => {
       const agg = this.calculateAggregateRating(item.userRatings);
       const aggTasting = this.calculateAggregateTastingNotes(item.userTastingNotes);
+      const userCount = item.currentOwners.size > 0 ? item.currentOwners.size : agg.ratingsCount;
 
       return {
         id: item.id,
@@ -1661,7 +1918,7 @@ export class AuthStore {
         communityRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
         communityRatingsCount: agg.ratingsCount,
-        userCount: agg.userCount,
+        userCount,
         isRecommended: agg.ratingsCount > 0 && agg.generalRating >= 4.5,
       };
     }).sort((a, b) => b.generalRating - a.generalRating);
@@ -1693,6 +1950,7 @@ export class AuthStore {
         name: cleanName,
         brand: cleanBrand,
         category: eq.itemData?.category || 'Accessory',
+        currentOwners: new Set<string>(),
         userRatings,
         settingsNotes: eq.itemData?.settingsNotes || '',
         maintenanceNotes: eq.itemData?.maintenanceNotes || '',
@@ -1717,8 +1975,23 @@ export class AuthStore {
             }
           }
 
-          // Personal gear does not register items into the community catalog; only populate ratings if registered
-          if (!existing) return;
+          if (!existing) {
+            existing = {
+              id: ueq.id || `eq-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+              name: cleanName,
+              brand: cleanBrand,
+              category: ueq.category || 'Accessory',
+              currentOwners: new Set<string>(),
+              userRatings: {},
+              settingsNotes: ueq.settingsNotes || '',
+              maintenanceNotes: ueq.maintenanceNotes || '',
+              generalNotes: ueq.generalNotes || '',
+            };
+            eqMap.set(key, existing);
+          }
+
+          // Mark user as active owner of this equipment
+          existing.currentOwners.add(u.id);
 
           if (typeof ueq.rating === 'number' && ueq.rating > 0) {
             existing.userRatings[u.id] = ueq.rating;
@@ -1729,6 +2002,7 @@ export class AuthStore {
 
     return Array.from(eqMap.values()).map((item) => {
       const agg = this.calculateAggregateRating(item.userRatings);
+      const userCount = item.currentOwners.size > 0 ? item.currentOwners.size : agg.ratingsCount;
 
       return {
         id: item.id,
@@ -1740,7 +2014,7 @@ export class AuthStore {
         generalNotes: item.generalNotes,
         generalRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
-        userCount: agg.userCount,
+        userCount,
         isRecommended: agg.ratingsCount > 0 && agg.generalRating >= 4.5,
       };
     }).sort((a, b) => b.generalRating - a.generalRating);
@@ -1776,6 +2050,7 @@ export class AuthStore {
         vibes: Array.isArray(c.itemData?.vibes) ? c.itemData.vibes : [],
         favoriteDrink: c.itemData?.favoriteDrink || '',
         notes: c.itemData?.notes || '',
+        currentOwners: new Set<string>(),
         userRatings,
       });
     });
@@ -1797,8 +2072,24 @@ export class AuthStore {
             }
           }
 
-          // Personal cafes do not register items into the community catalog; only populate ratings if registered
-          if (!existing) return;
+          if (!existing) {
+            existing = {
+              id: uc.id || `cafe-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+              name: cleanName,
+              city: cleanCity,
+              country: uc.country || '',
+              address: uc.address || '',
+              vibes: Array.isArray(uc.vibes) ? uc.vibes : [],
+              favoriteDrink: uc.favoriteDrink || '',
+              notes: uc.notes || '',
+              currentOwners: new Set<string>(),
+              userRatings: {},
+            };
+            cafeMap.set(key, existing);
+          }
+
+          // Mark user as active owner of this cafe
+          existing.currentOwners.add(u.id);
 
           if (typeof uc.rating === 'number' && uc.rating > 0) {
             existing.userRatings[u.id] = uc.rating;
@@ -1811,6 +2102,7 @@ export class AuthStore {
 
     return Array.from(cafeMap.values()).map((item) => {
       const agg = this.calculateAggregateRating(item.userRatings);
+      const userCount = item.currentOwners.size > 0 ? item.currentOwners.size : agg.ratingsCount;
 
       return {
         id: item.id,
@@ -1823,7 +2115,7 @@ export class AuthStore {
         notes: item.notes,
         generalRating: agg.generalRating,
         ratingsCount: agg.ratingsCount,
-        userCount: agg.userCount,
+        userCount,
         isRecommended: agg.ratingsCount > 0 && agg.generalRating >= 4.5,
       };
     }).sort((a, b) => b.generalRating - a.generalRating);

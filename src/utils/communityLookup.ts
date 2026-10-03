@@ -185,19 +185,78 @@ export function stripGeneralCafeFields(cafe: any): any {
 }
 
 /**
- * Sanitizes an entire user data payload so it contains strictly user-specific data.
+ * Deduplicates an array of items by matching either identical IDs or identical (name + secondary key).
+ */
+export function deduplicateItems<T extends { id?: string; name?: string; [key: string]: any }>(
+  list: T[],
+  secondaryKey?: string
+): T[] {
+  if (!Array.isArray(list)) return [];
+  const result: T[] = [];
+
+  const isMatch = (a: T, b: T): boolean => {
+    if (!a || !b) return false;
+    const aId = a.id ? String(a.id).trim() : '';
+    const bId = b.id ? String(b.id).trim() : '';
+    if (aId && bId && aId === bId) return true;
+
+    const aName = a.name ? String(a.name).trim().toLowerCase() : '';
+    const bName = b.name ? String(b.name).trim().toLowerCase() : '';
+    if (aName && bName && aName === bName) {
+      if (!secondaryKey) return true;
+      const aSec = a[secondaryKey] ? String(a[secondaryKey]).trim().toLowerCase() : '';
+      const bSec = b[secondaryKey] ? String(b[secondaryKey]).trim().toLowerCase() : '';
+      return aSec === bSec;
+    }
+    return false;
+  };
+
+  list.forEach((item) => {
+    if (!item) return;
+    const existingIdx = result.findIndex((r) => isMatch(r, item));
+    if (existingIdx === -1) {
+      result.push({ ...item });
+    } else {
+      result[existingIdx] = {
+        ...result[existingIdx],
+        ...item,
+        ...(Array.isArray((result[existingIdx] as any).tastingLogs) || Array.isArray((item as any).tastingLogs)
+          ? {
+              tastingLogs: [
+                ...((result[existingIdx] as any).tastingLogs || []),
+                ...((item as any).tastingLogs || []),
+              ].filter((val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i),
+            }
+          : {}),
+        ...(Array.isArray((result[existingIdx] as any).recipes) || Array.isArray((item as any).recipes)
+          ? {
+              recipes: [
+                ...((result[existingIdx] as any).recipes || []),
+                ...((item as any).recipes || []),
+              ].filter((val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i),
+            }
+          : {}),
+      };
+    }
+  });
+
+  return result;
+}
+
+/**
+ * Sanitizes an entire user data payload so it contains strictly user-specific data and no duplicates.
  */
 export function sanitizeUserData(data: any): any {
   if (!data || typeof data !== 'object') return data;
   const sanitized = { ...data };
   if (Array.isArray(sanitized.coffees)) {
-    sanitized.coffees = sanitized.coffees.map(stripGeneralCoffeeFields);
+    sanitized.coffees = deduplicateItems(sanitized.coffees.map(stripGeneralCoffeeFields), 'roaster');
   }
   if (Array.isArray(sanitized.equipment)) {
-    sanitized.equipment = sanitized.equipment.map(stripGeneralEquipmentFields);
+    sanitized.equipment = deduplicateItems(sanitized.equipment.map(stripGeneralEquipmentFields), 'brand');
   }
   if (Array.isArray(sanitized.cafes)) {
-    sanitized.cafes = sanitized.cafes.map(stripGeneralCafeFields);
+    sanitized.cafes = deduplicateItems(sanitized.cafes.map(stripGeneralCafeFields), 'city');
   }
   return sanitized;
 }

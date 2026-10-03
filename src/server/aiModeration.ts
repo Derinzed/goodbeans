@@ -113,10 +113,13 @@ Return ONLY a JSON object:
 
     const userPrompt = `Review this community catalog submission for "${type}":\n\n${payloadString}\n\nReturn JSON only.`;
 
-    const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.7-flash', 'gemini-flash'];
     for (const model of modelsToTry) {
       try {
-        const response = await ai.models.generateContent({
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Moderation timeout')), 3500)
+        );
+        const apiPromise = ai.models.generateContent({
           model,
           contents: userPrompt,
           config: {
@@ -124,6 +127,8 @@ Return ONLY a JSON object:
             temperature: 0.0,
           },
         });
+
+        const response: any = await Promise.race([apiPromise, timeoutPromise]);
 
         let rawText = response.text || '';
         const fenceMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
@@ -145,7 +150,7 @@ Return ONLY a JSON object:
           };
         }
       } catch (err: any) {
-        console.warn(`Moderation model ${model} attempt failed:`, err?.message?.slice(0, 100));
+        console.warn(`Moderation model ${model} attempt skipped:`, err?.message?.slice(0, 100));
       }
     }
   }

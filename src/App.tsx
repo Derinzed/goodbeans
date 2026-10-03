@@ -73,14 +73,15 @@ import {
   stripGeneralEquipmentFields,
   stripGeneralCafeFields,
   sanitizeUserData,
+  deduplicateItems,
 } from './utils/communityLookup';
 
 export default function App() {
-  // Local storage state initialization
+  // Local storage state initialization with immediate deduplication
   const [coffees, setCoffees] = useState<Coffee[]>(() => {
     try {
       const saved = localStorage.getItem('goodbeans_coffees');
-      return saved ? JSON.parse(saved).map(stripGeneralCoffeeFields) : INITIAL_COFFEES;
+      return saved ? deduplicateItems(JSON.parse(saved).map(stripGeneralCoffeeFields), 'roaster') : INITIAL_COFFEES;
     } catch {
       return INITIAL_COFFEES;
     }
@@ -89,7 +90,7 @@ export default function App() {
   const [equipment, setEquipment] = useState<Equipment[]>(() => {
     try {
       const saved = localStorage.getItem('goodbeans_equipment');
-      return saved ? JSON.parse(saved).map(stripGeneralEquipmentFields) : INITIAL_EQUIPMENT;
+      return saved ? deduplicateItems(JSON.parse(saved).map(stripGeneralEquipmentFields), 'brand') : INITIAL_EQUIPMENT;
     } catch {
       return INITIAL_EQUIPMENT;
     }
@@ -98,7 +99,7 @@ export default function App() {
   const [cafes, setCafes] = useState<Cafe[]>(() => {
     try {
       const saved = localStorage.getItem('goodbeans_cafes');
-      return saved ? JSON.parse(saved).map(stripGeneralCafeFields) : INITIAL_CAFES;
+      return saved ? deduplicateItems(JSON.parse(saved).map(stripGeneralCafeFields), 'city') : INITIAL_CAFES;
     } catch {
       return INITIAL_CAFES;
     }
@@ -252,22 +253,92 @@ export default function App() {
   const [registeredEquipment, setRegisteredEquipment] = useState<RegisteredEquipment[]>([]);
   const [registeredCafes, setRegisteredCafes] = useState<RegisteredCafe[]>([]);
 
+  // Helper to merge server items with existing client items so custom items are never lost or duplicated
+  const mergeListsLocally = <T extends { id: string; name?: string; [k: string]: any }>(
+    serverList: T[],
+    currentList: T[],
+    secondaryKey?: string
+  ): T[] => {
+    const result: T[] = [];
+
+    const isMatch = (a: T, b: T): boolean => {
+      if (!a || !b) return false;
+      const aId = a.id ? String(a.id).trim() : '';
+      const bId = b.id ? String(b.id).trim() : '';
+      if (aId && bId && aId === bId) return true;
+
+      const aName = a.name ? String(a.name).trim().toLowerCase() : '';
+      const bName = b.name ? String(b.name).trim().toLowerCase() : '';
+      if (aName && bName && aName === bName) {
+        if (!secondaryKey) return true;
+        const aSec = a[secondaryKey] ? String(a[secondaryKey]).trim().toLowerCase() : '';
+        const bSec = b[secondaryKey] ? String(b[secondaryKey]).trim().toLowerCase() : '';
+        return aSec === bSec;
+      }
+      return false;
+    };
+
+    (Array.isArray(currentList) ? currentList : []).forEach((item) => {
+      if (!item) return;
+      const existingIdx = result.findIndex((r) => isMatch(r, item));
+      if (existingIdx === -1) {
+        result.push({ ...item });
+      } else {
+        result[existingIdx] = { ...result[existingIdx], ...item };
+      }
+    });
+
+    (Array.isArray(serverList) ? serverList : []).forEach((item) => {
+      if (!item) return;
+      const existingIdx = result.findIndex((r) => isMatch(r, item));
+      if (existingIdx === -1) {
+        result.push({ ...item });
+      } else {
+        result[existingIdx] = {
+          ...result[existingIdx],
+          ...item,
+          ...(Array.isArray((result[existingIdx] as any).tastingLogs) || Array.isArray((item as any).tastingLogs)
+            ? {
+                tastingLogs: [
+                  ...((result[existingIdx] as any).tastingLogs || []),
+                  ...((item as any).tastingLogs || []),
+                ].filter((val, idx, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === idx),
+              }
+            : {}),
+          ...(Array.isArray((result[existingIdx] as any).recipes) || Array.isArray((item as any).recipes)
+            ? {
+                recipes: [
+                  ...((result[existingIdx] as any).recipes || []),
+                  ...((item as any).recipes || []),
+                ].filter((val, idx, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === idx),
+              }
+            : {}),
+        };
+      }
+    });
+
+    return result;
+  };
+
   const applyServerData = (data: any) => {
     if (!data || typeof data !== 'object') return;
-    if (Array.isArray(data.coffees) && data.coffees.length > 0) {
-      setCoffees(data.coffees.map(stripGeneralCoffeeFields));
+    if (Array.isArray(data.coffees)) {
+      const cleanServer = data.coffees.map(stripGeneralCoffeeFields);
+      setCoffees((prev) => (cleanServer.length > 0 ? mergeListsLocally(cleanServer, prev, 'roaster') : prev));
     }
-    if (Array.isArray(data.equipment) && data.equipment.length > 0) {
-      setEquipment(data.equipment.map(stripGeneralEquipmentFields));
+    if (Array.isArray(data.equipment)) {
+      const cleanServer = data.equipment.map(stripGeneralEquipmentFields);
+      setEquipment((prev) => (cleanServer.length > 0 ? mergeListsLocally(cleanServer, prev, 'brand') : prev));
     }
-    if (Array.isArray(data.cafes) && data.cafes.length > 0) {
-      setCafes(data.cafes.map(stripGeneralCafeFields));
+    if (Array.isArray(data.cafes)) {
+      const cleanServer = data.cafes.map(stripGeneralCafeFields);
+      setCafes((prev) => (cleanServer.length > 0 ? mergeListsLocally(cleanServer, prev, 'city') : prev));
     }
-    if (Array.isArray(data.notes) && data.notes.length > 0) {
-      setNotes(data.notes);
+    if (Array.isArray(data.notes)) {
+      setNotes((prev) => (data.notes.length > 0 ? mergeListsLocally(data.notes, prev) : prev));
     }
     if (Array.isArray(data.shelves) && data.shelves.length > 0) {
-      setShelves(data.shelves);
+      setShelves((prev) => mergeListsLocally(data.shelves, prev));
     }
     if (data.theme) setTheme(data.theme);
     if (data.primaryHue) setPrimaryHue(data.primaryHue);
@@ -620,7 +691,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSaveCoffee = async (coffeeData: Coffee) => {
+  const handleSaveCoffee = async (coffeeData: Coffee, registerToCommunity?: boolean) => {
     const cleanCoffee = stripGeneralCoffeeFields(coffeeData);
     if (editingCoffee) {
       setCoffees((prev) =>
@@ -632,16 +703,33 @@ export default function App() {
     setIsCoffeeModalOpen(false);
     setEditingCoffee(null);
 
-    // If existing in community catalog, update user evaluations (never auto-register new community items)
     if (authToken && currentUser) {
       try {
-        await authApi.registerCommunityItem(
-          'coffee',
-          cleanCoffee,
-          typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0 ? cleanCoffee.userRating : undefined,
-          Array.isArray(cleanCoffee.tastingNotesSummary) ? cleanCoffee.tastingNotesSummary : undefined,
-          true
-        );
+        if (registerToCommunity) {
+          const res = await authApi.registerCommunityItem(
+            'coffee',
+            cleanCoffee,
+            typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0 ? cleanCoffee.userRating : undefined,
+            Array.isArray(cleanCoffee.tastingNotesSummary) ? cleanCoffee.tastingNotesSummary : undefined,
+            false
+          );
+          if (res && res.error) {
+            setToastMessage(res.error);
+            return;
+          }
+          setToastMessage(`"${cleanCoffee.name}" registered to community coffee catalog!`);
+        } else if (
+          (typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0) ||
+          (Array.isArray(cleanCoffee.tastingNotesSummary) && cleanCoffee.tastingNotesSummary.length > 0)
+        ) {
+          await authApi.registerCommunityItem(
+            'coffee',
+            cleanCoffee,
+            typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0 ? cleanCoffee.userRating : undefined,
+            Array.isArray(cleanCoffee.tastingNotesSummary) ? cleanCoffee.tastingNotesSummary : undefined,
+            true
+          );
+        }
         await fetchCommunityCatalog();
       } catch {}
     }
@@ -758,6 +846,9 @@ export default function App() {
       setSelectedCoffeeId(null);
       setCurrentView('shelves');
     }
+    setTimeout(() => {
+      fetchCommunityCatalog();
+    }, 1500);
   };
 
   // Handlers for Recipe
@@ -940,6 +1031,9 @@ export default function App() {
 
   const handleDeleteEquipment = (id: string) => {
     setEquipment((prev) => prev.filter((eq) => eq.id !== id));
+    setTimeout(() => {
+      fetchCommunityCatalog();
+    }, 1500);
   };
 
   // Handlers for Cafes
@@ -1005,6 +1099,9 @@ export default function App() {
 
   const handleDeleteCafe = (cafeId: string) => {
     setCafes((prev) => prev.filter((c) => c.id !== cafeId));
+    setTimeout(() => {
+      fetchCommunityCatalog();
+    }, 1500);
   };
 
   const handleToggleCafeFavorite = (cafeId: string) => {
@@ -1876,6 +1973,7 @@ export default function App() {
           initialCoffee={editingCoffee}
           shelves={shelves}
           registeredCoffees={registeredCoffees}
+          isRegisteredUser={Boolean(authToken && currentUser)}
           onSave={handleSaveCoffee}
           onClose={() => {
             setIsCoffeeModalOpen(false);

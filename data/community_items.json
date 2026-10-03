@@ -817,6 +817,174 @@
       "createdAt": "2026-10-02T21:04:51.580Z",
       "updatedAt": "2026-10-02T21:04:51.580Z",
       "userTastingNotes": {}
+    },
+    {
+      "id": "coffee-ai-1790653949931",
+      "name": "Companion Blend",
+      "secondary": "Little Wolf Coffee",
+      "type": "coffee",
+      "userRatings": {
+        "user-admin": 5
+      },
+      "userTastingNotes": {
+        "user-admin": [
+          "Milk Chocolate",
+          "Red Apple",
+          "Caramel",
+          "Citrus Zest"
+        ]
+      },
+      "generalRating": 5,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "generalTastingNotes": [
+        "Caramel",
+        "Citrus Zest",
+        "Milk Chocolate",
+        "Red Apple"
+      ],
+      "tastingNotesBreakdown": [
+        {
+          "note": "Caramel",
+          "count": 1
+        },
+        {
+          "note": "Citrus Zest",
+          "count": 1
+        },
+        {
+          "note": "Milk Chocolate",
+          "count": 1
+        },
+        {
+          "note": "Red Apple",
+          "count": 1
+        }
+      ],
+      "itemData": {
+        "id": "coffee-ai-1790653949931",
+        "name": "Companion Blend",
+        "roaster": "Little Wolf Coffee",
+        "origin": {
+          "country": "Colombia / Ethiopia",
+          "region": "Huila / Guji",
+          "farmOrStation": "Various Smallholder Producers",
+          "producer": "Various",
+          "elevationMeters": 1850
+        },
+        "variety": "Caturra, Colombia, Heirloom",
+        "process": "Washed",
+        "roastLevel": "Medium-Light",
+        "tastingNotesSummary": [
+          "Milk Chocolate",
+          "Red Apple",
+          "Caramel",
+          "Citrus Zest"
+        ],
+        "description": "Companion is Little Wolf's signature year-round blend designed for versatility and approachability. It balances the deep, comforting sweetness of Colombian washed coffees with the bright, floral acidity of Ethiopian heirloom varieties, resulting in a clean and balanced cup.",
+        "bagBadgeText": "Signature Blend",
+        "coverColor": "#5C3A21",
+        "userRating": 5,
+        "shelfIds": [
+          "currently-drinking",
+          "brewed"
+        ],
+        "dateAdded": "2026-09-29",
+        "isFavorite": false,
+        "tastingLogs": [],
+        "recipes": [
+          {
+            "id": "rec-1790654169175",
+            "coffeeId": "coffee-ai-1790653949931",
+            "title": "Espresso",
+            "method": "espresso",
+            "doseGrams": 15.5,
+            "waterGrams": 31,
+            "ratio": "1:2.0",
+            "grindSize": "Fine",
+            "waterTempC": 93,
+            "totalTimeSeconds": 30,
+            "equipmentIds": [
+              "eq-ai-1790653058617",
+              "eq-ai-1790653349610"
+            ],
+            "customVariables": [],
+            "steps": [
+              {
+                "id": "st-load-1790654131213-0",
+                "timeSeconds": 0,
+                "title": "Pre-infusion",
+                "instruction": "Gentle low-pressure soak"
+              },
+              {
+                "id": "st-load-1790654131213-1",
+                "timeSeconds": 5,
+                "title": "Full Extraction",
+                "instruction": "Extract 36g espresso yield within 26-30s"
+              }
+            ],
+            "notes": "",
+            "isRecommended": true,
+            "createdAt": "2026-09-29"
+          }
+        ]
+      },
+      "createdAt": "2026-10-03T04:05:12.240Z",
+      "updatedAt": "2026-10-03T04:05:36.300Z"
+    },
+    {
+      "id": "coffee-ai-1790982066778",
+      "name": "Apollo",
+      "secondary": "Counter Culture Coffee",
+      "type": "coffee",
+      "userRatings": {
+        "user-admin": 4
+      },
+      "generalRating": 4,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "generalTastingNotes": [
+        "Blueberry",
+        "Lemon",
+        "Jasmine",
+        "Honey"
+      ],
+      "tastingNotesBreakdown": [],
+      "itemData": {
+        "id": "coffee-ai-1790982066778",
+        "name": "Apollo",
+        "roaster": "Counter Culture Coffee",
+        "origin": {
+          "country": "Ethiopia",
+          "region": "Gedeo Zone",
+          "farmOrStation": "Various Smallholder Farmers",
+          "producer": "Various Smallholders",
+          "elevationMeters": 2000
+        },
+        "variety": "Heirloom",
+        "process": "Washed",
+        "roastLevel": "Light",
+        "tastingNotesSummary": [
+          "Blueberry",
+          "Lemon",
+          "Jasmine",
+          "Honey"
+        ],
+        "description": "Apollo is a perennial favorite from Counter Culture, designed to showcase the bright, floral, and fruit-forward characteristics of high-elevation Ethiopian coffees. This blend of washed Ethiopian lots offers a clean, tea-like body with vibrant acidity and a complex, aromatic profile.",
+        "bagBadgeText": "Signature Blend",
+        "coverColor": "#F4A460",
+        "userRating": 4,
+        "shelfIds": [
+          "brewed"
+        ],
+        "dateAdded": "2026-10-02",
+        "isFavorite": false,
+        "tastingLogs": [],
+        "recipes": []
+      },
+      "createdAt": "2026-10-03T04:09:47.245Z",
+      "updatedAt": "2026-10-03T04:09:47.245Z",
+      "userTastingNotes": {}
     }
   ],
   "equipment": [
@@ -987,6 +1155,136 @@
       },
       "createdAt": "2026-10-02T21:04:51.581Z",
       "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "eq-ai-1790647856144",
+      "name": "Breville Barista Express",
+      "secondary": "Breville",
+      "type": "equipment",
+      "userRatings": {
+        "user-admin": 4
+      },
+      "generalRating": 4,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "itemData": {
+        "id": "eq-ai-1790647856144",
+        "name": "Breville Barista Express",
+        "brand": "Breville",
+        "category": "Espresso Machine",
+        "status": "Active",
+        "dateAcquired": "2024-12-25",
+        "settingsNotes": "",
+        "maintenanceNotes": "",
+        "generalNotes": "",
+        "rating": 4
+      },
+      "createdAt": "2026-10-03T03:43:24.068Z",
+      "updatedAt": "2026-10-03T04:05:36.443Z"
+    },
+    {
+      "id": "eq-ai-1790653761111",
+      "name": "Aiden Precision Coffee Maker",
+      "secondary": "Fellow",
+      "type": "equipment",
+      "userRatings": {
+        "user-admin": 5
+      },
+      "generalRating": 5,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "itemData": {
+        "id": "eq-ai-1790653761111",
+        "name": "Aiden Precision Coffee Maker",
+        "brand": "Fellow",
+        "category": "Pour Over / Dripper",
+        "status": "Active",
+        "dateAcquired": "2025-08-27",
+        "settingsNotes": "Features customizable brew profiles including 'Single Serve' and 'Batch Brew'. Recommended grind size is medium-coarse (similar to standard drip coffee). Use the 'Bloom' setting for optimal extraction; temperature is adjustable between 176°F and 208°F (80°C–98°C).",
+        "maintenanceNotes": "Clean the brew basket and carafe after every use. Descale the machine every 3-6 months depending on water hardness. The showerhead is removable for periodic rinsing to prevent mineral buildup.",
+        "generalNotes": "Capacity: 1.5L (50 oz). Features a dual-wall vacuum-insulated carafe, precise PID temperature control, and a bloom cycle. Includes a reusable stainless steel filter and compatible with #4 paper filters. Power: 1500W. Dimensions: 11.7\" x 8.5\" x 12.2\".",
+        "rating": 5
+      },
+      "createdAt": "2026-10-03T03:55:49.864Z",
+      "updatedAt": "2026-10-03T04:05:36.331Z"
+    },
+    {
+      "id": "eq-ai-1790653459263",
+      "name": "Talley Pro Scale",
+      "secondary": "Fellow",
+      "type": "equipment",
+      "userRatings": {
+        "user-admin": 5
+      },
+      "generalRating": 5,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "itemData": {
+        "id": "eq-ai-1790653459263",
+        "name": "Talley Pro Scale",
+        "brand": "Fellow",
+        "category": "Scale",
+        "status": "Active",
+        "dateAcquired": "2025-08-27",
+        "settingsNotes": "Features a dedicated 'Brew Assist Mode' that guides the user through the water-to-coffee ratio process. Offers three modes: Brew Assist, Timer, and Weight. Responsive to 0.1g increments.",
+        "maintenanceNotes": "Wipe down with a damp cloth. Do not submerge in water. Ensure the weighing platform is kept clear of debris to maintain sensor accuracy. Battery is rechargeable via USB-C.",
+        "generalNotes": "High-resolution OLED display, 2500g capacity, built-in timer, premium stainless steel weighing platform, and a tactile dial for mode selection. Designed specifically for pour-over brewing.",
+        "rating": 5
+      },
+      "createdAt": "2026-10-03T03:55:51.771Z",
+      "updatedAt": "2026-10-03T04:05:36.359Z"
+    },
+    {
+      "id": "eq-ai-1790653349610",
+      "name": "Fellow Opus Grinder",
+      "secondary": "Fellow",
+      "type": "equipment",
+      "userRatings": {
+        "user-admin": 3.5
+      },
+      "generalRating": 3.5,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "itemData": {
+        "id": "eq-ai-1790653349610",
+        "name": "Fellow Opus Grinder",
+        "brand": "Fellow",
+        "category": "Grinder",
+        "status": "Active",
+        "dateAcquired": "2025-08-27",
+        "settingsNotes": "Features 41+ settings. For espresso, use the inner ring for micro-adjustments (0-1 range). For pour-over, use the outer ring (1-11 range). Calibration is required via the inner ring adjustment mechanism to ensure zero-point accuracy.",
+        "maintenanceNotes": "Clean the catch cup and chute regularly with the included brush. Perform a deep clean of the burrs every 3-6 months. Do not use water to clean the burrs; use a dry brush or specialized grinder cleaning pellets.",
+        "generalNotes": "Equipped with 40mm conical C6-2 burrs. Features a 110g hopper capacity, timed auto-stop, and anti-static technology. Voltage: 120V (US model). Build: Plastic body with high-torque motor. Includes a volumetric dosing lid.",
+        "rating": 3.5
+      },
+      "createdAt": "2026-10-03T03:55:57.708Z",
+      "updatedAt": "2026-10-03T04:05:36.389Z"
+    },
+    {
+      "id": "eq-ai-1790653058617",
+      "name": "Barista Express",
+      "secondary": "Breville",
+      "type": "equipment",
+      "userRatings": {
+        "user-admin": 4
+      },
+      "generalRating": 4,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "itemData": {
+        "id": "eq-ai-1790653058617",
+        "name": "Barista Express",
+        "brand": "Breville",
+        "category": "Espresso Machine",
+        "status": "Active",
+        "dateAcquired": "2024-12-25",
+        "settingsNotes": "Integrated conical burr grinder features 18 grind settings. For espresso, start at setting 5-8. Use the 'Grind Amount' dial to adjust dose time. Ensure the pressure gauge stays in the 'Espresso Range' during extraction. If pulling too fast, decrease grind size; if too slow, increase grind size.",
+        "maintenanceNotes": "Perform 'Clean Me' cycle when the light flashes using a cleaning tablet. Descale every 2-3 months depending on water hardness. Backflush the group head regularly. Clean the burrs weekly using the provided brush and vacuum to prevent oil buildup.",
+        "generalNotes": "15-bar Italian pump, 1600W thermocoil heating system, 2L removable water tank, 250g bean hopper capacity. Features a manual steam wand, PID temperature control, and stainless steel construction. Includes 54mm portafilter and tamper.",
+        "rating": 4
+      },
+      "createdAt": "2026-10-03T03:56:01.104Z",
+      "updatedAt": "2026-10-03T04:05:36.418Z"
     }
   ],
   "cafes": [
@@ -1144,6 +1442,40 @@
       },
       "createdAt": "2026-10-02T21:04:51.581Z",
       "updatedAt": "2026-10-02T21:04:51.581Z"
+    },
+    {
+      "id": "cafe-ai-1790653825685",
+      "name": "Black Hand Coffee Co.",
+      "secondary": "Richmond, VA",
+      "type": "cafe",
+      "userRatings": {
+        "user-admin": 4.5
+      },
+      "generalRating": 4.5,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "itemData": {
+        "id": "cafe-ai-1790653825685",
+        "name": "Black Hand Coffee Co.",
+        "address": "2701 W Cary St",
+        "city": "Richmond, VA",
+        "country": "United States",
+        "rating": 4.5,
+        "favoriteDrink": "Vanilla Latte",
+        "roasterOrBeansServed": "In-house roastery",
+        "dateVisited": "2026-09-29",
+        "notes": "A long-standing Richmond institution located in the historic Carytown district. They roast their own beans on-site and offer a wide variety of single-origin coffees and creative blends. The space features a cozy, eclectic interior with plenty of character, making it a popular spot for both locals and visitors.",
+        "vibes": [
+          "Neighborhood Staple",
+          "Industrial-Rustic",
+          "Community Focused",
+          "Artisan Roastery"
+        ],
+        "googleMapsUrl": "https://www.google.com/maps/search/?api=1&query=Black%20Hand%20Coffee%20Co.%202701%20W%20Cary%20St%20Richmond%2C%20VA",
+        "isFavorite": false
+      },
+      "createdAt": "2026-10-03T03:56:12.892Z",
+      "updatedAt": "2026-10-03T04:05:36.468Z"
     }
   ]
 }
