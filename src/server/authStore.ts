@@ -18,7 +18,9 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const BACKUP_USERS_FILE = path.resolve(__dirname, '../data/seedUsers.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const GUESTS_FILE = path.join(DATA_DIR, 'guests.json');
+const BACKUP_GUESTS_FILE = path.resolve(__dirname, '../data/seedGuests.json');
 const COMMUNITY_ITEMS_FILE = path.join(DATA_DIR, 'community_items.json');
+const BACKUP_COMMUNITY_ITEMS_FILE = path.resolve(__dirname, '../data/seedCommunityItems.json');
 
 // Stable persistent secret for signing session tokens across server reboots
 const SERVER_SECRET = process.env.SESSION_SECRET || 'goodbeans-secret-key-salt-2026-coffee-shelves';
@@ -236,32 +238,116 @@ export class AuthStore {
       fs.writeFileSync(SESSIONS_FILE, JSON.stringify([], null, 2), 'utf-8');
     }
 
-    // 3. Seed GUESTS_FILE
-    if (!fs.existsSync(GUESTS_FILE)) {
-      fs.writeFileSync(GUESTS_FILE, JSON.stringify({}, null, 2), 'utf-8');
+    // 3. Seed & synchronize GUESTS_FILE with BACKUP_GUESTS_FILE
+    let guestsMap: Record<string, { data: UserDataPayload; updatedAt: string }> = {};
+    if (fs.existsSync(GUESTS_FILE)) {
+      try {
+        guestsMap = JSON.parse(fs.readFileSync(GUESTS_FILE, 'utf-8')) || {};
+      } catch {}
+    }
+    let backupGuestsMap: Record<string, { data: UserDataPayload; updatedAt: string }> = {};
+    if (fs.existsSync(BACKUP_GUESTS_FILE)) {
+      try {
+        backupGuestsMap = JSON.parse(fs.readFileSync(BACKUP_GUESTS_FILE, 'utf-8')) || {};
+      } catch {}
+    }
+    const mergedGuests = { ...backupGuestsMap, ...guestsMap };
+    if (!fs.existsSync(GUESTS_FILE) || Object.keys(guestsMap).length !== Object.keys(mergedGuests).length) {
+      fs.writeFileSync(GUESTS_FILE, JSON.stringify(mergedGuests, null, 2), 'utf-8');
+    }
+    if (!fs.existsSync(BACKUP_GUESTS_FILE) || Object.keys(backupGuestsMap).length !== Object.keys(mergedGuests).length) {
+      try {
+        fs.writeFileSync(BACKUP_GUESTS_FILE, JSON.stringify(mergedGuests, null, 2), 'utf-8');
+      } catch {}
     }
 
-    // 4. Seed COMMUNITY_ITEMS_FILE
-    if (!fs.existsSync(COMMUNITY_ITEMS_FILE)) {
-      // Seed with initial coffees, equipment, and cafes
-      const initialCatalog: {
-        coffees: StoredCommunityItem[];
-        equipment: StoredCommunityItem[];
-        cafes: StoredCommunityItem[];
-      } = {
-        coffees: [],
-        equipment: [],
-        cafes: [],
+    // 4. Seed & synchronize COMMUNITY_ITEMS_FILE with BACKUP_COMMUNITY_ITEMS_FILE across publishes/deployments
+    let communityData: {
+      coffees: StoredCommunityItem[];
+      equipment: StoredCommunityItem[];
+      cafes: StoredCommunityItem[];
+    } = {
+      coffees: [],
+      equipment: [],
+      cafes: [],
+    };
+    if (fs.existsSync(COMMUNITY_ITEMS_FILE)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(COMMUNITY_ITEMS_FILE, 'utf-8'));
+        if (parsed) {
+          if (Array.isArray(parsed.coffees)) communityData.coffees = parsed.coffees;
+          if (Array.isArray(parsed.equipment)) communityData.equipment = parsed.equipment;
+          if (Array.isArray(parsed.cafes)) communityData.cafes = parsed.cafes;
+        }
+      } catch {}
+    }
+
+    let backupCommunityData: {
+      coffees: StoredCommunityItem[];
+      equipment: StoredCommunityItem[];
+      cafes: StoredCommunityItem[];
+    } = {
+      coffees: [],
+      equipment: [],
+      cafes: [],
+    };
+    if (fs.existsSync(BACKUP_COMMUNITY_ITEMS_FILE)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(BACKUP_COMMUNITY_ITEMS_FILE, 'utf-8'));
+        if (parsed) {
+          if (Array.isArray(parsed.coffees)) backupCommunityData.coffees = parsed.coffees;
+          if (Array.isArray(parsed.equipment)) backupCommunityData.equipment = parsed.equipment;
+          if (Array.isArray(parsed.cafes)) backupCommunityData.cafes = parsed.cafes;
+        }
+      } catch {}
+    }
+
+    // Item list merger preserving user ratings and latest updates
+    const mergeItemLists = (primary: StoredCommunityItem[], backup: StoredCommunityItem[]) => {
+      const itemMap = new Map<string, StoredCommunityItem>();
+
+      const insertOrMerge = (item: StoredCommunityItem) => {
+        if (!item || !item.name) return;
+        const cleanName = (item.name || '').trim().toLowerCase();
+        const cleanSec = (item.secondary || '').trim().toLowerCase();
+        const key = `${cleanName}::${cleanSec}`;
+
+        const existing = itemMap.get(key) || (item.id ? Array.from(itemMap.values()).find((x) => x.id === item.id) : undefined);
+        if (!existing) {
+          itemMap.set(key, { ...item });
+        } else {
+          const mergedRatings = { ...(existing.userRatings || {}), ...(item.userRatings || {}) };
+          const mergedTastingNotes = { ...(existing.userTastingNotes || {}), ...(item.userTastingNotes || {}) };
+          const isItemNewer = item.updatedAt && (!existing.updatedAt || item.updatedAt >= existing.updatedAt);
+
+          itemMap.set(key, {
+            ...(isItemNewer ? item : existing),
+            userRatings: mergedRatings,
+            userTastingNotes: item.type === 'coffee' ? mergedTastingNotes : undefined,
+            itemData: { ...(existing.itemData || {}), ...(item.itemData || {}) },
+          });
+        }
       };
 
-      INITIAL_COFFEES.forEach((c) => {
-        const cleanName = (c.name || '').trim();
-        const cleanRoaster = (c.roaster || '').trim();
+      (Array.isArray(backup) ? backup : []).forEach(insertOrMerge);
+      (Array.isArray(primary) ? primary : []).forEach(insertOrMerge);
+      return Array.from(itemMap.values());
+    };
 
-        initialCatalog.coffees.push({
+    const mergedCoffees = mergeItemLists(communityData.coffees, backupCommunityData.coffees);
+    const mergedEquipment = mergeItemLists(communityData.equipment, backupCommunityData.equipment);
+    const mergedCafes = mergeItemLists(communityData.cafes, backupCommunityData.cafes);
+
+    // If initial items are missing from defaults, add them
+    INITIAL_COFFEES.forEach((c) => {
+      const cleanName = (c.name || '').trim().toLowerCase();
+      const cleanRoaster = (c.roaster || '').trim().toLowerCase();
+      const key = `${cleanName}::${cleanRoaster}`;
+      if (!mergedCoffees.some((x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key)) {
+        mergedCoffees.push({
           id: c.id,
-          name: cleanName,
-          secondary: cleanRoaster,
+          name: (c.name || '').trim(),
+          secondary: (c.roaster || '').trim(),
           type: 'coffee',
           userRatings: {},
           generalRating: 0,
@@ -273,16 +359,18 @@ export class AuthStore {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-      });
+      }
+    });
 
-      INITIAL_EQUIPMENT.forEach((eq) => {
-        const cleanName = (eq.name || '').trim();
-        const cleanBrand = (eq.brand || '').trim();
-
-        initialCatalog.equipment.push({
+    INITIAL_EQUIPMENT.forEach((eq) => {
+      const cleanName = (eq.name || '').trim().toLowerCase();
+      const cleanBrand = (eq.brand || '').trim().toLowerCase();
+      const key = `${cleanName}::${cleanBrand}`;
+      if (!mergedEquipment.some((x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key)) {
+        mergedEquipment.push({
           id: eq.id,
-          name: cleanName,
-          secondary: cleanBrand,
+          name: (eq.name || '').trim(),
+          secondary: (eq.brand || '').trim(),
           type: 'equipment',
           userRatings: {},
           generalRating: 0,
@@ -292,16 +380,18 @@ export class AuthStore {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-      });
+      }
+    });
 
-      INITIAL_CAFES.forEach((cafe) => {
-        const cleanName = (cafe.name || '').trim();
-        const cleanCity = (cafe.city || '').trim();
-
-        initialCatalog.cafes.push({
+    INITIAL_CAFES.forEach((cafe) => {
+      const cleanName = (cafe.name || '').trim().toLowerCase();
+      const cleanCity = (cafe.city || '').trim().toLowerCase();
+      const key = `${cleanName}::${cleanCity}`;
+      if (!mergedCafes.some((x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key)) {
+        mergedCafes.push({
           id: cafe.id,
-          name: cleanName,
-          secondary: cleanCity,
+          name: (cafe.name || '').trim(),
+          secondary: (cafe.city || '').trim(),
           type: 'cafe',
           userRatings: {},
           generalRating: 0,
@@ -311,10 +401,19 @@ export class AuthStore {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-      });
+      }
+    });
 
-      fs.writeFileSync(COMMUNITY_ITEMS_FILE, JSON.stringify(initialCatalog, null, 2), 'utf-8');
-    }
+    const finalCommunityData = {
+      coffees: mergedCoffees,
+      equipment: mergedEquipment,
+      cafes: mergedCafes,
+    };
+
+    fs.writeFileSync(COMMUNITY_ITEMS_FILE, JSON.stringify(finalCommunityData, null, 2), 'utf-8');
+    try {
+      fs.writeFileSync(BACKUP_COMMUNITY_ITEMS_FILE, JSON.stringify(finalCommunityData, null, 2), 'utf-8');
+    } catch {}
 
     // Auto-clean any legacy base ratings from community_items.json
     try {
@@ -442,6 +541,9 @@ export class AuthStore {
       updatedAt: new Date().toISOString(),
     };
     this.writeJsonFile(GUESTS_FILE, guests);
+    try {
+      this.writeJsonFile(BACKUP_GUESTS_FILE, guests);
+    } catch {}
   }
 
   public static findByUsername(username: string): StoredUser | null {
@@ -1033,6 +1135,9 @@ export class AuthStore {
     cafes: StoredCommunityItem[];
   }): void {
     this.writeJsonFile(COMMUNITY_ITEMS_FILE, data);
+    try {
+      this.writeJsonFile(BACKUP_COMMUNITY_ITEMS_FILE, data);
+    } catch {}
   }
 
   // Calculate mathematically exact aggregate general rating across all registered user ratings (defaults to 0 if unrated)
