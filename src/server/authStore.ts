@@ -490,7 +490,7 @@ export class AuthStore {
       }
     });
 
-    // 5. Merge any custom items present in user accounts into communityData so catalog items are never dropped across redeployments
+    // 5. Sync user ratings for existing registered community catalog items across redeployments
     mergedUsers.forEach((u) => {
       if (Array.isArray(u.data?.coffees)) {
         u.data.coffees.forEach((c: any) => {
@@ -501,23 +501,7 @@ export class AuthStore {
           const existing = mergedCoffees.find(
             (x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key || (c.id && x.id === c.id)
           );
-          if (!existing) {
-            mergedCoffees.push({
-              id: c.id || `coffee-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              name: cleanName,
-              secondary: cleanRoaster,
-              type: 'coffee',
-              userRatings: typeof c.userRating === 'number' && c.userRating > 0 ? { [u.id]: c.userRating } : {},
-              generalRating: typeof c.userRating === 'number' && c.userRating > 0 ? c.userRating : 0,
-              ratingsCount: typeof c.userRating === 'number' && c.userRating > 0 ? 1 : 0,
-              userCount: 1,
-              generalTastingNotes: Array.isArray(c.tastingNotesSummary) ? c.tastingNotesSummary : [],
-              tastingNotesBreakdown: [],
-              itemData: c,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            });
-          } else if (typeof c.userRating === 'number' && c.userRating > 0) {
+          if (existing && typeof c.userRating === 'number' && c.userRating > 0) {
             existing.userRatings = existing.userRatings || {};
             existing.userRatings[u.id] = c.userRating;
           }
@@ -533,21 +517,7 @@ export class AuthStore {
           const existing = mergedEquipment.find(
             (x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key || (eq.id && x.id === eq.id)
           );
-          if (!existing) {
-            mergedEquipment.push({
-              id: eq.id || `eq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              name: cleanName,
-              secondary: cleanBrand,
-              type: 'equipment',
-              userRatings: typeof eq.rating === 'number' && eq.rating > 0 ? { [u.id]: eq.rating } : {},
-              generalRating: typeof eq.rating === 'number' && eq.rating > 0 ? eq.rating : 0,
-              ratingsCount: typeof eq.rating === 'number' && eq.rating > 0 ? 1 : 0,
-              userCount: 1,
-              itemData: eq,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            });
-          } else if (typeof eq.rating === 'number' && eq.rating > 0) {
+          if (existing && typeof eq.rating === 'number' && eq.rating > 0) {
             existing.userRatings = existing.userRatings || {};
             existing.userRatings[u.id] = eq.rating;
           }
@@ -563,21 +533,7 @@ export class AuthStore {
           const existing = mergedCafes.find(
             (x) => `${(x.name || '').trim().toLowerCase()}::${(x.secondary || '').trim().toLowerCase()}` === key || (cafe.id && x.id === cafe.id)
           );
-          if (!existing) {
-            mergedCafes.push({
-              id: cafe.id || `cafe-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              name: cleanName,
-              secondary: cleanCity,
-              type: 'cafe',
-              userRatings: typeof cafe.rating === 'number' && cafe.rating > 0 ? { [u.id]: cafe.rating } : {},
-              generalRating: typeof cafe.rating === 'number' && cafe.rating > 0 ? cafe.rating : 0,
-              ratingsCount: typeof cafe.rating === 'number' && cafe.rating > 0 ? 1 : 0,
-              userCount: 1,
-              itemData: cafe,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            });
-          } else if (typeof cafe.rating === 'number' && cafe.rating > 0) {
+          if (existing && typeof cafe.rating === 'number' && cafe.rating > 0) {
             existing.userRatings = existing.userRatings || {};
             existing.userRatings[u.id] = cafe.rating;
           }
@@ -1844,25 +1800,8 @@ export class AuthStore {
             }
           }
 
-          if (!existing) {
-            existing = {
-              id: uc.id || `coffee-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-              name: cleanName,
-              roaster: cleanRoaster,
-              currentOwners: new Set<string>(),
-              userRatings: {},
-              userTastingNotes: {},
-              baseNotes: Array.isArray(uc.tastingNotesSummary) ? uc.tastingNotesSummary : [],
-              origin: uc.origin || { country: 'Single Origin' },
-              variety: uc.variety || 'Arabica',
-              process: uc.process || 'Washed',
-              roastLevel: uc.roastLevel || 'Medium',
-              coverColor: uc.coverColor || '#C87D32',
-              description: uc.description || '',
-              tastingNotesSummary: Array.isArray(uc.tastingNotesSummary) ? uc.tastingNotesSummary : [],
-            };
-            coffeeMap.set(key, existing);
-          }
+          // Strictly skip private user coffees that have not been registered to the community catalog
+          if (!existing) return;
 
           // Mark user as active owner of this coffee
           existing.currentOwners.add(u.id);
@@ -1975,20 +1914,8 @@ export class AuthStore {
             }
           }
 
-          if (!existing) {
-            existing = {
-              id: ueq.id || `eq-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-              name: cleanName,
-              brand: cleanBrand,
-              category: ueq.category || 'Accessory',
-              currentOwners: new Set<string>(),
-              userRatings: {},
-              settingsNotes: ueq.settingsNotes || '',
-              maintenanceNotes: ueq.maintenanceNotes || '',
-              generalNotes: ueq.generalNotes || '',
-            };
-            eqMap.set(key, existing);
-          }
+          // Strictly skip private user gear that has not been registered to the community catalog
+          if (!existing) return;
 
           // Mark user as active owner of this equipment
           existing.currentOwners.add(u.id);
@@ -2072,21 +1999,8 @@ export class AuthStore {
             }
           }
 
-          if (!existing) {
-            existing = {
-              id: uc.id || `cafe-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-              name: cleanName,
-              city: cleanCity,
-              country: uc.country || '',
-              address: uc.address || '',
-              vibes: Array.isArray(uc.vibes) ? uc.vibes : [],
-              favoriteDrink: uc.favoriteDrink || '',
-              notes: uc.notes || '',
-              currentOwners: new Set<string>(),
-              userRatings: {},
-            };
-            cafeMap.set(key, existing);
-          }
+          // Strictly skip private user cafes that have not been registered to the community catalog
+          if (!existing) return;
 
           // Mark user as active owner of this cafe
           existing.currentOwners.add(u.id);

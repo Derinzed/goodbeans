@@ -930,7 +930,7 @@
         ]
       },
       "createdAt": "2026-10-03T04:05:12.240Z",
-      "updatedAt": "2026-10-03T04:05:36.300Z"
+      "updatedAt": "2026-10-03T04:55:53.710Z"
     },
     {
       "id": "coffee-ai-1790982066778",
@@ -945,11 +945,28 @@
       "userCount": 1,
       "generalTastingNotes": [
         "Blueberry",
-        "Lemon",
+        "Honey",
         "Jasmine",
-        "Honey"
+        "Lemon"
       ],
-      "tastingNotesBreakdown": [],
+      "tastingNotesBreakdown": [
+        {
+          "note": "Blueberry",
+          "count": 1
+        },
+        {
+          "note": "Honey",
+          "count": 1
+        },
+        {
+          "note": "Jasmine",
+          "count": 1
+        },
+        {
+          "note": "Lemon",
+          "count": 1
+        }
+      ],
       "itemData": {
         "id": "coffee-ai-1790982066778",
         "name": "Apollo",
@@ -983,8 +1000,151 @@
         "recipes": []
       },
       "createdAt": "2026-10-03T04:09:47.245Z",
-      "updatedAt": "2026-10-03T04:09:47.245Z",
-      "userTastingNotes": {}
+      "updatedAt": "2026-10-03T04:55:53.678Z",
+      "userTastingNotes": {
+        "user-admin": [
+          "Blueberry",
+          "Lemon",
+          "Jasmine",
+          "Honey"
+        ]
+      }
+    },
+    {
+      "id": "coffee-ai-1791002946015",
+      "name": "Sirocco de Sol Geisha",
+      "secondary": "Onyx Coffee Lab",
+      "type": "coffee",
+      "userRatings": {
+        "user-admin": 5
+      },
+      "generalRating": 5,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "generalTastingNotes": [
+        "Bergamot",
+        "Honey",
+        "Jasmine",
+        "Peach"
+      ],
+      "tastingNotesBreakdown": [
+        {
+          "note": "Bergamot",
+          "count": 1
+        },
+        {
+          "note": "Honey",
+          "count": 1
+        },
+        {
+          "note": "Jasmine",
+          "count": 1
+        },
+        {
+          "note": "Peach",
+          "count": 1
+        }
+      ],
+      "itemData": {
+        "id": "coffee-ai-1791002946015",
+        "name": "Sirocco de Sol Geisha",
+        "roaster": "Onyx Coffee Lab",
+        "origin": {
+          "country": "Colombia",
+          "region": "Huila",
+          "farmOrStation": "Finca El Mirador",
+          "producer": "Elkin Guzman",
+          "elevationMeters": 1750
+        },
+        "variety": "Geisha",
+        "process": "Experimental",
+        "roastLevel": "Light",
+        "tastingNotesSummary": [
+          "Jasmine",
+          "Peach",
+          "Honey",
+          "Bergamot"
+        ],
+        "description": "This exceptional Geisha lot from Elkin Guzman undergoes a meticulous experimental process involving a controlled fermentation that highlights the delicate floral aromatics and stone fruit sweetness inherent to the variety. The result is a clean, tea-like cup with a vibrant acidity and a lingering, honeyed finish that showcases the pinnacle of Colombian specialty coffee.",
+        "bagBadgeText": "Micro-Lot",
+        "coverColor": "#E6C229",
+        "userRating": 5,
+        "shelfIds": [
+          "currently-drinking"
+        ],
+        "dateAdded": "2026-10-03",
+        "isFavorite": false,
+        "tastingLogs": [],
+        "recipes": [
+          {
+            "id": "recipe-1791002946015",
+            "coffeeId": "coffee-ai-1791002946015",
+            "title": "Recommended V60 Dial-In",
+            "method": "v60",
+            "doseGrams": 18,
+            "waterGrams": 300,
+            "ratio": "1:16.7",
+            "grindSize": "Medium-Fine (6.0 on Ode Gen 2)",
+            "waterTempC": 94,
+            "totalTimeSeconds": 180,
+            "bloomGrams": 54,
+            "bloomTimeSeconds": 45,
+            "equipmentIds": [],
+            "customVariables": [
+              {
+                "id": "v1",
+                "label": "Filter Type",
+                "value": "Hario V60 Paper"
+              },
+              {
+                "id": "v2",
+                "label": "Water Minerals",
+                "value": "Soft water (approx 50ppm)"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s1",
+                "timeSeconds": 0,
+                "title": "Bloom",
+                "waterAmountGrams": 54,
+                "instruction": "Pour evenly and agitate to ensure no dry pockets"
+              },
+              {
+                "id": "s2",
+                "timeSeconds": 45,
+                "title": "First Pour",
+                "waterAmountGrams": 180,
+                "instruction": "Pour in steady circles to maintain temperature"
+              },
+              {
+                "id": "s3",
+                "timeSeconds": 90,
+                "title": "Final Pour",
+                "waterAmountGrams": 300,
+                "instruction": "Complete pour and allow to draw down through a flat bed"
+              }
+            ],
+            "notes": "Use high-clarity water to emphasize the delicate jasmine floral notes.",
+            "isRecommended": true,
+            "createdAt": "2026-10-03T04:49:06.015Z"
+          }
+        ],
+        "generalRating": 0,
+        "communityRating": 0,
+        "communityRatingsCount": 0,
+        "isRegistered": false
+      },
+      "createdAt": "2026-10-03T04:49:07.318Z",
+      "updatedAt": "2026-10-03T04:55:53.644Z",
+      "userTastingNotes": {
+        "user-admin": [
+          "Jasmine",
+          "Peach",
+          "Honey",
+          "Bergamot"
+        ]
+      }
     }
   ],
   "equipment": [
@@ -1180,7 +1340,7 @@
         "rating": 4
       },
       "createdAt": "2026-10-03T03:43:24.068Z",
-      "updatedAt": "2026-10-03T04:05:36.443Z"
+      "updatedAt": "2026-10-03T04:55:53.868Z"
     },
     {
       "id": "eq-ai-1790653761111",
@@ -1206,7 +1366,7 @@
         "rating": 5
       },
       "createdAt": "2026-10-03T03:55:49.864Z",
-      "updatedAt": "2026-10-03T04:05:36.331Z"
+      "updatedAt": "2026-10-03T04:55:53.764Z"
     },
     {
       "id": "eq-ai-1790653459263",
@@ -1232,7 +1392,7 @@
         "rating": 5
       },
       "createdAt": "2026-10-03T03:55:51.771Z",
-      "updatedAt": "2026-10-03T04:05:36.359Z"
+      "updatedAt": "2026-10-03T04:55:53.789Z"
     },
     {
       "id": "eq-ai-1790653349610",
@@ -1258,7 +1418,7 @@
         "rating": 3.5
       },
       "createdAt": "2026-10-03T03:55:57.708Z",
-      "updatedAt": "2026-10-03T04:05:36.389Z"
+      "updatedAt": "2026-10-03T04:55:53.815Z"
     },
     {
       "id": "eq-ai-1790653058617",
@@ -1284,7 +1444,36 @@
         "rating": 4
       },
       "createdAt": "2026-10-03T03:56:01.104Z",
-      "updatedAt": "2026-10-03T04:05:36.418Z"
+      "updatedAt": "2026-10-03T04:55:53.841Z"
+    },
+    {
+      "id": "eq-ai-1791003014420",
+      "name": "Zerno Z1",
+      "secondary": "Zerno",
+      "type": "equipment",
+      "userRatings": {
+        "user-admin": 5
+      },
+      "generalRating": 5,
+      "ratingsCount": 1,
+      "userCount": 1,
+      "itemData": {
+        "id": "eq-ai-1791003014420",
+        "name": "Zerno Z1",
+        "brand": "Zerno",
+        "category": "Grinder",
+        "status": "Active",
+        "settingsNotes": "Stepless adjustment mechanism allows for infinite micro-adjustments. Designed primarily for single-dosing; users typically dial in by sound (chirp point) and adjust based on burr geometry (e.g., SSP 64mm variants). Recommended to calibrate burrs to zero point upon initial setup.",
+        "maintenanceNotes": "Tool-less disassembly for easy cleaning of the grind chamber. Burrs should be cleaned periodically with a brush or air puffer. The alignment is factory-set, but the design allows for user-performed alignment checks. Avoid water contact with the motor housing.",
+        "generalNotes": "High-precision single-dose coffee grinder featuring 64mm flat burr compatibility. Built with a focus on workflow, low retention, and premium materials (anodized aluminum). Features a variable RPM motor, magnetic catch cup, and integrated declumper. Voltage varies by region; compact footprint.",
+        "rating": 5,
+        "dateAcquired": "2026-10-03",
+        "generalRating": 0,
+        "generalRatingsCount": 0,
+        "isRegistered": false
+      },
+      "createdAt": "2026-10-03T04:50:15.724Z",
+      "updatedAt": "2026-10-03T04:55:53.740Z"
     }
   ],
   "cafes": [
@@ -1475,7 +1664,8 @@
         "isFavorite": false
       },
       "createdAt": "2026-10-03T03:56:12.892Z",
-      "updatedAt": "2026-10-03T04:05:36.468Z"
+      "updatedAt": "2026-10-03T04:55:53.896Z",
+      "userTastingNotes": {}
     }
   ]
 }
