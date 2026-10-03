@@ -7,9 +7,88 @@
     "role": "admin",
     "createdAt": "2026-09-29T22:50:41.931Z",
     "lastLoginAt": "2026-09-29T22:51:01.571Z",
-    "updatedAt": "2026-10-03T04:55:53.607Z",
+    "updatedAt": "2026-10-03T15:20:31.358Z",
     "data": {
       "coffees": [
+        {
+          "id": "coffee-ai-1791003479346",
+          "name": "Red Bird Espresso",
+          "roaster": "Red Bird Coffee",
+          "origin": {
+            "country": "Brazil / Colombia / Ethiopia",
+            "region": "Cerrado / Huila / Yirgacheffe",
+            "farmOrStation": "Various Smallholder Cooperatives",
+            "producer": "Red Bird Coffee Sourcing",
+            "elevationMeters": 1400
+          },
+          "variety": "Bourbon, Caturra, Heirloom",
+          "process": "Washed",
+          "roastLevel": "Medium-Dark",
+          "tastingNotesSummary": [
+            "Dark Chocolate",
+            "Caramel",
+            "Toasted Almond",
+            "Sweet Citrus"
+          ],
+          "description": "Red Bird Espresso is a classic, crowd-pleasing blend designed specifically for espresso extraction. It balances the heavy body and sweetness of Brazilian beans with the bright, clean acidity of Colombian and Ethiopian components to create a rich, syrupy shot that cuts through milk perfectly.",
+          "bagBadgeText": "Classic Blend",
+          "coverColor": "#5C3A21",
+          "userRating": 4,
+          "shelfIds": [
+            "currently-drinking"
+          ],
+          "dateAdded": "2026-10-03",
+          "isFavorite": false,
+          "tastingLogs": [],
+          "recipes": [
+            {
+              "id": "recipe-1791003479346",
+              "coffeeId": "coffee-ai-1791003479346",
+              "title": "Standard Espresso Dial-In",
+              "method": "espresso",
+              "doseGrams": 18,
+              "waterGrams": 36,
+              "ratio": "1:2",
+              "grindSize": "Fine (Espresso)",
+              "waterTempC": 92,
+              "totalTimeSeconds": 28,
+              "bloomGrams": 45,
+              "bloomTimeSeconds": 40,
+              "equipmentIds": [],
+              "customVariables": [
+                {
+                  "id": "v1",
+                  "label": "Basket Size",
+                  "value": "18g VST"
+                },
+                {
+                  "id": "v2",
+                  "label": "Pressure",
+                  "value": "9 Bar"
+                }
+              ],
+              "steps": [
+                {
+                  "id": "s1",
+                  "timeSeconds": 0,
+                  "title": "Pre-infusion",
+                  "waterAmountGrams": 0,
+                  "instruction": "Start pump and monitor flow"
+                },
+                {
+                  "id": "s2",
+                  "timeSeconds": 28,
+                  "title": "Extraction",
+                  "waterAmountGrams": 36,
+                  "instruction": "Stop at 36g yield for balanced sweetness"
+                }
+              ],
+              "notes": "Aim for a syrupy, viscous texture. If too bitter, increase the ratio to 1:2.2; if too sour, tighten the grind slightly.",
+              "isRecommended": true,
+              "createdAt": "2026-10-03T04:57:59.346Z"
+            }
+          ]
+        },
         {
           "id": "coffee-ai-1791002946015",
           "name": "Sirocco de Sol Geisha",
@@ -199,6 +278,30 @@
       ],
       "equipment": [
         {
+          "id": "eq-ai-1790653459263",
+          "name": "Talley Pro Scale",
+          "brand": "Fellow",
+          "category": "Scale",
+          "status": "Active",
+          "dateAcquired": "2025-08-27",
+          "settingsNotes": "Features a dedicated 'Brew Assist Mode' that guides the user through the water-to-coffee ratio process. Offers three modes: Brew Assist, Timer, and Weight. Responsive to 0.1g increments.",
+          "maintenanceNotes": "Wipe down with a damp cloth. Do not submerge in water. Ensure the weighing platform is kept clear of debris to maintain sensor accuracy. Battery is rechargeable via USB-C.",
+          "generalNotes": "High-resolution OLED display, 2500g capacity, built-in timer, premium stainless steel weighing platform, and a tactile dial for mode selection. Designed specifically for pour-over brewing.",
+          "rating": 5
+        },
+        {
+          "id": "eq-ai-1791003642075",
+          "name": "Zerno Z2",
+          "brand": "Zerno",
+          "category": "Grinder",
+          "status": "Active",
+          "settingsNotes": "Features a stepless adjustment collar with a high-resolution dial. Recommended range for espresso is typically between 0.5 and 2.0 on the dial, while filter coffee ranges from 3.0 to 6.0 depending on burr choice (SSP 64mm variants). Calibration is user-friendly via the top adjustment mechanism.",
+          "maintenanceNotes": "Designed for tool-less disassembly. The magnetic hopper and easy-access burr chamber allow for frequent cleaning. Recommended to brush out the chute and burrs weekly. No lubrication required for the adjustment mechanism; burr alignment is factory-set but adjustable via shims if necessary.",
+          "generalNotes": "Single-dose flat burr grinder featuring 64mm burr compatibility (SSP or Mazzer). Equipped with a high-torque DC motor, variable RPM control (typically 400-1400 RPM), and a minimalist aluminum chassis. Includes a magnetic portafilter fork and integrated anti-static features. Voltage: 100-240V universal input.",
+          "rating": 5,
+          "dateAcquired": "2026-10-03"
+        },
+        {
           "id": "eq-ai-1791003014420",
           "name": "Zerno Z1",
           "brand": "Zerno",
@@ -220,18 +323,6 @@
           "settingsNotes": "Features customizable brew profiles including 'Single Serve' and 'Batch Brew'. Recommended grind size is medium-coarse (similar to standard drip coffee). Use the 'Bloom' setting for optimal extraction; temperature is adjustable between 176°F and 208°F (80°C–98°C).",
           "maintenanceNotes": "Clean the brew basket and carafe after every use. Descale the machine every 3-6 months depending on water hardness. The showerhead is removable for periodic rinsing to prevent mineral buildup.",
           "generalNotes": "Capacity: 1.5L (50 oz). Features a dual-wall vacuum-insulated carafe, precise PID temperature control, and a bloom cycle. Includes a reusable stainless steel filter and compatible with #4 paper filters. Power: 1500W. Dimensions: 11.7\" x 8.5\" x 12.2\".",
-          "rating": 5
-        },
-        {
-          "id": "eq-ai-1790653459263",
-          "name": "Talley Pro Scale",
-          "brand": "Fellow",
-          "category": "Scale",
-          "status": "Active",
-          "dateAcquired": "2025-08-27",
-          "settingsNotes": "Features a dedicated 'Brew Assist Mode' that guides the user through the water-to-coffee ratio process. Offers three modes: Brew Assist, Timer, and Weight. Responsive to 0.1g increments.",
-          "maintenanceNotes": "Wipe down with a damp cloth. Do not submerge in water. Ensure the weighing platform is kept clear of debris to maintain sensor accuracy. Battery is rechargeable via USB-C.",
-          "generalNotes": "High-resolution OLED display, 2500g capacity, built-in timer, premium stainless steel weighing platform, and a tactile dial for mode selection. Designed specifically for pour-over brewing.",
           "rating": 5
         },
         {
@@ -397,5 +488,16 @@
       "secondaryHue": "#F3E8DC",
       "backgroundColor": "#0C131D"
     }
+  },
+  {
+    "id": "user-1791041349391-5b201358",
+    "username": "artisan_brewer_99",
+    "passwordHash": "2e975f7c26cf85168d91299f05e73b434f18ace72d337508df599b8d434479eb7b5e9ba5b24d6fb919f849927ae942b73c7b1b8a8996d4706b9f4016c17d98d4",
+    "salt": "72614f80df88056897ab7511f9e6e8cc",
+    "role": "user",
+    "createdAt": "2026-10-03T15:29:09.391Z",
+    "lastLoginAt": "2026-10-03T15:29:09.438Z",
+    "updatedAt": "2026-10-03T15:29:09.426Z",
+    "data": {}
   }
 ]

@@ -146,6 +146,35 @@ export const authApi = {
     return res.json();
   },
 
+  async updateUsername(token: string, newUsername: string): Promise<AuthResponse> {
+    const res = await fetch('/api/auth/update-username', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ newUsername }),
+    });
+    return res.json();
+  },
+
+  async changePassword(token: string, currentPassword: string, newPassword: string): Promise<AuthResponse> {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return res.json();
+  },
+
+  async getPublicProfile(username: string): Promise<{ success: boolean; profile?: any; error?: string }> {
+    const res = await fetch(`/api/auth/profile?username=${encodeURIComponent(username)}`);
+    return res.json();
+  },
+
   async getMe(token: string): Promise<AuthResponse> {
     const res = await fetch('/api/auth/me', {
       headers: { Authorization: `Bearer ${token}` },

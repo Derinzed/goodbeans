@@ -36,6 +36,7 @@ import {
   Eraser,
   Sliders,
   AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
 import { authApi, AdminUserSummary } from '../services/authApi';
 
@@ -45,6 +46,7 @@ interface AdminUsersModalProps {
   token: string | null;
   currentUserId: string;
   onRefreshCatalog?: () => void;
+  onViewPublicProfile?: (username: string) => void;
 }
 
 export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
@@ -53,6 +55,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   token,
   currentUserId,
   onRefreshCatalog,
+  onViewPublicProfile,
 }) => {
   const [activeTab, setActiveTab] = useState<'users' | 'community' | 'ratings' | 'raw-data'>('users');
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
@@ -1019,6 +1022,19 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                               </td>
                               <td className="py-3 px-4 text-right">
                                 <div className="flex items-center justify-end gap-1">
+                                  {onViewPublicProfile && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onClose();
+                                        onViewPublicProfile(u.username);
+                                      }}
+                                      title="View Public Profile"
+                                      className="p-1.5 text-[#3A291E] hover:text-[#C87D32] hover:bg-[#F2E8DC] rounded-md transition-colors cursor-pointer"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleOpenUserInspector(u)}

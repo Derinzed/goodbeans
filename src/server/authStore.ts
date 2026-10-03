@@ -9,6 +9,7 @@ import {
   stripGeneralEquipmentFields,
   stripGeneralCafeFields,
 } from '../utils/communityLookup.ts';
+import { validatePasswordStrength, validateUsername } from '../utils/passwordSecurity.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -941,6 +942,187 @@ export class AuthStore {
     const sessions = this.getSessions().filter((s) => s.userId !== userId);
     this.saveSessions(sessions);
     return true;
+  }
+
+  public static updateUsername(userId: string, newUsername: string): { user: StoredUser; vault: any } {
+    const val = validateUsername(newUsername);
+    if (!val.isValid) {
+      throw new Error(val.error || 'Invalid username');
+    }
+    const cleanUsername = newUsername.trim();
+    const users = this.getUsers();
+    const userIndex = users.findIndex((u) => u.id === userId);
+    if (userIndex === -1) {
+      throw new Error('User not found.');
+    }
+
+    const existingWithSameName = users.find(
+      (u) => u.id !== userId && u.username.toLowerCase() === cleanUsername.toLowerCase()
+    );
+    if (existingWithSameName) {
+      throw new Error(`Username "${cleanUsername}" is already taken by another member.`);
+    }
+
+    users[userIndex].username = cleanUsername;
+    users[userIndex].updatedAt = new Date().toISOString();
+    this.saveUsers(users);
+
+    const user = users[userIndex];
+    return {
+      user,
+      vault: {
+        id: user.id,
+        username: user.username,
+        passwordHash: user.passwordHash,
+        salt: user.salt,
+        role: user.role,
+      },
+    };
+  }
+
+  public static changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string
+  ): { user: StoredUser; vault: any } {
+    const users = this.getUsers();
+    const userIndex = users.findIndex((u) => u.id === userId);
+    if (userIndex === -1) {
+      throw new Error('User not found.');
+    }
+    const user = users[userIndex];
+
+    const currentHash = hashPassword(currentPassword, user.salt);
+    if (currentHash !== user.passwordHash) {
+      throw new Error('Current password is incorrect.');
+    }
+
+    const val = validatePasswordStrength(newPassword);
+    if (!val.isValid) {
+      throw new Error(val.errors.join('. '));
+    }
+
+    const newSalt = crypto.randomBytes(16).toString('hex');
+    const newHash = hashPassword(newPassword, newSalt);
+
+    user.salt = newSalt;
+    user.passwordHash = newHash;
+    user.updatedAt = new Date().toISOString();
+
+    users[userIndex] = user;
+    this.saveUsers(users);
+
+    return {
+      user,
+      vault: {
+        id: user.id,
+        username: user.username,
+        passwordHash: user.passwordHash,
+        salt: user.salt,
+        role: user.role,
+      },
+    };
+  }
+
+  public static getPublicProfile(username: string): any | null {
+    if (!username || typeof username !== 'string') return null;
+    const user = this.findByUsername(username);
+    if (!user) return null;
+
+    const data = user.data || {};
+    const coffees = Array.isArray(data.coffees) ? data.coffees : [];
+    const equipment = Array.isArray(data.equipment) ? data.equipment : [];
+    const cafes = Array.isArray(data.cafes) ? data.cafes : [];
+    const shelves = Array.isArray(data.shelves) ? data.shelves : [];
+
+    const flavorMap: Record<string, number> = {};
+    const originsSet = new Set<string>();
+    let totalTastings = 0;
+
+    coffees.forEach((c: any) => {
+      if (c?.origin?.country) originsSet.add(c.origin.country);
+      if (Array.isArray(c?.tastingNotesSummary)) {
+        c.tastingNotesSummary.forEach((tag: string) => {
+          if (tag) flavorMap[tag] = (flavorMap[tag] || 0) + 1;
+        });
+      }
+      if (Array.isArray(c?.tastingLogs)) {
+        totalTastings += c.tastingLogs.length;
+        c.tastingLogs.forEach((log: any) => {
+          if (Array.isArray(log?.flavorTags)) {
+            log.flavorTags.forEach((tag: string) => {
+              if (tag) flavorMap[tag] = (flavorMap[tag] || 0) + 1;
+            });
+          }
+        });
+      }
+    });
+
+    const topFlavors = Object.entries(flavorMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+      stats: {
+        totalCoffees: coffees.length,
+        totalEquipment: equipment.length,
+        totalCafes: cafes.length,
+        totalTastings,
+        totalShelves: shelves.length,
+        topFlavors,
+        topOrigins: Array.from(originsSet),
+        favoriteCoffeesCount: coffees.filter((c: any) => c.isFavorite || (c.userRating && c.userRating >= 4.5)).length,
+      },
+      coffees: coffees.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        roaster: c.roaster,
+        origin: c.origin,
+        variety: c.variety,
+        process: c.process,
+        roastLevel: c.roastLevel,
+        userRating: c.userRating,
+        shelfIds: c.shelfIds,
+        tastingNotesSummary: c.tastingNotesSummary,
+        coverColor: c.coverColor,
+        description: c.description,
+        isFavorite: c.isFavorite,
+        bagBadgeText: c.bagBadgeText,
+        recipesCount: Array.isArray(c.recipes) ? c.recipes.length : 0,
+        tastingsCount: Array.isArray(c.tastingLogs) ? c.tastingLogs.length : 0,
+      })),
+      equipment: equipment.map((eq: any) => ({
+        id: eq.id,
+        name: eq.name,
+        brand: eq.brand,
+        category: eq.category,
+        status: eq.status,
+        rating: eq.rating,
+        settingsNotes: eq.settingsNotes,
+        generalNotes: eq.generalNotes,
+      })),
+      cafes: cafes.map((cf: any) => ({
+        id: cf.id,
+        name: cf.name,
+        city: cf.city,
+        country: cf.country,
+        rating: cf.rating,
+        vibes: cf.vibes,
+        favoriteDrink: cf.favoriteDrink,
+        notes: cf.notes,
+      })),
+      shelves,
+      theme: data.theme,
+      primaryHue: data.primaryHue,
+      secondaryHue: data.secondaryHue,
+    };
   }
 
   public static createUserByAdmin(

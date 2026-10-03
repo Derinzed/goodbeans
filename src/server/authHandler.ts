@@ -233,6 +233,103 @@ export async function handleAuthRoutes(
     return true;
   }
 
+  // 4b. POST /api/auth/update-username
+  if (url === '/api/auth/update-username' && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user) {
+      sendJson(res, 401, { error: 'Unauthorized. Please sign in.' });
+      return true;
+    }
+    try {
+      const body = await readJsonBody(req);
+      const { newUsername } = body;
+      if (!newUsername || typeof newUsername !== 'string') {
+        sendJson(res, 400, { error: 'New username is required' });
+        return true;
+      }
+      const updated = AuthStore.updateUsername(user.id, newUsername);
+      sendJson(res, 200, {
+        success: true,
+        user: {
+          id: updated.user.id,
+          username: updated.user.username,
+          role: updated.user.role,
+          createdAt: updated.user.createdAt,
+        },
+        vault: updated.vault,
+        message: `Username successfully updated to "${updated.user.username}"!`,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message || 'Failed to update username' });
+      return true;
+    }
+  }
+
+  // 4c. POST /api/auth/change-password
+  if (url === '/api/auth/change-password' && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user) {
+      sendJson(res, 401, { error: 'Unauthorized. Please sign in.' });
+      return true;
+    }
+    try {
+      const body = await readJsonBody(req);
+      const { currentPassword, newPassword } = body;
+      if (!currentPassword || !newPassword) {
+        sendJson(res, 400, { error: 'Current password and new password are required' });
+        return true;
+      }
+      const updated = AuthStore.changePassword(user.id, currentPassword, newPassword);
+      sendJson(res, 200, {
+        success: true,
+        vault: updated.vault,
+        message: 'Password changed successfully! Keep your new password secure.',
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message || 'Failed to change password' });
+      return true;
+    }
+  }
+
+  // 4d. GET /api/auth/profile/:username or /api/auth/profile?username=... (Public Profile Showcase)
+  if (url.startsWith('/api/auth/profile') && method === 'GET') {
+    try {
+      const parsedUrl = new URL(url, 'http://localhost');
+      let targetUsername = parsedUrl.searchParams.get('username');
+      if (!targetUsername) {
+        // Path extraction: /api/auth/profile/:username
+        const parts = parsedUrl.pathname.split('/');
+        if (parts.length >= 5 && parts[4]) {
+          targetUsername = decodeURIComponent(parts[4]);
+        }
+      }
+
+      if (!targetUsername) {
+        sendJson(res, 400, { error: 'Username parameter is required' });
+        return true;
+      }
+
+      const profile = AuthStore.getPublicProfile(targetUsername);
+      if (!profile) {
+        sendJson(res, 404, { error: `Barista profile for "${targetUsername}" not found.` });
+        return true;
+      }
+
+      sendJson(res, 200, {
+        success: true,
+        profile,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to fetch public profile' });
+      return true;
+    }
+  }
+
   // 5. PUT /api/user/data (Update/Sync User Data)
   if (url === '/api/user/data' && (method === 'PUT' || method === 'POST')) {
     const token = getBearerToken(req);

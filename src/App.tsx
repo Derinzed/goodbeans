@@ -68,6 +68,7 @@ import { AdminUsersModal } from './components/AdminUsersModal';
 import { authApi, UserProfile } from './services/authApi';
 import { CoffeeChallengeWidget } from './components/CoffeeChallengeWidget';
 import { AutoPopulateShelfWidget } from './components/AutoPopulateShelfWidget';
+import { PublicProfileView } from './components/PublicProfileView';
 import {
   stripGeneralCoffeeFields,
   stripGeneralEquipmentFields,
@@ -134,8 +135,9 @@ export default function App() {
 
   // Navigation & views
   const [currentView, setCurrentView] = useState<
-    'shelves' | 'coffee-detail' | 'equipment' | 'cafes' | 'notes'
+    'shelves' | 'coffee-detail' | 'equipment' | 'cafes' | 'notes' | 'public-profile'
   >('shelves');
+  const [publicProfileUsername, setPublicProfileUsername] = useState<string | null>(null);
   const [activeShelfId, setActiveShelfId] = useState<string>('all');
   const [selectedCoffeeId, setSelectedCoffeeId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -462,6 +464,24 @@ export default function App() {
     }
   }, []);
 
+  // Listen for ?profile=username in URL search parameters on initial load and navigation
+  useEffect(() => {
+    const handleUrlParams = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const profileParam = params.get('profile');
+        if (profileParam && profileParam.trim()) {
+          setPublicProfileUsername(profileParam.trim());
+          setCurrentView('public-profile');
+        }
+      } catch {}
+    };
+
+    handleUrlParams();
+    window.addEventListener('popstate', handleUrlParams);
+    return () => window.removeEventListener('popstate', handleUrlParams);
+  }, []);
+
   // Continuous auto-sync to server (works for both logged-in users and persistent guest sessions)
   useEffect(() => {
     setIsSyncing(true);
@@ -613,6 +633,69 @@ export default function App() {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleUpdateUsername = async (
+    newUsername: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    if (!authToken || !currentUser) {
+      return { success: false, error: 'You must be signed in to update your username.' };
+    }
+    try {
+      const oldUsername = currentUser.username;
+      const res = await authApi.updateUsername(authToken, newUsername);
+      if (res.success && res.user) {
+        setCurrentUser(res.user);
+        try {
+          localStorage.setItem('goodbeans_current_user', JSON.stringify(res.user));
+          if (res.vault) {
+            authApi.saveCurrentVault(res.vault);
+          }
+          if (oldUsername && oldUsername.toLowerCase() !== res.user.username.toLowerCase()) {
+            authApi.removeUserFromRegistry(oldUsername);
+          }
+        } catch {}
+        setToastMessage(`Username updated to @${res.user.username}`);
+        return { success: true, message: res.message || 'Username updated successfully!' };
+      } else {
+        return { success: false, error: res.error || 'Failed to update username' };
+      }
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error updating username' };
+    }
+  };
+
+  const handleChangePassword = async (
+    currentPass: string,
+    newPass: string
+  ): Promise<{ success: boolean; error?: string; message?: string }> => {
+    if (!authToken || !currentUser) {
+      return { success: false, error: 'You must be signed in to change your password.' };
+    }
+    try {
+      const res = await authApi.changePassword(authToken, currentPass, newPass);
+      if (res.success) {
+        if (res.vault) {
+          authApi.saveCurrentVault(res.vault);
+        }
+        setToastMessage('Password changed successfully!');
+        return { success: true, message: res.message || 'Password changed successfully!' };
+      } else {
+        return { success: false, error: res.error || 'Failed to change password' };
+      }
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Network error changing password' };
+    }
+  };
+
+  const handleViewPublicProfile = (username: string) => {
+    setPublicProfileUsername(username);
+    setCurrentView('public-profile');
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('profile', username);
+      window.history.pushState({}, '', url.toString());
+    } catch {}
   };
 
   useEffect(() => {
@@ -1637,7 +1720,21 @@ export default function App() {
 
       {/* MAIN CONTAINER */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-6">
-        {currentView === 'coffee-detail' && selectedCoffee ? (
+        {currentView === 'public-profile' && publicProfileUsername ? (
+          <PublicProfileView
+            username={publicProfileUsername}
+            currentLoggedInUsername={currentUser?.username}
+            onBackToShelves={() => {
+              setCurrentView('shelves');
+              setPublicProfileUsername(null);
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('profile');
+                window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+              } catch {}
+            }}
+          />
+        ) : currentView === 'coffee-detail' && selectedCoffee ? (
           <CoffeeDetailView
             coffee={selectedCoffee}
             allShelves={shelves}
@@ -2145,6 +2242,9 @@ export default function App() {
           onLogout={handleLogout}
           onDeleteAccount={handleDeleteAccount}
           onOpenAdminPanel={() => setIsAdminModalOpen(true)}
+          onUpdateUsername={handleUpdateUsername}
+          onChangePassword={handleChangePassword}
+          onViewPublicProfile={handleViewPublicProfile}
         />
       )}
 
@@ -2154,6 +2254,7 @@ export default function App() {
         onClose={() => setIsAdminModalOpen(false)}
         token={authToken}
         currentUserId={currentUser?.id || ''}
+        onViewPublicProfile={handleViewPublicProfile}
         onRefreshCatalog={async () => {
           await fetchCommunityCatalog();
           if (currentUser?.role === 'admin' && authToken) {

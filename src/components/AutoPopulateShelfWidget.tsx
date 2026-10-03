@@ -29,7 +29,7 @@ import { authApi } from '../services/authApi';
 type ShelfItemType = 'coffee' | 'equipment' | 'cafe' | 'note';
 
 interface AutoPopulateShelfWidgetProps {
-  currentView: 'shelves' | 'coffee-detail' | 'equipment' | 'cafes' | 'notes';
+  currentView: 'shelves' | 'coffee-detail' | 'equipment' | 'cafes' | 'notes' | 'public-profile';
   activeShelfId: string;
   registeredCoffees?: RegisteredCoffee[];
   registeredEquipment?: RegisteredEquipment[];

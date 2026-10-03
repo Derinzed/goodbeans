@@ -930,7 +930,7 @@
         ]
       },
       "createdAt": "2026-10-03T04:05:12.240Z",
-      "updatedAt": "2026-10-03T04:55:53.710Z"
+      "updatedAt": "2026-10-03T15:20:31.458Z"
     },
     {
       "id": "coffee-ai-1790982066778",
@@ -1000,7 +1000,7 @@
         "recipes": []
       },
       "createdAt": "2026-10-03T04:09:47.245Z",
-      "updatedAt": "2026-10-03T04:55:53.678Z",
+      "updatedAt": "2026-10-03T15:20:31.428Z",
       "userTastingNotes": {
         "user-admin": [
           "Blueberry",
@@ -1136,7 +1136,7 @@
         "isRegistered": false
       },
       "createdAt": "2026-10-03T04:49:07.318Z",
-      "updatedAt": "2026-10-03T04:55:53.644Z",
+      "updatedAt": "2026-10-03T15:20:31.397Z",
       "userTastingNotes": {
         "user-admin": [
           "Jasmine",
@@ -1340,7 +1340,7 @@
         "rating": 4
       },
       "createdAt": "2026-10-03T03:43:24.068Z",
-      "updatedAt": "2026-10-03T04:55:53.868Z"
+      "updatedAt": "2026-10-03T15:20:31.629Z"
     },
     {
       "id": "eq-ai-1790653761111",
@@ -1366,7 +1366,7 @@
         "rating": 5
       },
       "createdAt": "2026-10-03T03:55:49.864Z",
-      "updatedAt": "2026-10-03T04:55:53.764Z"
+      "updatedAt": "2026-10-03T15:20:31.549Z"
     },
     {
       "id": "eq-ai-1790653459263",
@@ -1392,7 +1392,7 @@
         "rating": 5
       },
       "createdAt": "2026-10-03T03:55:51.771Z",
-      "updatedAt": "2026-10-03T04:55:53.789Z"
+      "updatedAt": "2026-10-03T15:20:31.487Z"
     },
     {
       "id": "eq-ai-1790653349610",
@@ -1418,7 +1418,7 @@
         "rating": 3.5
       },
       "createdAt": "2026-10-03T03:55:57.708Z",
-      "updatedAt": "2026-10-03T04:55:53.815Z"
+      "updatedAt": "2026-10-03T15:20:31.575Z"
     },
     {
       "id": "eq-ai-1790653058617",
@@ -1444,7 +1444,7 @@
         "rating": 4
       },
       "createdAt": "2026-10-03T03:56:01.104Z",
-      "updatedAt": "2026-10-03T04:55:53.841Z"
+      "updatedAt": "2026-10-03T15:20:31.602Z"
     },
     {
       "id": "eq-ai-1791003014420",
@@ -1473,7 +1473,7 @@
         "isRegistered": false
       },
       "createdAt": "2026-10-03T04:50:15.724Z",
-      "updatedAt": "2026-10-03T04:55:53.740Z"
+      "updatedAt": "2026-10-03T15:20:31.523Z"
     }
   ],
   "cafes": [
@@ -1664,8 +1664,7 @@
         "isFavorite": false
       },
       "createdAt": "2026-10-03T03:56:12.892Z",
-      "updatedAt": "2026-10-03T04:55:53.896Z",
-      "userTastingNotes": {}
+      "updatedAt": "2026-10-03T15:20:31.659Z"
     }
   ]
 }
