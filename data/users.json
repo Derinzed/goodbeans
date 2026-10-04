@@ -7,7 +7,7 @@
     "role": "admin",
     "createdAt": "2026-09-29T22:50:41.931Z",
     "lastLoginAt": "2026-09-29T22:51:01.571Z",
-    "updatedAt": "2026-10-03T15:20:31.358Z",
+    "updatedAt": "2026-10-04T03:12:31.638Z",
     "data": {
       "coffees": [
         {
@@ -24,23 +24,58 @@
           "variety": "Bourbon, Caturra, Heirloom",
           "process": "Washed",
           "roastLevel": "Medium-Dark",
+          "roastDate": "2026-10-04",
+          "userRating": 4,
+          "shelfIds": [
+            "currently-drinking"
+          ],
           "tastingNotesSummary": [
             "Dark Chocolate",
             "Caramel",
             "Toasted Almond",
             "Sweet Citrus"
           ],
-          "description": "Red Bird Espresso is a classic, crowd-pleasing blend designed specifically for espresso extraction. It balances the heavy body and sweetness of Brazilian beans with the bright, clean acidity of Colombian and Ethiopian components to create a rich, syrupy shot that cuts through milk perfectly.",
-          "bagBadgeText": "Classic Blend",
-          "coverColor": "#5C3A21",
-          "userRating": 4,
-          "shelfIds": [
-            "currently-drinking"
-          ],
-          "dateAdded": "2026-10-03",
-          "isFavorite": false,
           "tastingLogs": [],
           "recipes": [
+            {
+              "id": "recipe-1791080272238",
+              "coffeeId": "coffee-ai-1791080272238",
+              "title": "Standard Espresso Dial-In",
+              "method": "espresso",
+              "doseGrams": 18,
+              "waterGrams": 36,
+              "ratio": "1:2",
+              "grindSize": "Fine (Espresso)",
+              "waterTempC": 92,
+              "totalTimeSeconds": 28,
+              "bloomGrams": 45,
+              "bloomTimeSeconds": 40,
+              "equipmentIds": [],
+              "customVariables": [
+                {
+                  "id": "v1",
+                  "label": "Basket Size",
+                  "value": "18g VST"
+                },
+                {
+                  "id": "v2",
+                  "label": "Pressure",
+                  "value": "9 Bar"
+                }
+              ],
+              "steps": [
+                {
+                  "id": "s1",
+                  "timeSeconds": 0,
+                  "title": "Extraction",
+                  "waterAmountGrams": 36,
+                  "instruction": "Start pump and monitor flow for consistent 28s extraction"
+                }
+              ],
+              "notes": "Aim for a 27-30 second extraction to highlight the chocolate and caramel notes while keeping the citrus acidity balanced.",
+              "isRecommended": true,
+              "createdAt": "2026-10-04T02:17:52.238Z"
+            },
             {
               "id": "recipe-1791003479346",
               "coffeeId": "coffee-ai-1791003479346",
@@ -86,6 +121,323 @@
               "notes": "Aim for a syrupy, viscous texture. If too bitter, increase the ratio to 1:2.2; if too sour, tighten the grind slightly.",
               "isRecommended": true,
               "createdAt": "2026-10-03T04:57:59.346Z"
+            }
+          ],
+          "coverColor": "#5C3A21",
+          "bagBadgeText": "Classic Blend",
+          "description": "Red Bird Espresso is a classic, crowd-pleasing blend designed specifically for espresso extraction. It balances the heavy body and sweetness of Brazilian beans with the bright, clean acidity of Colombian and Ethiopian components to create a rich, syrupy shot that cuts through milk perfectly.",
+          "dateAdded": "2026-10-03",
+          "isFavorite": false
+        },
+        {
+          "id": "coffee-1791080986151",
+          "name": "apollo",
+          "roaster": "Counter cultures",
+          "origin": {
+            "country": "Ethiopia"
+          },
+          "variety": "Ethiopian Heirlooms",
+          "process": "Washed",
+          "roastLevel": "Light",
+          "roastDate": "2026-10-04",
+          "userRating": 0,
+          "shelfIds": [
+            "currently-drinking"
+          ],
+          "tastingNotesSummary": [
+            "Candied Peach",
+            "Jasmine"
+          ],
+          "tastingLogs": [],
+          "recipes": [],
+          "coverColor": "#E29548",
+          "bagBadgeText": "Specialty Single Origin",
+          "description": "",
+          "dateAdded": "2026-10-04",
+          "isFavorite": false
+        },
+        {
+          "id": "coffee-1791080894653",
+          "name": "apollo",
+          "roaster": "Counter culture",
+          "origin": {
+            "country": "Ethiopia"
+          },
+          "variety": "Ethiopian Heirlooms",
+          "process": "Washed",
+          "roastLevel": "Light",
+          "roastDate": "2026-10-04",
+          "userRating": 5,
+          "shelfIds": [
+            "currently-drinking"
+          ],
+          "tastingNotesSummary": [
+            "Candied Peach",
+            "Jasmine"
+          ],
+          "tastingLogs": [],
+          "recipes": [],
+          "coverColor": "#E29548",
+          "bagBadgeText": "Specialty Single Origin",
+          "description": "",
+          "dateAdded": "2026-10-04",
+          "isFavorite": false
+        },
+        {
+          "id": "coffee-ai-1791080855381",
+          "name": "Counter culture apolllo",
+          "roaster": "Specialty Roaster",
+          "origin": {
+            "country": "Ethiopia",
+            "region": "Yirgacheffe",
+            "farmOrStation": "Yirgacheffe Valley Washing Station",
+            "producer": "Selected Lots",
+            "elevationMeters": 2050
+          },
+          "variety": "Heirloom",
+          "process": "Washed",
+          "roastLevel": "Light",
+          "tastingNotesSummary": [
+            "Bergamot",
+            "White Peach",
+            "Jasmine Flower",
+            "Meyer Lemon"
+          ],
+          "description": "Exceptional washed lot sourced from high-elevation terroir in Yirgacheffe, Ethiopia. Shows brilliant acidity and lingering floral sweetness.",
+          "bagBadgeText": "Micro-Lot",
+          "coverColor": "#2B1D14",
+          "userRating": 0,
+          "shelfIds": [
+            "currently-drinking"
+          ],
+          "dateAdded": "2026-10-04",
+          "isFavorite": false,
+          "tastingLogs": [],
+          "recipes": [
+            {
+              "id": "recipe-1791080855381",
+              "coffeeId": "coffee-ai-1791080855381",
+              "title": "Dialed-In V60 Recipe",
+              "method": "v60",
+              "doseGrams": 15,
+              "waterGrams": 250,
+              "ratio": "1:16.7",
+              "grindSize": "Medium-Fine",
+              "waterTempC": 93,
+              "totalTimeSeconds": 195,
+              "bloomGrams": 45,
+              "bloomTimeSeconds": 40,
+              "equipmentIds": [],
+              "customVariables": [
+                {
+                  "id": "v1",
+                  "label": "Filter Type",
+                  "value": "Cafec Abaca White"
+                },
+                {
+                  "id": "v2",
+                  "label": "Water Mineral Profile",
+                  "value": "Lotus Bright (60ppm GH)"
+                }
+              ],
+              "steps": [
+                {
+                  "id": "s1",
+                  "timeSeconds": 0,
+                  "title": "Bloom",
+                  "waterAmountGrams": 45,
+                  "instruction": "Even pour and gentle swirl"
+                },
+                {
+                  "id": "s2",
+                  "timeSeconds": 40,
+                  "title": "First Pour",
+                  "waterAmountGrams": 150,
+                  "instruction": "Continuous spiral outward"
+                },
+                {
+                  "id": "s3",
+                  "timeSeconds": 90,
+                  "title": "Final Pour",
+                  "waterAmountGrams": 250,
+                  "instruction": "Gentle center pour finish"
+                }
+              ],
+              "notes": "Gentle center pours to highlight floral notes.",
+              "isRecommended": true,
+              "createdAt": "2026-10-04T02:27:35.381Z"
+            }
+          ]
+        },
+        {
+          "id": "coffee-ai-1791080205729",
+          "name": "Red bird espresso",
+          "roaster": "Specialty Roaster",
+          "origin": {
+            "country": "Ethiopia",
+            "region": "Yirgacheffe",
+            "farmOrStation": "Yirgacheffe Valley Washing Station",
+            "producer": "Selected Lots",
+            "elevationMeters": 2050
+          },
+          "variety": "Heirloom",
+          "process": "Washed",
+          "roastLevel": "Light",
+          "tastingNotesSummary": [
+            "Bergamot",
+            "White Peach",
+            "Jasmine Flower",
+            "Meyer Lemon"
+          ],
+          "description": "Exceptional washed lot sourced from high-elevation terroir in Yirgacheffe, Ethiopia. Shows brilliant acidity and lingering floral sweetness.",
+          "bagBadgeText": "Micro-Lot",
+          "coverColor": "#2B1D14",
+          "userRating": 0,
+          "shelfIds": [
+            "currently-drinking"
+          ],
+          "dateAdded": "2026-10-04",
+          "isFavorite": false,
+          "tastingLogs": [],
+          "recipes": [
+            {
+              "id": "recipe-1791080205729",
+              "coffeeId": "coffee-ai-1791080205729",
+              "title": "Dialed-In V60 Recipe",
+              "method": "v60",
+              "doseGrams": 15,
+              "waterGrams": 250,
+              "ratio": "1:16.7",
+              "grindSize": "Medium-Fine",
+              "waterTempC": 93,
+              "totalTimeSeconds": 195,
+              "bloomGrams": 45,
+              "bloomTimeSeconds": 40,
+              "equipmentIds": [],
+              "customVariables": [
+                {
+                  "id": "v1",
+                  "label": "Filter Type",
+                  "value": "Cafec Abaca White"
+                },
+                {
+                  "id": "v2",
+                  "label": "Water Mineral Profile",
+                  "value": "Lotus Bright (60ppm GH)"
+                }
+              ],
+              "steps": [
+                {
+                  "id": "s1",
+                  "timeSeconds": 0,
+                  "title": "Bloom",
+                  "waterAmountGrams": 45,
+                  "instruction": "Even pour and gentle swirl"
+                },
+                {
+                  "id": "s2",
+                  "timeSeconds": 40,
+                  "title": "First Pour",
+                  "waterAmountGrams": 150,
+                  "instruction": "Continuous spiral outward"
+                },
+                {
+                  "id": "s3",
+                  "timeSeconds": 90,
+                  "title": "Final Pour",
+                  "waterAmountGrams": 250,
+                  "instruction": "Gentle center pour finish"
+                }
+              ],
+              "notes": "Gentle center pours to highlight floral notes.",
+              "isRecommended": true,
+              "createdAt": "2026-10-04T02:16:45.729Z"
+            }
+          ]
+        },
+        {
+          "id": "coffee-ai-1791079997854",
+          "name": "Apollo",
+          "roaster": "Counter Culture Coffee",
+          "origin": {
+            "country": "Ethiopia",
+            "region": "Gedeo Zone",
+            "farmOrStation": "Various Smallholder Farmers",
+            "producer": "Various Smallholders",
+            "elevationMeters": 2000
+          },
+          "variety": "Heirloom",
+          "process": "Washed",
+          "roastLevel": "Light",
+          "tastingNotesSummary": [
+            "Blueberry",
+            "Lemon",
+            "Jasmine",
+            "Honey"
+          ],
+          "description": "Apollo is a perennial favorite from Counter Culture, representing the classic, bright, and floral profile of high-elevation Ethiopian coffees. This blend is meticulously sourced to highlight the vibrant acidity and complex aromatics characteristic of the Gedeo Zone, offering a clean and tea-like cup.",
+          "bagBadgeText": "Signature Blend",
+          "coverColor": "#F4A460",
+          "userRating": 5,
+          "shelfIds": [
+            "currently-drinking"
+          ],
+          "dateAdded": "2026-10-04",
+          "isFavorite": false,
+          "tastingLogs": [],
+          "recipes": [
+            {
+              "id": "recipe-1791079997854",
+              "coffeeId": "coffee-ai-1791079997854",
+              "title": "Recommended V60 Dial-In",
+              "method": "v60",
+              "doseGrams": 20,
+              "waterGrams": 320,
+              "ratio": "1:16",
+              "grindSize": "Medium-Fine",
+              "waterTempC": 94,
+              "totalTimeSeconds": 180,
+              "bloomGrams": 60,
+              "bloomTimeSeconds": 45,
+              "equipmentIds": [],
+              "customVariables": [
+                {
+                  "id": "v1",
+                  "label": "Filter Type",
+                  "value": "Hario V60 Paper"
+                },
+                {
+                  "id": "v2",
+                  "label": "Water Minerals",
+                  "value": "Soft water profile"
+                }
+              ],
+              "steps": [
+                {
+                  "id": "s1",
+                  "timeSeconds": 0,
+                  "title": "Bloom",
+                  "waterAmountGrams": 60,
+                  "instruction": "Saturate grounds evenly and wait for bloom"
+                },
+                {
+                  "id": "s2",
+                  "timeSeconds": 45,
+                  "title": "First Pour",
+                  "waterAmountGrams": 190,
+                  "instruction": "Pour in steady circles to 190g"
+                },
+                {
+                  "id": "s3",
+                  "timeSeconds": 120,
+                  "title": "Final Pour",
+                  "waterAmountGrams": 320,
+                  "instruction": "Complete pour and allow to draw down"
+                }
+              ],
+              "notes": "Use filtered water to allow the delicate floral notes to shine through the bright acidity.",
+              "isRecommended": true,
+              "createdAt": "2026-10-04T02:13:17.855Z"
             }
           ]
         },
@@ -177,7 +529,7 @@
         },
         {
           "id": "coffee-ai-1790982066778",
-          "name": "Apollo",
+          "name": "Apolo",
           "roaster": "Counter Culture Coffee",
           "origin": {
             "country": "Ethiopia",
@@ -205,7 +557,8 @@
           "dateAdded": "2026-10-02",
           "isFavorite": false,
           "tastingLogs": [],
-          "recipes": []
+          "recipes": [],
+          "roastDate": "2026-10-04"
         },
         {
           "id": "coffee-ai-1790653949931",
@@ -497,7 +850,35 @@
     "role": "user",
     "createdAt": "2026-10-03T15:29:09.391Z",
     "lastLoginAt": "2026-10-03T15:29:09.438Z",
-    "updatedAt": "2026-10-03T15:29:09.426Z",
+    "updatedAt": "2026-10-04T03:11:56.577Z",
+    "data": {
+      "coffees": [],
+      "equipment": [],
+      "cafes": [],
+      "notes": [],
+      "shelves": []
+    }
+  },
+  {
+    "id": "user-1791084194893-0ceb5bf8",
+    "username": "admin_tester",
+    "passwordHash": "d9b9f919a1808b079149e2f9215985403262058b6900b648dd2a661cf7cce109830d34b68b4d9d70c247d178fa76e28538d9fb7dfb6f9091fb2b49ee16eee94d",
+    "salt": "02c5b4ec7b5b164afe9f4813e09a4323",
+    "role": "admin",
+    "createdAt": "2026-10-04T03:23:14.893Z",
+    "lastLoginAt": "2026-10-04T03:23:14.893Z",
+    "updatedAt": "2026-10-04T03:23:14.908Z",
+    "data": {}
+  },
+  {
+    "id": "user-1791084259113-76007372",
+    "username": "api_admin_test",
+    "passwordHash": "dbae01912794a5bcc992abb1e8f1dcea120261c66006933bea3ceb10d5770dc07a9c0d8f638453953d0641a698830c45e0c6550ca8a99b935aa746cafd2be4a1",
+    "salt": "dc19e3a6dd54a147a6662321c0ffd502",
+    "role": "admin",
+    "createdAt": "2026-10-04T03:24:19.113Z",
+    "lastLoginAt": "2026-10-04T03:24:19.113Z",
+    "updatedAt": "2026-10-04T03:24:19.131Z",
     "data": {}
   }
 ]

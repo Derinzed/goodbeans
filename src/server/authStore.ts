@@ -22,18 +22,30 @@ const GUESTS_FILE = path.join(DATA_DIR, 'guests.json');
 const BACKUP_GUESTS_FILE = path.resolve(__dirname, '../data/seedGuests.json');
 const COMMUNITY_ITEMS_FILE = path.join(DATA_DIR, 'community_items.json');
 const BACKUP_COMMUNITY_ITEMS_FILE = path.resolve(__dirname, '../data/seedCommunityItems.json');
-const PURGED_COMMUNITY_ITEMS_FILE = path.join(DATA_DIR, 'purged_community_items.json');
-const BACKUP_PURGED_COMMUNITY_ITEMS_FILE = path.resolve(__dirname, '../data/seedPurgedCommunityItems.json');
+const DELETED_SEEDS_FILE = path.join(DATA_DIR, 'deleted_seeds.json');
+const BACKUP_DELETED_SEEDS_FILE = path.resolve(__dirname, '../data/seedDeletedSeeds.json');
+const BLACKLIST_FILE = path.join(DATA_DIR, 'blacklisted_items.json');
+const BACKUP_BLACKLIST_FILE = path.resolve(__dirname, '../data/seedBlacklistedItems.json');
 
 // Stable persistent secret for signing session tokens across server reboots
 const SERVER_SECRET = process.env.SESSION_SECRET || 'goodbeans-secret-key-salt-2026-coffee-shelves';
 
-export interface PurgedCommunityItem {
+export interface BlacklistedItem {
+  id: string;
+  name: string;
+  secondary?: string;
+  type: 'coffee' | 'equipment' | 'cafe' | 'all';
+  reason?: string;
+  blacklistedBy?: string;
+  createdAt: string;
+}
+
+export interface DeletedSeedItem {
   id: string;
   name: string;
   secondary: string;
   type: 'coffee' | 'equipment' | 'cafe';
-  purgedAt: string;
+  deletedAt: string;
 }
 
 export interface UserDataPayload {
@@ -359,33 +371,40 @@ export class AuthStore {
     }
 
     // 4. Seed & synchronize COMMUNITY_ITEMS_FILE with BACKUP_COMMUNITY_ITEMS_FILE across publishes/deployments
-    // Load purged items to ensure deleted community items / seeds are never re-hydrated
-    let purgedItemsList: PurgedCommunityItem[] = [];
-    if (fs.existsSync(PURGED_COMMUNITY_ITEMS_FILE)) {
+    let deletedSeedsList: DeletedSeedItem[] = [];
+    if (fs.existsSync(DELETED_SEEDS_FILE)) {
       try {
-        const parsed = JSON.parse(fs.readFileSync(PURGED_COMMUNITY_ITEMS_FILE, 'utf-8'));
-        if (Array.isArray(parsed)) purgedItemsList = parsed;
+        const parsed = JSON.parse(fs.readFileSync(DELETED_SEEDS_FILE, 'utf-8'));
+        if (Array.isArray(parsed)) deletedSeedsList = parsed;
       } catch {}
     }
-    if (fs.existsSync(BACKUP_PURGED_COMMUNITY_ITEMS_FILE)) {
+    if (fs.existsSync(BACKUP_DELETED_SEEDS_FILE)) {
       try {
-        const parsed = JSON.parse(fs.readFileSync(BACKUP_PURGED_COMMUNITY_ITEMS_FILE, 'utf-8'));
+        const parsed = JSON.parse(fs.readFileSync(BACKUP_DELETED_SEEDS_FILE, 'utf-8'));
         if (Array.isArray(parsed)) {
           parsed.forEach((p) => {
-            if (!purgedItemsList.some((x) => x.id === p.id || (x.type === p.type && (x.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase() && (x.secondary || '').trim().toLowerCase() === (p.secondary || '').trim().toLowerCase()))) {
-              purgedItemsList.push(p);
+            if (
+              !deletedSeedsList.some(
+                (x) =>
+                  x.id === p.id ||
+                  (x.type === p.type &&
+                    (x.name || '').trim().toLowerCase() === (p.name || '').trim().toLowerCase() &&
+                    (x.secondary || '').trim().toLowerCase() === (p.secondary || '').trim().toLowerCase())
+              )
+            ) {
+              deletedSeedsList.push(p);
             }
           });
         }
       } catch {}
     }
 
-    const isItemInPurgedList = (type: string, name: string, secondary: string, id?: string): boolean => {
+    const isFactorySeedDeleted = (type: string, name: string, secondary: string, id?: string): boolean => {
       const cleanName = (name || '').trim().toLowerCase();
       const cleanSec = (secondary || '').trim().toLowerCase();
       const key = `${type}::${cleanName}::${cleanSec}`;
 
-      return purgedItemsList.some(
+      return deletedSeedsList.some(
         (p) =>
           (id && p.id === id) ||
           `${p.type}::${(p.name || '').trim().toLowerCase()}::${(p.secondary || '').trim().toLowerCase()}` === key ||
@@ -393,6 +412,43 @@ export class AuthStore {
             (p.secondary || '').trim().toLowerCase() === cleanSec &&
             p.type === type)
       );
+    };
+
+    // Load blacklist rules to ensure blacklisted items are strictly excluded from catalog
+    let blacklistedList: BlacklistedItem[] = [];
+    if (fs.existsSync(BLACKLIST_FILE)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(BLACKLIST_FILE, 'utf-8'));
+        if (Array.isArray(parsed)) blacklistedList = parsed;
+      } catch {}
+    }
+    if (fs.existsSync(BACKUP_BLACKLIST_FILE)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(BACKUP_BLACKLIST_FILE, 'utf-8'));
+        if (Array.isArray(parsed)) {
+          parsed.forEach((p) => {
+            if (!blacklistedList.some((x) => x.id === p.id)) {
+              blacklistedList.push(p);
+            }
+          });
+        }
+      } catch {}
+    }
+
+    const isBlacklisted = (type: string, name: string, secondary?: string, id?: string): boolean => {
+      const cleanName = (name || '').trim().toLowerCase();
+      const cleanSec = (secondary || '').trim().toLowerCase();
+      return blacklistedList.some((b) => {
+        if (id && b.id === id) return true;
+        const bName = (b.name || '').trim().toLowerCase();
+        const bSec = (b.secondary || '').trim().toLowerCase();
+        const typeMatch = b.type === 'all' || b.type === type;
+        if (!typeMatch) return false;
+        if (bName === cleanName) {
+          if (!bSec || !cleanSec || bSec === cleanSec) return true;
+        }
+        return false;
+      });
     };
 
     let communityData: {
@@ -408,9 +464,9 @@ export class AuthStore {
       try {
         const parsed = JSON.parse(fs.readFileSync(COMMUNITY_ITEMS_FILE, 'utf-8'));
         if (parsed) {
-          if (Array.isArray(parsed.coffees)) communityData.coffees = parsed.coffees.filter((c: any) => !isItemInPurgedList('coffee', c.name, c.secondary, c.id));
-          if (Array.isArray(parsed.equipment)) communityData.equipment = parsed.equipment.filter((e: any) => !isItemInPurgedList('equipment', e.name, e.secondary, e.id));
-          if (Array.isArray(parsed.cafes)) communityData.cafes = parsed.cafes.filter((ca: any) => !isItemInPurgedList('cafe', ca.name, ca.secondary, ca.id));
+          if (Array.isArray(parsed.coffees)) communityData.coffees = parsed.coffees;
+          if (Array.isArray(parsed.equipment)) communityData.equipment = parsed.equipment;
+          if (Array.isArray(parsed.cafes)) communityData.cafes = parsed.cafes;
         }
       } catch {}
     }
@@ -428,12 +484,39 @@ export class AuthStore {
       try {
         const parsed = JSON.parse(fs.readFileSync(BACKUP_COMMUNITY_ITEMS_FILE, 'utf-8'));
         if (parsed) {
-          if (Array.isArray(parsed.coffees)) backupCommunityData.coffees = parsed.coffees.filter((c: any) => !isItemInPurgedList('coffee', c.name, c.secondary, c.id));
-          if (Array.isArray(parsed.equipment)) backupCommunityData.equipment = parsed.equipment.filter((e: any) => !isItemInPurgedList('equipment', e.name, e.secondary, e.id));
-          if (Array.isArray(parsed.cafes)) backupCommunityData.cafes = parsed.cafes.filter((ca: any) => !isItemInPurgedList('cafe', ca.name, ca.secondary, ca.id));
+          if (Array.isArray(parsed.coffees)) backupCommunityData.coffees = parsed.coffees;
+          if (Array.isArray(parsed.equipment)) backupCommunityData.equipment = parsed.equipment;
+          if (Array.isArray(parsed.cafes)) backupCommunityData.cafes = parsed.cafes;
         }
       } catch {}
     }
+
+    // Filter out blacklisted entries from active community catalog, and deleted factory seeds from backup
+    communityData.coffees = communityData.coffees.filter(
+      (c) => !isBlacklisted('coffee', c.name, c.secondary, c.id)
+    );
+    communityData.equipment = communityData.equipment.filter(
+      (e) => !isBlacklisted('equipment', e.name, e.secondary, e.id)
+    );
+    communityData.cafes = communityData.cafes.filter(
+      (cf) => !isBlacklisted('cafe', cf.name, cf.secondary, cf.id)
+    );
+
+    backupCommunityData.coffees = backupCommunityData.coffees.filter(
+      (c) =>
+        !isFactorySeedDeleted('coffee', c.name, c.secondary || c.itemData?.roaster, c.id) &&
+        !isBlacklisted('coffee', c.name, c.secondary, c.id)
+    );
+    backupCommunityData.equipment = backupCommunityData.equipment.filter(
+      (e) =>
+        !isFactorySeedDeleted('equipment', e.name, e.secondary || e.itemData?.brand, e.id) &&
+        !isBlacklisted('equipment', e.name, e.secondary, e.id)
+    );
+    backupCommunityData.cafes = backupCommunityData.cafes.filter(
+      (cf) =>
+        !isFactorySeedDeleted('cafe', cf.name, cf.secondary || cf.itemData?.city, cf.id) &&
+        !isBlacklisted('cafe', cf.name, cf.secondary, cf.id)
+    );
 
     // Item list merger preserving user ratings and latest updates
     const mergeItemLists = (primary: StoredCommunityItem[], backup: StoredCommunityItem[]) => {
@@ -441,7 +524,6 @@ export class AuthStore {
 
       const insertOrMerge = (item: StoredCommunityItem) => {
         if (!item || !item.name) return;
-        if (isItemInPurgedList(item.type, item.name, item.secondary, item.id)) return;
         const cleanName = (item.name || '').trim().toLowerCase();
         const cleanSec = (item.secondary || '').trim().toLowerCase();
         const key = `${cleanName}::${cleanSec}`;
@@ -472,9 +554,9 @@ export class AuthStore {
     const mergedEquipment = mergeItemLists(communityData.equipment, backupCommunityData.equipment);
     const mergedCafes = mergeItemLists(communityData.cafes, backupCommunityData.cafes);
 
-    // If initial items are missing from defaults, add them (unless explicitly purged by admin)
+    // If initial items are missing from defaults and were not deleted from seed by admin, add them
     INITIAL_COFFEES.forEach((c) => {
-      if (isItemInPurgedList('coffee', c.name, c.roaster, c.id)) return;
+      if (isFactorySeedDeleted('coffee', c.name, c.roaster, c.id) || isBlacklisted('coffee', c.name, c.roaster, c.id)) return;
       const cleanName = (c.name || '').trim().toLowerCase();
       const cleanRoaster = (c.roaster || '').trim().toLowerCase();
       const key = `${cleanName}::${cleanRoaster}`;
@@ -498,7 +580,7 @@ export class AuthStore {
     });
 
     INITIAL_EQUIPMENT.forEach((eq) => {
-      if (isItemInPurgedList('equipment', eq.name, eq.brand, eq.id)) return;
+      if (isFactorySeedDeleted('equipment', eq.name, eq.brand, eq.id) || isBlacklisted('equipment', eq.name, eq.brand, eq.id)) return;
       const cleanName = (eq.name || '').trim().toLowerCase();
       const cleanBrand = (eq.brand || '').trim().toLowerCase();
       const key = `${cleanName}::${cleanBrand}`;
@@ -520,7 +602,7 @@ export class AuthStore {
     });
 
     INITIAL_CAFES.forEach((cafe) => {
-      if (isItemInPurgedList('cafe', cafe.name, cafe.city, cafe.id)) return;
+      if (isFactorySeedDeleted('cafe', cafe.name, cafe.city, cafe.id) || isBlacklisted('cafe', cafe.name, cafe.city, cafe.id)) return;
       const cleanName = (cafe.name || '').trim().toLowerCase();
       const cleanCity = (cafe.city || '').trim().toLowerCase();
       const key = `${cleanName}::${cleanCity}`;
@@ -546,7 +628,6 @@ export class AuthStore {
       if (Array.isArray(u.data?.coffees)) {
         u.data.coffees.forEach((c: any) => {
           if (!c || !c.name) return;
-          if (isItemInPurgedList('coffee', c.name, c.roaster, c.id)) return;
           const cleanName = (c.name || '').trim();
           const cleanRoaster = (c.roaster || '').trim();
           const key = `${cleanName.toLowerCase()}::${cleanRoaster.toLowerCase()}`;
@@ -563,7 +644,6 @@ export class AuthStore {
       if (Array.isArray(u.data?.equipment)) {
         u.data.equipment.forEach((eq: any) => {
           if (!eq || !eq.name) return;
-          if (isItemInPurgedList('equipment', eq.name, eq.brand, eq.id)) return;
           const cleanName = (eq.name || '').trim();
           const cleanBrand = (eq.brand || '').trim();
           const key = `${cleanName.toLowerCase()}::${cleanBrand.toLowerCase()}`;
@@ -580,7 +660,6 @@ export class AuthStore {
       if (Array.isArray(u.data?.cafes)) {
         u.data.cafes.forEach((cafe: any) => {
           if (!cafe || !cafe.name) return;
-          if (isItemInPurgedList('cafe', cafe.name, cafe.city, cafe.id)) return;
           const cleanName = (cafe.name || '').trim();
           const cleanCity = (cafe.city || '').trim();
           const key = `${cleanName.toLowerCase()}::${cleanCity.toLowerCase()}`;
@@ -606,8 +685,8 @@ export class AuthStore {
       fs.writeFileSync(BACKUP_COMMUNITY_ITEMS_FILE, JSON.stringify(finalCommunityData, null, 2), 'utf-8');
     } catch {}
     try {
-      fs.writeFileSync(PURGED_COMMUNITY_ITEMS_FILE, JSON.stringify(purgedItemsList, null, 2), 'utf-8');
-      fs.writeFileSync(BACKUP_PURGED_COMMUNITY_ITEMS_FILE, JSON.stringify(purgedItemsList, null, 2), 'utf-8');
+      fs.writeFileSync(DELETED_SEEDS_FILE, JSON.stringify(deletedSeedsList, null, 2), 'utf-8');
+      fs.writeFileSync(BACKUP_DELETED_SEEDS_FILE, JSON.stringify(deletedSeedsList, null, 2), 'utf-8');
     } catch {}
 
     // Auto-clean any legacy base ratings from community_items.json
@@ -1376,36 +1455,36 @@ export class AuthStore {
     const removedGuests = Object.keys(allGuests).length;
     this.writeJsonFile(GUESTS_FILE, {});
 
-    // 4. Revert community items registry to 0 and blacklist previous items from automatic re-seeding
+    // 4. Revert community items registry to 0 and record deleted seeds to prevent automatic factory re-seeding
     const communityData = this.getCommunityItemsData();
     const removedCoffees = (communityData.coffees || []).length;
     const removedEquipment = (communityData.equipment || []).length;
     const removedCafes = (communityData.cafes || []).length;
 
-    const purgedList = this.getPurgedCommunityItems();
-    const addPurged = (id: string, name: string, secondary: string, type: 'coffee' | 'equipment' | 'cafe') => {
+    const deletedSeeds = this.getDeletedSeeds();
+    const addDeletedSeed = (id: string, name: string, secondary: string, type: 'coffee' | 'equipment' | 'cafe') => {
       const cleanName = (name || '').trim().toLowerCase();
       const cleanSec = (secondary || '').trim().toLowerCase();
       const key = `${type}::${cleanName}::${cleanSec}`;
       if (
-        !purgedList.some(
+        !deletedSeeds.some(
           (p) =>
             p.id === id ||
             `${p.type}::${(p.name || '').trim().toLowerCase()}::${(p.secondary || '').trim().toLowerCase()}` === key
         )
       ) {
-        purgedList.push({ id, name, secondary, type, purgedAt: new Date().toISOString() });
+        deletedSeeds.push({ id, name, secondary, type, deletedAt: new Date().toISOString() });
       }
     };
 
-    (communityData.coffees || []).forEach((c) => addPurged(c.id, c.name, c.secondary, 'coffee'));
-    (communityData.equipment || []).forEach((eq) => addPurged(eq.id, eq.name, eq.secondary, 'equipment'));
-    (communityData.cafes || []).forEach((cafe) => addPurged(cafe.id, cafe.name, cafe.secondary, 'cafe'));
-    INITIAL_COFFEES.forEach((c) => addPurged(c.id, c.name, c.roaster, 'coffee'));
-    INITIAL_EQUIPMENT.forEach((eq) => addPurged(eq.id, eq.name, eq.brand, 'equipment'));
-    INITIAL_CAFES.forEach((cafe) => addPurged(cafe.id, cafe.name, cafe.city, 'cafe'));
+    (communityData.coffees || []).forEach((c) => addDeletedSeed(c.id, c.name, c.secondary, 'coffee'));
+    (communityData.equipment || []).forEach((eq) => addDeletedSeed(eq.id, eq.name, eq.secondary, 'equipment'));
+    (communityData.cafes || []).forEach((cafe) => addDeletedSeed(cafe.id, cafe.name, cafe.secondary, 'cafe'));
+    INITIAL_COFFEES.forEach((c) => addDeletedSeed(c.id, c.name, c.roaster, 'coffee'));
+    INITIAL_EQUIPMENT.forEach((eq) => addDeletedSeed(eq.id, eq.name, eq.brand, 'equipment'));
+    INITIAL_CAFES.forEach((cafe) => addDeletedSeed(cafe.id, cafe.name, cafe.city, 'cafe'));
 
-    this.savePurgedCommunityItems(purgedList);
+    this.saveDeletedSeeds(deletedSeeds);
 
     this.saveCommunityItemsData({
       coffees: [],
@@ -1544,19 +1623,19 @@ export class AuthStore {
     } catch {}
   }
 
-  // --- PURGED COMMUNITY ITEMS BLACKLIST (Prevents deleted seed/community items from re-hydrating) ---
+  // --- DELETED FACTORY SEEDS REGISTRY (Prevents default factory seeds from re-hydrating on boot if deleted) ---
 
-  public static getPurgedCommunityItems(): PurgedCommunityItem[] {
-    const list = this.readJsonFile<PurgedCommunityItem[]>(PURGED_COMMUNITY_ITEMS_FILE, []);
-    let backupList: PurgedCommunityItem[] = [];
-    if (fs.existsSync(BACKUP_PURGED_COMMUNITY_ITEMS_FILE)) {
+  public static getDeletedSeeds(): DeletedSeedItem[] {
+    const list = this.readJsonFile<DeletedSeedItem[]>(DELETED_SEEDS_FILE, []);
+    let backupList: DeletedSeedItem[] = [];
+    if (fs.existsSync(BACKUP_DELETED_SEEDS_FILE)) {
       try {
-        const parsed = JSON.parse(fs.readFileSync(BACKUP_PURGED_COMMUNITY_ITEMS_FILE, 'utf-8'));
+        const parsed = JSON.parse(fs.readFileSync(BACKUP_DELETED_SEEDS_FILE, 'utf-8'));
         if (Array.isArray(parsed)) backupList = parsed;
       } catch {}
     }
 
-    const merged = new Map<string, PurgedCommunityItem>();
+    const merged = new Map<string, DeletedSeedItem>();
     [...backupList, ...list].forEach((item) => {
       if (!item || !item.name) return;
       const key = `${item.type || ''}::${(item.name || '').trim().toLowerCase()}::${(item.secondary || '').trim().toLowerCase()}`;
@@ -1566,46 +1645,57 @@ export class AuthStore {
     return Array.from(new Set(merged.values()));
   }
 
-  public static savePurgedCommunityItems(items: PurgedCommunityItem[]): void {
-    this.writeJsonFile(PURGED_COMMUNITY_ITEMS_FILE, items);
+  public static saveDeletedSeeds(items: DeletedSeedItem[]): void {
+    this.writeJsonFile(DELETED_SEEDS_FILE, items);
     try {
-      this.writeJsonFile(BACKUP_PURGED_COMMUNITY_ITEMS_FILE, items);
+      this.writeJsonFile(BACKUP_DELETED_SEEDS_FILE, items);
     } catch {}
   }
 
-  public static isItemPurged(
-    type: string,
+  public static markDeletedSeed(
+    type: 'coffee' | 'equipment' | 'cafe',
     name: string,
     secondary: string,
     id?: string
-  ): boolean {
-    const purgedList = this.getPurgedCommunityItems();
+  ): void {
+    const list = this.getDeletedSeeds();
     const cleanName = (name || '').trim().toLowerCase();
     const cleanSec = (secondary || '').trim().toLowerCase();
     const key = `${type}::${cleanName}::${cleanSec}`;
 
-    return purgedList.some(
-      (p) =>
-        (id && p.id === id) ||
-        `${p.type}::${(p.name || '').trim().toLowerCase()}::${(p.secondary || '').trim().toLowerCase()}` === key ||
-        ((p.name || '').trim().toLowerCase() === cleanName &&
-          (p.secondary || '').trim().toLowerCase() === cleanSec &&
-          p.type === type)
-    );
+    if (
+      !list.some(
+        (p) =>
+          (id && p.id === id) ||
+          `${p.type}::${(p.name || '').trim().toLowerCase()}::${(p.secondary || '').trim().toLowerCase()}` === key ||
+          ((p.name || '').trim().toLowerCase() === cleanName &&
+            (p.secondary || '').trim().toLowerCase() === cleanSec &&
+            p.type === type)
+      )
+    ) {
+      list.push({
+        id: id || `deleted-seed-${type}-${Date.now()}`,
+        name: (name || '').trim(),
+        secondary: (secondary || '').trim(),
+        type,
+        deletedAt: new Date().toISOString(),
+      });
+      this.saveDeletedSeeds(list);
+    }
   }
 
-  public static unpurgeItem(
+  public static unmarkDeletedSeed(
     type: string,
     name: string,
     secondary: string,
     id?: string
   ): void {
-    const purgedList = this.getPurgedCommunityItems();
+    const list = this.getDeletedSeeds();
     const cleanName = (name || '').trim().toLowerCase();
     const cleanSec = (secondary || '').trim().toLowerCase();
     const key = `${type}::${cleanName}::${cleanSec}`;
 
-    const filtered = purgedList.filter(
+    const filtered = list.filter(
       (p) =>
         !(
           (id && p.id === id) ||
@@ -1616,9 +1706,140 @@ export class AuthStore {
         )
     );
 
-    if (filtered.length !== purgedList.length) {
-      this.savePurgedCommunityItems(filtered);
+    if (filtered.length !== list.length) {
+      this.saveDeletedSeeds(filtered);
     }
+  }
+
+  // --- DEDICATED ADMIN BLACKLIST FEATURE (Explicit moderation ban list) ---
+
+  public static getBlacklistedItems(): BlacklistedItem[] {
+    const list = this.readJsonFile<BlacklistedItem[]>(BLACKLIST_FILE, []);
+    let backupList: BlacklistedItem[] = [];
+    if (fs.existsSync(BACKUP_BLACKLIST_FILE)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(BACKUP_BLACKLIST_FILE, 'utf-8'));
+        if (Array.isArray(parsed)) backupList = parsed;
+      } catch {}
+    }
+
+    const merged = new Map<string, BlacklistedItem>();
+    [...backupList, ...list].forEach((item) => {
+      if (!item || !item.name) return;
+      const key = `${item.type || 'all'}::${(item.name || '').trim().toLowerCase()}::${(item.secondary || '').trim().toLowerCase()}`;
+      merged.set(key, item);
+      if (item.id) merged.set(item.id, item);
+    });
+    return Array.from(new Set(merged.values()));
+  }
+
+  public static saveBlacklistedItems(items: BlacklistedItem[]): void {
+    this.writeJsonFile(BLACKLIST_FILE, items);
+    try {
+      this.writeJsonFile(BACKUP_BLACKLIST_FILE, items);
+    } catch {}
+  }
+
+  public static isItemBlacklisted(
+    type: string,
+    name: string,
+    secondary?: string,
+    id?: string
+  ): boolean {
+    const blacklist = this.getBlacklistedItems();
+    const cleanName = (name || '').trim().toLowerCase();
+    const cleanSec = (secondary || '').trim().toLowerCase();
+
+    return blacklist.some((b) => {
+      if (id && b.id === id) return true;
+      const bName = (b.name || '').trim().toLowerCase();
+      const bSec = (b.secondary || '').trim().toLowerCase();
+      const typeMatch = b.type === 'all' || b.type === type;
+
+      if (!typeMatch) return false;
+
+      // Exact name match
+      if (bName === cleanName) {
+        if (!bSec || !cleanSec || bSec === cleanSec) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  public static addBlacklistedItem(
+    type: 'coffee' | 'equipment' | 'cafe' | 'all',
+    name: string,
+    secondary?: string,
+    reason?: string,
+    blacklistedBy?: string
+  ): BlacklistedItem {
+    const cleanName = (name || '').trim();
+    const cleanSec = (secondary || '').trim();
+    const list = this.getBlacklistedItems();
+
+    const existingIdx = list.findIndex((b) => {
+      const bName = (b.name || '').trim().toLowerCase();
+      const bSec = (b.secondary || '').trim().toLowerCase();
+      return (
+        (b.type === type || b.type === 'all') &&
+        bName === cleanName.toLowerCase() &&
+        (!cleanSec || !bSec || bSec === cleanSec.toLowerCase())
+      );
+    });
+
+    const entry: BlacklistedItem = {
+      id: existingIdx >= 0 ? list[existingIdx].id : `blacklist-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: cleanName,
+      secondary: cleanSec || undefined,
+      type,
+      reason: reason?.trim() || 'Administrative moderation',
+      blacklistedBy: blacklistedBy || 'Admin',
+      createdAt: existingIdx >= 0 ? list[existingIdx].createdAt : new Date().toISOString(),
+    };
+
+    if (existingIdx >= 0) {
+      list[existingIdx] = entry;
+    } else {
+      list.push(entry);
+    }
+    this.saveBlacklistedItems(list);
+
+    // Also purge this item from community catalog if present
+    const data = this.getCommunityItemsData();
+    let catalogChanged = false;
+    const filterList = (items: StoredCommunityItem[] = []) =>
+      items.filter((item) => {
+        const iName = (item.name || '').trim().toLowerCase();
+        const iSec = (item.secondary || '').trim().toLowerCase();
+        const match =
+          (type === 'all' || item.type === type) &&
+          iName === cleanName.toLowerCase() &&
+          (!cleanSec || !iSec || iSec === cleanSec.toLowerCase());
+        if (match) catalogChanged = true;
+        return !match;
+      });
+
+    data.coffees = filterList(data.coffees);
+    data.equipment = filterList(data.equipment);
+    data.cafes = filterList(data.cafes);
+
+    if (catalogChanged) {
+      this.saveCommunityItemsData(data);
+    }
+
+    return entry;
+  }
+
+  public static removeBlacklistedItem(id: string): boolean {
+    const list = this.getBlacklistedItems();
+    const filtered = list.filter((b) => b.id !== id);
+    if (filtered.length !== list.length) {
+      this.saveBlacklistedItems(filtered);
+      return true;
+    }
+    return false;
   }
 
   // Calculate mathematically exact aggregate general rating across all registered user ratings (defaults to 0 if unrated)
@@ -1769,7 +1990,14 @@ export class AuthStore {
 
     const secondary = (item.secondary || item.roaster || item.brand || item.city || '').trim();
     const key = `${cleanName.toLowerCase()}::${secondary.toLowerCase()}`;
-    this.unpurgeItem(type, cleanName, secondary, item.id);
+
+    // Check if item is explicitly on the Administrator Blacklist
+    if (this.isItemBlacklisted(type, cleanName, secondary, item.id)) {
+      return null;
+    }
+
+    // Unmark from deleted seeds so re-added factory items remain in active community catalog
+    this.unmarkDeletedSeed(type, cleanName, secondary, item.id);
 
     const existingIndex = list.findIndex((x) => {
       const xSec = (x.secondary || '').trim().toLowerCase();
@@ -1905,7 +2133,6 @@ export class AuthStore {
         updatedAt: new Date().toISOString(),
       };
 
-      this.unpurgeItem(type, cleanName, secondary, newItem.id);
       list.push(newItem);
       this.saveCommunityItemsData(data);
       return newItem;
@@ -1946,28 +2173,11 @@ export class AuthStore {
       // 1. Save updated community items data (updates both COMMUNITY_ITEMS_FILE and BACKUP_COMMUNITY_ITEMS_FILE)
       this.saveCommunityItemsData(data);
 
-      // 2. Add to persistent purged items blacklist (saves to PURGED_COMMUNITY_ITEMS_FILE and BACKUP_PURGED_COMMUNITY_ITEMS_FILE)
-      const purgedList = this.getPurgedCommunityItems();
+      // 2. Mark in deleted factory seeds registry so server reboots do not re-inject default seed items
+      this.markDeletedSeed(deletedItem.type, deletedItem.name, deletedItem.secondary, deletedItem.id);
+
       const cleanName = (deletedItem.name || '').trim().toLowerCase();
       const cleanSec = (deletedItem.secondary || '').trim().toLowerCase();
-      const key = `${deletedItem.type}::${cleanName}::${cleanSec}`;
-
-      if (
-        !purgedList.some(
-          (p) =>
-            p.id === deletedItem!.id ||
-            `${p.type}::${(p.name || '').trim().toLowerCase()}::${(p.secondary || '').trim().toLowerCase()}` === key
-        )
-      ) {
-        purgedList.push({
-          id: deletedItem.id,
-          name: deletedItem.name,
-          secondary: deletedItem.secondary,
-          type: deletedItem.type,
-          purgedAt: new Date().toISOString(),
-        });
-        this.savePurgedCommunityItems(purgedList);
-      }
 
       // 3. Unlink from any registered user libraries so user accounts no longer retain community registration flags
       try {
@@ -2554,7 +2764,8 @@ export class AuthStore {
     });
 
     const communityData = this.getCommunityItemsData();
-    const purgedItems = this.getPurgedCommunityItems();
+    const blacklistedItems = this.getBlacklistedItems();
+    const deletedSeeds = this.getDeletedSeeds();
     const sessions = this.getSessions().map((s) => ({
       userId: s.userId,
       createdAt: new Date(s.createdAt).toISOString(),
@@ -2579,10 +2790,15 @@ export class AuthStore {
           },
           records: communityData,
         },
-        purgedCommunityItems: {
-          file: 'purged_community_items.json',
-          count: purgedItems.length,
-          records: purgedItems,
+        blacklistedItems: {
+          file: 'blacklisted_items.json',
+          count: blacklistedItems.length,
+          records: blacklistedItems,
+        },
+        deletedSeeds: {
+          file: 'deleted_seeds.json',
+          count: deletedSeeds.length,
+          records: deletedSeeds,
         },
         sessions: {
           file: 'sessions.json',

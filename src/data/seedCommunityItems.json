@@ -819,140 +819,6 @@
       "userTastingNotes": {}
     },
     {
-      "id": "coffee-ai-1791080205729",
-      "name": "Red bird espresso",
-      "secondary": "Specialty Roaster",
-      "type": "coffee",
-      "userRatings": {},
-      "userTastingNotes": {
-        "user-admin": [
-          "Bergamot",
-          "White Peach",
-          "Jasmine Flower",
-          "Meyer Lemon"
-        ]
-      },
-      "generalRating": 0,
-      "ratingsCount": 0,
-      "userCount": 1,
-      "generalTastingNotes": [
-        "Bergamot",
-        "Jasmine Flower",
-        "Meyer Lemon",
-        "White Peach"
-      ],
-      "tastingNotesBreakdown": [
-        {
-          "note": "Bergamot",
-          "count": 1
-        },
-        {
-          "note": "Jasmine Flower",
-          "count": 1
-        },
-        {
-          "note": "Meyer Lemon",
-          "count": 1
-        },
-        {
-          "note": "White Peach",
-          "count": 1
-        }
-      ],
-      "itemData": {
-        "id": "coffee-ai-1791080205729",
-        "name": "Red bird espresso",
-        "roaster": "Specialty Roaster",
-        "origin": {
-          "country": "Ethiopia",
-          "region": "Yirgacheffe",
-          "farmOrStation": "Yirgacheffe Valley Washing Station",
-          "producer": "Selected Lots",
-          "elevationMeters": 2050
-        },
-        "variety": "Heirloom",
-        "process": "Washed",
-        "roastLevel": "Light",
-        "tastingNotesSummary": [
-          "Bergamot",
-          "White Peach",
-          "Jasmine Flower",
-          "Meyer Lemon"
-        ],
-        "description": "Exceptional washed lot sourced from high-elevation terroir in Yirgacheffe, Ethiopia. Shows brilliant acidity and lingering floral sweetness.",
-        "bagBadgeText": "Micro-Lot",
-        "coverColor": "#2B1D14",
-        "userRating": 0,
-        "generalRating": 0,
-        "communityRating": 0,
-        "communityRatingsCount": 0,
-        "shelfIds": [
-          "currently-drinking"
-        ],
-        "dateAdded": "2026-10-04",
-        "isFavorite": false,
-        "isRegistered": false,
-        "tastingLogs": [],
-        "recipes": [
-          {
-            "id": "recipe-1791080205729",
-            "coffeeId": "coffee-ai-1791080205729",
-            "title": "Dialed-In V60 Recipe",
-            "method": "v60",
-            "doseGrams": 15,
-            "waterGrams": 250,
-            "ratio": "1:16.7",
-            "grindSize": "Medium-Fine",
-            "waterTempC": 93,
-            "totalTimeSeconds": 195,
-            "bloomGrams": 45,
-            "bloomTimeSeconds": 40,
-            "equipmentIds": [],
-            "customVariables": [
-              {
-                "id": "v1",
-                "label": "Filter Type",
-                "value": "Cafec Abaca White"
-              },
-              {
-                "id": "v2",
-                "label": "Water Mineral Profile",
-                "value": "Lotus Bright (60ppm GH)"
-              }
-            ],
-            "steps": [
-              {
-                "id": "s1",
-                "timeSeconds": 0,
-                "title": "Bloom",
-                "waterAmountGrams": 45,
-                "instruction": "Even pour and gentle swirl"
-              },
-              {
-                "id": "s2",
-                "timeSeconds": 40,
-                "title": "First Pour",
-                "waterAmountGrams": 150,
-                "instruction": "Continuous spiral outward"
-              },
-              {
-                "id": "s3",
-                "timeSeconds": 90,
-                "title": "Final Pour",
-                "waterAmountGrams": 250,
-                "instruction": "Gentle center pour finish"
-              }
-            ],
-            "notes": "Gentle center pours to highlight floral notes.",
-            "isRecommended": true,
-            "createdAt": "2026-10-04T02:16:45.729Z"
-          }
-        ]
-      },
-      "createdAt": "2026-10-04T02:16:54.062Z",
-      "updatedAt": "2026-10-04T03:07:14.438Z"
-    },
-    {
       "id": "coffee-ai-1791003479346",
       "name": "Red Bird Espresso",
       "secondary": "Red Bird Coffee",
@@ -968,7 +834,7 @@
           "Sweet Citrus"
         ]
       },
-      "generalRating": 5,
+      "generalRating": 4,
       "ratingsCount": 1,
       "userCount": 1,
       "generalTastingNotes": [
@@ -996,7 +862,7 @@
         }
       ],
       "itemData": {
-        "id": "coffee-1791083223182",
+        "id": "coffee-ai-1791003479346",
         "name": "Red Bird Espresso",
         "roaster": "Red Bird Coffee",
         "origin": {
@@ -1016,16 +882,102 @@
           "Sweet Citrus"
         ],
         "description": "Red Bird Espresso is a classic, crowd-pleasing blend designed specifically for espresso extraction. It balances the heavy body and sweetness of Brazilian beans with the bright, clean acidity of Colombian and Ethiopian components to create a rich, syrupy shot that cuts through milk perfectly.",
-        "bagBadgeText": "Specialty Single Origin",
+        "bagBadgeText": "Classic Blend",
         "coverColor": "#5C3A21",
-        "userRating": 5,
+        "userRating": 4,
         "shelfIds": [
           "currently-drinking"
         ],
-        "dateAdded": "2026-10-04",
+        "dateAdded": "2026-10-03",
         "isFavorite": false,
         "tastingLogs": [],
-        "recipes": [],
+        "recipes": [
+          {
+            "id": "recipe-1791080272238",
+            "coffeeId": "coffee-ai-1791080272238",
+            "title": "Standard Espresso Dial-In",
+            "method": "espresso",
+            "doseGrams": 18,
+            "waterGrams": 36,
+            "ratio": "1:2",
+            "grindSize": "Fine (Espresso)",
+            "waterTempC": 92,
+            "totalTimeSeconds": 28,
+            "bloomGrams": 45,
+            "bloomTimeSeconds": 40,
+            "equipmentIds": [],
+            "customVariables": [
+              {
+                "id": "v1",
+                "label": "Basket Size",
+                "value": "18g VST"
+              },
+              {
+                "id": "v2",
+                "label": "Pressure",
+                "value": "9 Bar"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s1",
+                "timeSeconds": 0,
+                "title": "Extraction",
+                "waterAmountGrams": 36,
+                "instruction": "Start pump and monitor flow for consistent 28s extraction"
+              }
+            ],
+            "notes": "Aim for a 27-30 second extraction to highlight the chocolate and caramel notes while keeping the citrus acidity balanced.",
+            "isRecommended": true,
+            "createdAt": "2026-10-04T02:17:52.238Z"
+          },
+          {
+            "id": "recipe-1791003479346",
+            "coffeeId": "coffee-ai-1791003479346",
+            "title": "Standard Espresso Dial-In",
+            "method": "espresso",
+            "doseGrams": 18,
+            "waterGrams": 36,
+            "ratio": "1:2",
+            "grindSize": "Fine (Espresso)",
+            "waterTempC": 92,
+            "totalTimeSeconds": 28,
+            "bloomGrams": 45,
+            "bloomTimeSeconds": 40,
+            "equipmentIds": [],
+            "customVariables": [
+              {
+                "id": "v1",
+                "label": "Basket Size",
+                "value": "18g VST"
+              },
+              {
+                "id": "v2",
+                "label": "Pressure",
+                "value": "9 Bar"
+              }
+            ],
+            "steps": [
+              {
+                "id": "s1",
+                "timeSeconds": 0,
+                "title": "Pre-infusion",
+                "waterAmountGrams": 0,
+                "instruction": "Start pump and monitor flow"
+              },
+              {
+                "id": "s2",
+                "timeSeconds": 28,
+                "title": "Extraction",
+                "waterAmountGrams": 36,
+                "instruction": "Stop at 36g yield for balanced sweetness"
+              }
+            ],
+            "notes": "Aim for a syrupy, viscous texture. If too bitter, increase the ratio to 1:2.2; if too sour, tighten the grind slightly.",
+            "isRecommended": true,
+            "createdAt": "2026-10-03T04:57:59.346Z"
+          }
+        ],
         "generalRating": 0,
         "communityRating": 0,
         "communityRatingsCount": 0,
@@ -1033,141 +985,7 @@
         "roastDate": "2026-10-04"
       },
       "createdAt": "2026-10-04T02:17:07.631Z",
-      "updatedAt": "2026-10-04T03:07:15.772Z"
-    },
-    {
-      "id": "coffee-ai-1791080855381",
-      "name": "Counter culture apolllo",
-      "secondary": "Specialty Roaster",
-      "type": "coffee",
-      "userRatings": {},
-      "userTastingNotes": {
-        "user-admin": [
-          "Bergamot",
-          "White Peach",
-          "Jasmine Flower",
-          "Meyer Lemon"
-        ]
-      },
-      "generalRating": 0,
-      "ratingsCount": 0,
-      "userCount": 1,
-      "generalTastingNotes": [
-        "Bergamot",
-        "Jasmine Flower",
-        "Meyer Lemon",
-        "White Peach"
-      ],
-      "tastingNotesBreakdown": [
-        {
-          "note": "Bergamot",
-          "count": 1
-        },
-        {
-          "note": "Jasmine Flower",
-          "count": 1
-        },
-        {
-          "note": "Meyer Lemon",
-          "count": 1
-        },
-        {
-          "note": "White Peach",
-          "count": 1
-        }
-      ],
-      "itemData": {
-        "id": "coffee-ai-1791080855381",
-        "name": "Counter culture apolllo",
-        "roaster": "Specialty Roaster",
-        "origin": {
-          "country": "Ethiopia",
-          "region": "Yirgacheffe",
-          "farmOrStation": "Yirgacheffe Valley Washing Station",
-          "producer": "Selected Lots",
-          "elevationMeters": 2050
-        },
-        "variety": "Heirloom",
-        "process": "Washed",
-        "roastLevel": "Light",
-        "tastingNotesSummary": [
-          "Bergamot",
-          "White Peach",
-          "Jasmine Flower",
-          "Meyer Lemon"
-        ],
-        "description": "Exceptional washed lot sourced from high-elevation terroir in Yirgacheffe, Ethiopia. Shows brilliant acidity and lingering floral sweetness.",
-        "bagBadgeText": "Micro-Lot",
-        "coverColor": "#2B1D14",
-        "userRating": 0,
-        "generalRating": 0,
-        "communityRating": 0,
-        "communityRatingsCount": 0,
-        "shelfIds": [
-          "currently-drinking"
-        ],
-        "dateAdded": "2026-10-04",
-        "isFavorite": false,
-        "isRegistered": false,
-        "tastingLogs": [],
-        "recipes": [
-          {
-            "id": "recipe-1791080855381",
-            "coffeeId": "coffee-ai-1791080855381",
-            "title": "Dialed-In V60 Recipe",
-            "method": "v60",
-            "doseGrams": 15,
-            "waterGrams": 250,
-            "ratio": "1:16.7",
-            "grindSize": "Medium-Fine",
-            "waterTempC": 93,
-            "totalTimeSeconds": 195,
-            "bloomGrams": 45,
-            "bloomTimeSeconds": 40,
-            "equipmentIds": [],
-            "customVariables": [
-              {
-                "id": "v1",
-                "label": "Filter Type",
-                "value": "Cafec Abaca White"
-              },
-              {
-                "id": "v2",
-                "label": "Water Mineral Profile",
-                "value": "Lotus Bright (60ppm GH)"
-              }
-            ],
-            "steps": [
-              {
-                "id": "s1",
-                "timeSeconds": 0,
-                "title": "Bloom",
-                "waterAmountGrams": 45,
-                "instruction": "Even pour and gentle swirl"
-              },
-              {
-                "id": "s2",
-                "timeSeconds": 40,
-                "title": "First Pour",
-                "waterAmountGrams": 150,
-                "instruction": "Continuous spiral outward"
-              },
-              {
-                "id": "s3",
-                "timeSeconds": 90,
-                "title": "Final Pour",
-                "waterAmountGrams": 250,
-                "instruction": "Gentle center pour finish"
-              }
-            ],
-            "notes": "Gentle center pours to highlight floral notes.",
-            "isRecommended": true,
-            "createdAt": "2026-10-04T02:27:35.381Z"
-          }
-        ]
-      },
-      "createdAt": "2026-10-04T02:27:44.925Z",
-      "updatedAt": "2026-10-04T03:07:14.398Z"
+      "updatedAt": "2026-10-04T03:12:31.674Z"
     }
   ],
   "equipment": [
@@ -1363,7 +1181,7 @@
         "rating": 4
       },
       "createdAt": "2026-10-03T03:43:24.068Z",
-      "updatedAt": "2026-10-04T03:07:14.773Z"
+      "updatedAt": "2026-10-04T03:12:32.078Z"
     },
     {
       "id": "eq-ai-1790653761111",
@@ -1389,7 +1207,7 @@
         "rating": 5
       },
       "createdAt": "2026-10-03T03:55:49.864Z",
-      "updatedAt": "2026-10-04T03:07:14.667Z"
+      "updatedAt": "2026-10-04T03:12:31.964Z"
     },
     {
       "id": "eq-ai-1790653459263",
@@ -1415,7 +1233,7 @@
         "rating": 5
       },
       "createdAt": "2026-10-03T03:55:51.771Z",
-      "updatedAt": "2026-10-04T03:07:14.577Z"
+      "updatedAt": "2026-10-04T03:12:31.877Z"
     },
     {
       "id": "eq-ai-1790653349610",
@@ -1441,7 +1259,7 @@
         "rating": 3.5
       },
       "createdAt": "2026-10-03T03:55:57.708Z",
-      "updatedAt": "2026-10-04T03:07:14.702Z"
+      "updatedAt": "2026-10-04T03:12:32.002Z"
     },
     {
       "id": "eq-ai-1790653058617",
@@ -1467,7 +1285,7 @@
         "rating": 4
       },
       "createdAt": "2026-10-03T03:56:01.104Z",
-      "updatedAt": "2026-10-04T03:07:14.738Z"
+      "updatedAt": "2026-10-04T03:12:32.041Z"
     },
     {
       "id": "eq-ai-1791003014420",
@@ -1496,7 +1314,7 @@
         "isRegistered": false
       },
       "createdAt": "2026-10-03T04:50:15.724Z",
-      "updatedAt": "2026-10-04T03:07:14.633Z"
+      "updatedAt": "2026-10-04T03:12:31.929Z"
     }
   ],
   "cafes": [
@@ -1687,7 +1505,7 @@
         "isFavorite": false
       },
       "createdAt": "2026-10-03T03:56:12.892Z",
-      "updatedAt": "2026-10-04T03:07:14.809Z"
+      "updatedAt": "2026-10-04T03:12:32.116Z"
     }
   ]
 }

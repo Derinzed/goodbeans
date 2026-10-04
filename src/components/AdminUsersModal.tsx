@@ -37,6 +37,9 @@ import {
   Sliders,
   AlertTriangle,
   ExternalLink,
+  ShieldAlert,
+  Ban,
+  Check,
 } from 'lucide-react';
 import { authApi, AdminUserSummary } from '../services/authApi';
 
@@ -66,7 +69,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   onRefreshCatalog,
   onViewPublicProfile,
 }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'community' | 'ratings' | 'raw-data'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'community' | 'blacklist' | 'ratings' | 'raw-data'>('users');
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,9 +96,19 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const [catalogSort, setCatalogSort] = useState<'rating-desc' | 'rating-asc' | 'reviews-desc' | 'name-asc'>('rating-desc');
   const [expandedRatingItemId, setExpandedRatingItemId] = useState<string | null>(null);
 
+  // Dedicated Blacklist & Moderation State
+  const [blacklist, setBlacklist] = useState<any[]>([]);
+  const [blacklistSearch, setBlacklistSearch] = useState('');
+  const [isAddBlacklistOpen, setIsAddBlacklistOpen] = useState(false);
+  const [newBlacklistType, setNewBlacklistType] = useState<'coffee' | 'equipment' | 'cafe' | 'all'>('coffee');
+  const [newBlacklistName, setNewBlacklistName] = useState('');
+  const [newBlacklistSecondary, setNewBlacklistSecondary] = useState('');
+  const [newBlacklistReason, setNewBlacklistReason] = useState('');
+  const [isBlacklisting, setIsBlacklisting] = useState(false);
+
   // Raw Database state
   const [rawDbData, setRawDbData] = useState<any | null>(null);
-  const [rawTableTab, setRawTableTab] = useState<'community' | 'purged' | 'users' | 'sessions' | 'guests'>('community');
+  const [rawTableTab, setRawTableTab] = useState<'community' | 'blacklist' | 'deleted_seeds' | 'users' | 'sessions' | 'guests'>('community');
   const [rawSearchQuery, setRawSearchQuery] = useState('');
   const [copiedRaw, setCopiedRaw] = useState(false);
 
@@ -185,6 +198,24 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
     }
   };
 
+  const fetchBlacklist = async () => {
+    if (!token) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await authApi.getAdminBlacklist(token);
+      if (res.success && Array.isArray(res.blacklist)) {
+        setBlacklist(res.blacklist);
+      } else {
+        setError(res.error || 'Failed to load blacklist.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Error communicating with server.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchRawDatabase = async () => {
     if (!token) return;
     setIsLoading(true);
@@ -207,6 +238,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
     if (isOpen) {
       if (activeTab === 'users') fetchUsers();
       else if (activeTab === 'community' || activeTab === 'ratings') fetchRatingsBreakdown();
+      else if (activeTab === 'blacklist') fetchBlacklist();
       else if (activeTab === 'raw-data') fetchRawDatabase();
     }
   }, [isOpen, activeTab]);
@@ -622,15 +654,15 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const handleDeleteCommunityItem = async (itemId: string, name: string) => {
     if (!token) return;
     setConfirmDialog({
-      title: 'Purge Community Catalog Entry',
-      message: `Permanently purge "${name}" from the community registry and seed data? This will remove all associated user ratings and prevent the item from being re-seeded upon reboot.`,
-      confirmLabel: 'Purge Item',
+      title: 'Delete from Community Catalog',
+      message: `Delete "${name}" from the community catalogue? It will be removed from community rankings and default seeds, but can be re-added in the future. To permanently prohibit this item from being added, use Blacklist instead.`,
+      confirmLabel: 'Delete Entry',
       isDestructive: true,
       onConfirm: async () => {
         try {
           const res = await authApi.deleteAdminCommunityItem(token, itemId);
           if (res.success) {
-            setActionSuccess(`Permanently purged "${name}" from community registry and seed data.`);
+            setActionSuccess(`"${name}" deleted from community catalogue.`);
             fetchRatingsBreakdown();
             if (onRefreshCatalog) onRefreshCatalog();
             setTimeout(() => setActionSuccess(null), 3000);
@@ -642,6 +674,72 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
         }
       },
     });
+  };
+
+  const handleAddBlacklist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !newBlacklistName.trim()) return;
+    setIsBlacklisting(true);
+    setError(null);
+    try {
+      const res = await authApi.addAdminBlacklist(token, {
+        type: newBlacklistType,
+        name: newBlacklistName.trim(),
+        secondary: newBlacklistSecondary.trim() || undefined,
+        reason: newBlacklistReason.trim() || undefined,
+      });
+      if (res.success) {
+        setActionSuccess(`"${newBlacklistName.trim()}" added to community blacklist.`);
+        setIsAddBlacklistOpen(false);
+        setNewBlacklistName('');
+        setNewBlacklistSecondary('');
+        setNewBlacklistReason('');
+        fetchBlacklist();
+        fetchRatingsBreakdown();
+        if (onRefreshCatalog) onRefreshCatalog();
+        setTimeout(() => setActionSuccess(null), 3500);
+      } else {
+        setError(res.error || 'Failed to add item to blacklist.');
+      }
+    } catch {
+      setError('Error adding item to blacklist.');
+    } finally {
+      setIsBlacklisting(false);
+    }
+  };
+
+  const handleRemoveBlacklist = async (id: string, name: string) => {
+    if (!token) return;
+    setConfirmDialog({
+      title: 'Remove from Blacklist',
+      message: `Remove "${name}" from the blacklist? Users and administrators will once again be able to register and add this item to the community catalogue.`,
+      confirmLabel: 'Unblock Item',
+      isDestructive: false,
+      onConfirm: async () => {
+        try {
+          const res = await authApi.removeAdminBlacklist(token, id);
+          if (res.success) {
+            setActionSuccess(`"${name}" unblocked and removed from blacklist.`);
+            fetchBlacklist();
+            if (onRefreshCatalog) onRefreshCatalog();
+            setTimeout(() => setActionSuccess(null), 3500);
+          } else {
+            setError(res.error || 'Failed to remove item from blacklist.');
+          }
+        } catch {
+          setError('Error removing item from blacklist.');
+        }
+      },
+    });
+  };
+
+  const handleBlacklistFromCatalog = (item: any) => {
+    setNewBlacklistType(item.type || 'coffee');
+    setNewBlacklistName(item.name || '');
+    setNewBlacklistSecondary(item.secondary || '');
+    setNewBlacklistReason('Prohibited by Administrator');
+    setIsAddBlacklistOpen(true);
+    setActiveTab('blacklist');
   };
 
   const handleDeleteRating = async (itemId: string, raterKey: string, raterLabel: string) => {
@@ -913,6 +1011,22 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
           >
             <Coffee className="w-3.5 h-3.5 text-[#C87D32]" />
             <span>Community Catalog & Manual Entry</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('blacklist');
+              fetchBlacklist();
+            }}
+            className={`py-2 px-3 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'blacklist'
+                ? 'bg-white text-[#2B1D14] shadow-xs border border-[#E5DACD]'
+                : 'text-[#6B5A4E] hover:text-[#2B1D14]'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+            <span>Blacklist & Blocked Registry ({blacklist.length})</span>
           </button>
 
           <button
@@ -1281,8 +1395,16 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                                 </button>
                                 <button
                                   type="button"
+                                  onClick={() => handleBlacklistFromCatalog(item)}
+                                  title="Blacklist & Ban this item from community catalogue"
+                                  className="p-1.5 text-amber-700 hover:text-rose-700 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                                >
+                                  <ShieldAlert className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => handleDeleteCommunityItem(item.id, item.name)}
-                                  title="Permanently Delete Community Entry"
+                                  title="Delete Community Entry (can be re-added later)"
                                   className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -1291,6 +1413,252 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                             </td>
                           </tr>
                         ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2b: BLACKLIST & BLOCKED REGISTRY */}
+          {activeTab === 'blacklist' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-serif font-bold text-base text-[#2B1D14] flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-rose-600" />
+                    <span>Community Blacklist & Blocked Registry</span>
+                  </h4>
+                  <p className="text-xs text-[#7A6757]">
+                    Explicitly prohibit inappropriate, spam, or duplicate items from being registered in the community catalogue. Items on this list cannot be added by any user.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddBlacklistOpen(!isAddBlacklistOpen)}
+                    className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Blacklist Rule</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={fetchBlacklist}
+                    title="Refresh Blacklist"
+                    className="p-1.5 bg-[#FAF3EC] hover:bg-[#F0E4D6] border border-[#E5DACD] text-[#8C4F1A] rounded-lg transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Add Blacklist Rule Collapsible Form */}
+              {isAddBlacklistOpen && (
+                <form
+                  onSubmit={handleAddBlacklist}
+                  className="bg-rose-50/70 border border-rose-200 rounded-xl p-4 space-y-3 animate-fade-in shadow-2xs"
+                >
+                  <div className="flex items-center justify-between border-b border-rose-200 pb-2">
+                    <h5 className="font-bold text-xs text-rose-900 flex items-center gap-1.5">
+                      <Ban className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Create New Blacklist Entry</span>
+                    </h5>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddBlacklistOpen(false)}
+                      className="text-rose-600 hover:text-rose-900 text-xs cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[#6D5A4E] font-medium mb-1">Target Category *</label>
+                      <select
+                        value={newBlacklistType}
+                        onChange={(e) => setNewBlacklistType(e.target.value as any)}
+                        className="w-full px-2.5 py-1.5 bg-white border border-[#D5C7B8] rounded-lg focus:outline-none focus:border-rose-500 font-medium text-[#2B1D14]"
+                      >
+                        <option value="coffee">Coffee Beans</option>
+                        <option value="equipment">Brewing Equipment</option>
+                        <option value="cafe">Cafes</option>
+                        <option value="all">All Categories</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[#6D5A4E] font-medium mb-1">Item Name *</label>
+                      <input
+                        type="text"
+                        value={newBlacklistName}
+                        onChange={(e) => setNewBlacklistName(e.target.value)}
+                        placeholder="Exact or clean item name..."
+                        required
+                        className="w-full px-2.5 py-1.5 bg-white border border-[#D5C7B8] rounded-lg focus:outline-none focus:border-rose-500 text-[#2B1D14]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[#6D5A4E] font-medium mb-1">
+                        Roaster / Brand / City (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={newBlacklistSecondary}
+                        onChange={(e) => setNewBlacklistSecondary(e.target.value)}
+                        placeholder="Leave blank for any roaster/brand"
+                        className="w-full px-2.5 py-1.5 bg-white border border-[#D5C7B8] rounded-lg focus:outline-none focus:border-rose-500 text-[#2B1D14]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[#6D5A4E] font-medium mb-1">Moderation Reason</label>
+                      <input
+                        type="text"
+                        value={newBlacklistReason}
+                        onChange={(e) => setNewBlacklistReason(e.target.value)}
+                        placeholder="e.g. Inappropriate / Spam entry"
+                        className="w-full px-2.5 py-1.5 bg-white border border-[#D5C7B8] rounded-lg focus:outline-none focus:border-rose-500 text-[#2B1D14]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddBlacklistOpen(false)}
+                      className="px-3 py-1.5 text-xs text-[#6D5A4E] hover:text-[#2B1D14] bg-white border border-[#D5C7B8] rounded-lg transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isBlacklisting || !newBlacklistName.trim()}
+                      className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5" />
+                      <span>{isBlacklisting ? 'Blacklisting...' : 'Confirm Blacklist Rule'}</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Search filter for blacklisted items */}
+              <div className="flex items-center justify-between gap-3 bg-[#FAF7F2] p-2 rounded-xl border border-[#E5DACD]">
+                <div className="relative flex-1">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#A8988A]" />
+                  <input
+                    type="text"
+                    value={blacklistSearch}
+                    onChange={(e) => setBlacklistSearch(e.target.value)}
+                    placeholder="Search blocked entries by name, roaster, or reason..."
+                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-[#D5C7B8] rounded-lg text-xs text-[#2B1D14] placeholder-[#A8988A] focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+                <div className="text-xs text-[#7A6757] font-mono whitespace-nowrap">
+                  {blacklist.length} rules active
+                </div>
+              </div>
+
+              {/* Blacklist Table */}
+              <div className="bg-white rounded-xl border border-[#E5DACD] overflow-hidden shadow-2xs">
+                <div className="overflow-x-auto max-h-[420px]">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-[#FAF7F2] border-b border-[#E5DACD] sticky top-0 z-10 text-[#6D5A4E] font-semibold">
+                      <tr>
+                        <th className="py-2.5 px-3">Type</th>
+                        <th className="py-2.5 px-4">Prohibited Item</th>
+                        <th className="py-2.5 px-3">Roaster / Brand / City</th>
+                        <th className="py-2.5 px-3">Moderation Reason</th>
+                        <th className="py-2.5 px-3">Blocked On</th>
+                        <th className="py-2.5 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F0E6DB]">
+                      {blacklist.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-10 text-[#8C7A6D]">
+                            <div className="flex flex-col items-center justify-center gap-1.5">
+                              <ShieldAlert className="w-8 h-8 text-[#C8B8A6]" />
+                              <div className="font-semibold text-[#2B1D14]">No items currently on the blacklist</div>
+                              <p className="text-[11px] text-[#A8988A] max-w-sm">
+                                All items in the catalogue can be freely registered or re-added. Add a blacklist rule above to permanently block specific entries.
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        (() => {
+                          const q = blacklistSearch.toLowerCase().trim();
+                          const filtered = blacklist.filter((b: any) => {
+                            if (!q) return true;
+                            return (
+                              (b.name && b.name.toLowerCase().includes(q)) ||
+                              (b.secondary && b.secondary.toLowerCase().includes(q)) ||
+                              (b.reason && b.reason.toLowerCase().includes(q)) ||
+                              (b.type && b.type.toLowerCase().includes(q))
+                            );
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="text-center py-8 text-[#8C7A6D]">
+                                  No blacklisted entries match "{blacklistSearch}".
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filtered.map((entry: any) => (
+                            <tr key={entry.id} className="hover:bg-rose-50/40 transition-colors">
+                              <td className="py-3 px-3">
+                                <span
+                                  className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                                    entry.type === 'coffee'
+                                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                      : entry.type === 'equipment'
+                                      ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                                      : entry.type === 'cafe'
+                                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                                      : 'bg-purple-100 text-purple-900 border border-purple-300'
+                                  }`}
+                                >
+                                  {entry.type}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 font-semibold text-[#2B1D14]">
+                                <div>{entry.name}</div>
+                                <span className="font-mono text-[9px] text-[#A8988A] block">
+                                  ID: {entry.id}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-[#6D5A4E]">
+                                {entry.secondary || <span className="text-[#A8988A] italic">Any</span>}
+                              </td>
+                              <td className="py-3 px-3 text-[#6D5A4E] max-w-[200px] truncate">
+                                <span title={entry.reason}>{entry.reason || 'Administrative ban'}</span>
+                              </td>
+                              <td className="py-3 px-3 text-[#7A6757] text-[11px] whitespace-nowrap">
+                                <div>{entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : '—'}</div>
+                                <span className="text-[10px] text-[#A8988A]">by {entry.blacklistedBy || 'Admin'}</span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveBlacklist(entry.id, entry.name)}
+                                  className="px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-700 hover:text-emerald-900 border border-emerald-200 rounded-md text-xs font-semibold transition-colors cursor-pointer shadow-2xs inline-flex items-center gap-1"
+                                >
+                                  <Check className="w-3 h-3 text-emerald-600" />
+                                  <span>Unblock</span>
+                                </button>
+                              </td>
+                            </tr>
+                          ));
+                        })()
                       )}
                     </tbody>
                   </table>
@@ -1598,14 +1966,24 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     Community Ratings (community_items.json)
                   </button>
                   <button
-                    onClick={() => setRawTableTab('purged')}
+                    onClick={() => setRawTableTab('blacklist')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      rawTableTab === 'purged'
+                      rawTableTab === 'blacklist'
                         ? 'bg-[#3A291E] text-white shadow-2xs'
                         : 'bg-white text-[#6D5A4E] hover:bg-[#F2E8DC] border border-[#E0D5C7]'
                     }`}
                   >
-                    Purged Registry (purged_community_items.json)
+                    Blacklist Registry (blacklisted_items.json)
+                  </button>
+                  <button
+                    onClick={() => setRawTableTab('deleted_seeds')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      rawTableTab === 'deleted_seeds'
+                        ? 'bg-[#3A291E] text-white shadow-2xs'
+                        : 'bg-white text-[#6D5A4E] hover:bg-[#F2E8DC] border border-[#E0D5C7]'
+                    }`}
+                  >
+                    Deleted Seeds (deleted_seeds.json)
                   </button>
                   <button
                     onClick={() => setRawTableTab('users')}
@@ -1655,8 +2033,10 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                         const content = JSON.stringify(
                           rawTableTab === 'community'
                             ? rawDbData.tables?.communityItems?.records
-                            : rawTableTab === 'purged'
-                            ? rawDbData.tables?.purgedCommunityItems?.records
+                            : rawTableTab === 'blacklist'
+                            ? rawDbData.tables?.blacklistedItems?.records
+                            : rawTableTab === 'deleted_seeds'
+                            ? rawDbData.tables?.deletedSeeds?.records
                             : rawTableTab === 'users'
                             ? rawDbData.tables?.users?.records
                             : rawTableTab === 'sessions'
@@ -1685,8 +2065,10 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                       /data/
                       {rawTableTab === 'community'
                         ? 'community_items.json'
-                        : rawTableTab === 'purged'
-                        ? 'purged_community_items.json'
+                        : rawTableTab === 'blacklist'
+                        ? 'blacklisted_items.json'
+                        : rawTableTab === 'deleted_seeds'
+                        ? 'deleted_seeds.json'
                         : rawTableTab === 'users'
                         ? 'users.json'
                         : rawTableTab === 'sessions'
@@ -1706,8 +2088,10 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                         const targetObj =
                           rawTableTab === 'community'
                             ? rawDbData?.tables?.communityItems?.records || {}
-                            : rawTableTab === 'purged'
-                            ? rawDbData?.tables?.purgedCommunityItems?.records || []
+                            : rawTableTab === 'blacklist'
+                            ? rawDbData?.tables?.blacklistedItems?.records || []
+                            : rawTableTab === 'deleted_seeds'
+                            ? rawDbData?.tables?.deletedSeeds?.records || []
                             : rawTableTab === 'users'
                             ? rawDbData?.tables?.users?.records || []
                             : rawTableTab === 'sessions'

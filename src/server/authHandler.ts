@@ -616,6 +616,17 @@ export async function handleAuthRoutes(
         return true;
       }
 
+      // Check Administrator Blacklist
+      const secondaryVal = (item.secondary || item.roaster || item.brand || item.city || '').trim();
+      if (AuthStore.isItemBlacklisted(type, item.name, secondaryVal, item.id)) {
+        sendJson(res, 400, {
+          success: false,
+          error: `"${item.name}" is on the community blacklist and cannot be added.`,
+          isBlacklisted: true,
+        });
+        return true;
+      }
+
       const created = AuthStore.recordCommunityItem(type, item, user.id, rating);
       sendJson(res, 201, {
         success: true,
@@ -668,9 +679,80 @@ export async function handleAuthRoutes(
     const itemId = decodeURIComponent(parts[5] || parts[parts.length - 1] || '');
     const deleted = AuthStore.deleteCommunityItem(itemId);
     if (deleted) {
-      sendJson(res, 200, { success: true, message: 'Item permanently purged from community catalog and seed registry.' });
+      sendJson(res, 200, { success: true, message: 'Item deleted from community catalog.' });
     } else {
       sendJson(res, 404, { error: 'Community item not found' });
+    }
+    return true;
+  }
+
+  // 7i-2. GET /api/admin/blacklist (Admin fetches blacklisted items)
+  if (url === '/api/admin/blacklist' && method === 'GET') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const blacklist = AuthStore.getBlacklistedItems();
+    sendJson(res, 200, { success: true, blacklist });
+    return true;
+  }
+
+  // 7i-3. POST /api/admin/blacklist (Admin adds an item to the blacklist)
+  if (url === '/api/admin/blacklist' && method === 'POST') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    try {
+      const body = await readJsonBody(req);
+      const { type = 'coffee', name, secondary, reason } = body;
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        sendJson(res, 400, { error: 'Item name is required for blacklisting' });
+        return true;
+      }
+
+      const entry = AuthStore.addBlacklistedItem(
+        type,
+        name.trim(),
+        secondary?.trim() || undefined,
+        reason?.trim() || undefined,
+        user.username || 'Admin'
+      );
+
+      sendJson(res, 201, {
+        success: true,
+        entry,
+        message: `"${name.trim()}" added to community blacklist.`,
+      });
+      return true;
+    } catch (err: any) {
+      sendJson(res, 500, { error: err.message || 'Failed to add item to blacklist' });
+      return true;
+    }
+  }
+
+  // 7i-4. DELETE /api/admin/blacklist/:id (Admin removes item from blacklist)
+  if (url.startsWith('/api/admin/blacklist/') && method === 'DELETE') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const parts = url.split('/');
+    const blacklistId = decodeURIComponent(parts[4] || parts[parts.length - 1] || '');
+    const removed = AuthStore.removeBlacklistedItem(blacklistId);
+    if (removed) {
+      sendJson(res, 200, { success: true, message: 'Item removed from community blacklist.' });
+    } else {
+      sendJson(res, 404, { error: 'Blacklisted entry not found' });
     }
     return true;
   }
@@ -988,6 +1070,17 @@ export async function handleAuthRoutes(
           success: false,
           error: `Entry may not be submitted: ${reviewResult.reason || 'Information must be PG-rated and coffee-oriented.'}`,
           reason: reviewResult.reason,
+        });
+        return true;
+      }
+
+      // Check Administrator Blacklist
+      const secondaryVal = (item.secondary || item.roaster || item.brand || item.city || '').trim();
+      if (AuthStore.isItemBlacklisted(type, item.name, secondaryVal, item.id)) {
+        sendJson(res, 400, {
+          success: false,
+          error: `"${item.name}" has been blocked by an administrator and cannot be added to the community catalog.`,
+          isBlacklisted: true,
         });
         return true;
       }

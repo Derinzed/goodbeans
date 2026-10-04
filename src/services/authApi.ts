@@ -377,6 +377,46 @@ export const authApi = {
     return res.json();
   },
 
+  async getAdminBlacklist(
+    token: string
+  ): Promise<{ success: boolean; blacklist?: any[]; error?: string }> {
+    const res = await fetch('/api/admin/blacklist', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
+  async addAdminBlacklist(
+    token: string,
+    payload: {
+      type: 'coffee' | 'equipment' | 'cafe' | 'all';
+      name: string;
+      secondary?: string;
+      reason?: string;
+    }
+  ): Promise<{ success: boolean; entry?: any; message?: string; error?: string }> {
+    const res = await fetch('/api/admin/blacklist', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  },
+
+  async removeAdminBlacklist(
+    token: string,
+    blacklistId: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    const res = await fetch(`/api/admin/blacklist/${blacklistId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.json();
+  },
+
   async deleteAdminItemRating(
     token: string,
     itemId: string,
