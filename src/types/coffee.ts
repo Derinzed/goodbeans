@@ -127,6 +127,7 @@ export interface Coffee {
   dateFinished?: string;
   isFavorite: boolean;
   isRegistered?: boolean;
+  updatedAt?: string;
 }
 
 export type EquipmentCategory =
@@ -153,6 +154,7 @@ export interface Equipment {
   generalRating?: number; // General rating across all user-added equipment
   generalRatingsCount?: number;
   isRegistered?: boolean;
+  updatedAt?: string;
 }
 
 export interface Shelf {
@@ -185,6 +187,7 @@ export interface Cafe {
   googleMapsUrl?: string;
   isFavorite?: boolean;
   isRegistered?: boolean;
+  updatedAt?: string;
 }
 
 export interface RegisteredCoffee {

@@ -232,6 +232,12 @@ export const authApi = {
   },
 
   async saveUserData(token: string, data: any): Promise<{ success: boolean; error?: string }> {
+    try {
+      const currentVault = this.getCurrentVault();
+      if (currentVault) {
+        this.saveCurrentVault(currentVault, data);
+      }
+    } catch {}
     const res = await fetch('/api/user/data', {
       method: 'PUT',
       headers: {

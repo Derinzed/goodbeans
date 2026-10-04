@@ -98,28 +98,44 @@ export function mergeUserDataPayload(
       }
     });
 
-    (Array.isArray(incomingList) ? incomingList : []).forEach((item) => {
-      if (!item) return;
-      const idx = result.findIndex((r) => isMatch(r, item));
+    (Array.isArray(incomingList) ? incomingList : []).forEach((incomingItem) => {
+      if (!incomingItem) return;
+      const idx = result.findIndex((r) => isMatch(r, incomingItem));
       if (idx === -1) {
-        result.push({ ...item });
+        result.push({ ...incomingItem });
       } else {
-        result[idx] = {
-          ...result[idx],
-          ...item,
-          tastingLogs:
-            Array.isArray(result[idx].tastingLogs) || Array.isArray(item.tastingLogs)
-              ? [...(result[idx].tastingLogs || []), ...(item.tastingLogs || [])].filter(
-                  (val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i
-                )
-              : item.tastingLogs || result[idx].tastingLogs,
-          recipes:
-            Array.isArray(result[idx].recipes) || Array.isArray(item.recipes)
-              ? [...(result[idx].recipes || []), ...(item.recipes || [])].filter(
-                  (val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i
-                )
-              : item.recipes || result[idx].recipes,
-        };
+        const existingItem = result[idx];
+        const existingTime = existingItem.updatedAt ? new Date(existingItem.updatedAt).getTime() : 0;
+        const incomingTime = incomingItem.updatedAt ? new Date(incomingItem.updatedAt).getTime() : 0;
+
+        if (incomingTime >= existingTime) {
+          result[idx] = {
+            ...existingItem,
+            ...incomingItem,
+            tastingLogs: [
+              ...((incomingItem.tastingLogs || [])),
+              ...((existingItem.tastingLogs || [])),
+            ].filter((val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i),
+            recipes: [
+              ...((incomingItem.recipes || [])),
+              ...((existingItem.recipes || [])),
+            ].filter((val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i),
+          };
+        } else {
+          // Existing is newer: preserve existing
+          result[idx] = {
+            ...incomingItem,
+            ...existingItem,
+            tastingLogs: [
+              ...((existingItem.tastingLogs || [])),
+              ...((incomingItem.tastingLogs || [])),
+            ].filter((val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i),
+            recipes: [
+              ...((existingItem.recipes || [])),
+              ...((incomingItem.recipes || [])),
+            ].filter((val, i, arr) => arr.findIndex((x) => (x.id && x.id === val.id) || x === val) === i),
+          };
+        }
       }
     });
 
@@ -971,9 +987,9 @@ export class AuthStore {
 
     if (existingIndex >= 0) {
       const existing = users[existingIndex];
-      const incoming = clientData || vault.data;
-      if (incoming && typeof incoming === 'object') {
-        const mergedData = mergeUserDataPayload(existing.data, incoming);
+      // Only merge if client explicitly provided newer clientData payload
+      if (clientData && typeof clientData === 'object' && Object.keys(clientData).length > 0) {
+        const mergedData = mergeUserDataPayload(existing.data, clientData);
         existing.data = mergedData;
         existing.updatedAt = new Date().toISOString();
         users[existingIndex] = existing;
@@ -1008,7 +1024,15 @@ export class AuthStore {
     for (const vault of vaults) {
       if (!vault || !vault.username) continue;
       try {
-        this.restoreOrSyncUser(vault, vault.data);
+        const cleanUsername = vault.username.trim().toLowerCase();
+        const users = this.getUsers();
+        const exists = users.some(
+          (u) => u.username.toLowerCase() === cleanUsername || (vault.id && u.id === vault.id)
+        );
+        // Only restore from vault if user does not exist on server (survives container wipe/reset)
+        if (!exists) {
+          this.restoreOrSyncUser(vault, vault.data);
+        }
       } catch (err) {
         console.error('Error in restoreOrSyncBatch for user:', vault.username, err);
       }
