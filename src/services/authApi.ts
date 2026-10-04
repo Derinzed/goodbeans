@@ -175,6 +175,44 @@ export const authApi = {
     return res.json();
   },
 
+  async checkCatalogMatch(
+    itemType: 'coffee' | 'equipment' | 'cafe',
+    candidateItem: any,
+    catalogItems?: any[]
+  ): Promise<{
+    success: boolean;
+    hasCloseMatch: boolean;
+    confidence: 'high' | 'medium' | 'low';
+    explanation: string;
+    matches: Array<{
+      id: string;
+      name: string;
+      secondary?: string;
+      matchScore: number;
+      matchReason: string;
+      catalogItem?: any;
+    }>;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch('/api/ai/match-catalog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemType, candidateItem, catalogItems }),
+      });
+      return await res.json();
+    } catch (err: any) {
+      return {
+        success: false,
+        hasCloseMatch: false,
+        confidence: 'low',
+        explanation: '',
+        matches: [],
+        error: err?.message || 'Network error checking catalog match',
+      };
+    }
+  },
+
   async getMe(token: string): Promise<AuthResponse> {
     const res = await fetch('/api/auth/me', {
       headers: { Authorization: `Bearer ${token}` },

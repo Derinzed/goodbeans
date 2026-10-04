@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, MapPin, Sparkles, Plus, ExternalLink, Search, Check, Info, Loader2, Globe, Users } from 'lucide-react';
 import { Cafe, RegisteredCafe } from '../types/coffee';
 import { StarRatingInput, StarRatingDisplay } from './StarRating';
+import { authApi } from '../services/authApi';
+import { CatalogDuplicateMatchModal, CatalogMatchItem } from './CatalogDuplicateMatchModal';
 
 interface CafeModalProps {
   initialCafe?: Cafe | null;
@@ -57,6 +59,13 @@ export const CafeModal: React.FC<CafeModalProps> = ({
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [autoFillError, setAutoFillError] = useState<string | null>(null);
   const [registerToCommunity, setRegisterToCommunity] = useState(true);
+
+  // AI Catalog similarity check states
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateMatches, setDuplicateMatches] = useState<CatalogMatchItem[]>([]);
+  const [duplicateExplanation, setDuplicateExplanation] = useState<string>('');
+  const [pendingCafeToSave, setPendingCafeToSave] = useState<Cafe | null>(null);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
 
   const handleAutoFillSpecs = async () => {
     if (!name.trim()) return;
@@ -137,7 +146,7 @@ export const CafeModal: React.FC<CafeModalProps> = ({
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const data: Cafe = {
       id: initialCafe?.id || `cafe-${Date.now()}`,
@@ -154,7 +163,62 @@ export const CafeModal: React.FC<CafeModalProps> = ({
       googleMapsUrl: getGoogleMapsSearchUrl(),
       isFavorite: initialCafe?.isFavorite || false,
     };
+
+    // If adding new cafe with Community Registration enabled, perform AI similarity check
+    if (!isEditing && isRegisteredUser && registerToCommunity && registeredCafes.length > 0) {
+      setIsCheckingDuplicates(true);
+      try {
+        const matchRes = await authApi.checkCatalogMatch('cafe', data, registeredCafes);
+        if (matchRes && matchRes.hasCloseMatch && Array.isArray(matchRes.matches) && matchRes.matches.length > 0) {
+          setPendingCafeToSave(data);
+          setDuplicateMatches(matchRes.matches);
+          setDuplicateExplanation(matchRes.explanation);
+          setIsDuplicateModalOpen(true);
+          setIsCheckingDuplicates(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('AI catalog similarity check bypassed on error:', err);
+      } finally {
+        setIsCheckingDuplicates(false);
+      }
+    }
+
     onSave(data, isRegisteredUser && !matchingRegistered && registerToCommunity);
+  };
+
+  const handleSwapToCommunityCafe = (match: CatalogMatchItem) => {
+    const catItem = match.catalogItem || registeredCafes.find((rc) => rc.id === match.id);
+    if (!pendingCafeToSave) return;
+    const swapped: Cafe = {
+      ...pendingCafeToSave,
+      name: catItem?.name || match.name,
+      city: catItem?.city || match.secondary || pendingCafeToSave.city,
+      country: catItem?.country || pendingCafeToSave.country,
+      address: catItem?.address || pendingCafeToSave.address,
+      vibes: Array.isArray(catItem?.vibes) && catItem.vibes.length > 0 ? catItem.vibes : pendingCafeToSave.vibes,
+      favoriteDrink: catItem?.favoriteDrink || pendingCafeToSave.favoriteDrink,
+      notes: catItem?.notes || pendingCafeToSave.notes,
+    };
+    setIsDuplicateModalOpen(false);
+    setPendingCafeToSave(null);
+    onSave(swapped, false);
+  };
+
+  const handlePublishAsNewCafe = () => {
+    if (!pendingCafeToSave) return;
+    const item = pendingCafeToSave;
+    setIsDuplicateModalOpen(false);
+    setPendingCafeToSave(null);
+    onSave(item, true);
+  };
+
+  const handleSavePrivateCafeOnly = () => {
+    if (!pendingCafeToSave) return;
+    const item = pendingCafeToSave;
+    setIsDuplicateModalOpen(false);
+    setPendingCafeToSave(null);
+    onSave(item, false);
   };
 
   const recommendedItems = registeredCafes.filter((rc) => rc.isRecommended || rc.generalRating >= 4.5);
@@ -563,13 +627,39 @@ export const CafeModal: React.FC<CafeModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5"
+              disabled={isCheckingDuplicates}
+              className="px-6 py-2.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
             >
-              <Sparkles className="w-4 h-4" />
-              {isEditing ? 'Save Cafe Changes' : 'Add to Cafe Shelf'}
+              {isCheckingDuplicates ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Checking Catalog with AI...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isEditing ? 'Save Cafe Changes' : 'Add to Cafe Shelf'}</span>
+                </>
+              )}
             </button>
           </div>
         </form>
+
+        {/* AI Duplicate / Similarity Detection Modal */}
+        <CatalogDuplicateMatchModal
+          isOpen={isDuplicateModalOpen}
+          itemType="cafe"
+          candidateItem={pendingCafeToSave}
+          matches={duplicateMatches}
+          explanation={duplicateExplanation}
+          onSwapToCommunityItem={handleSwapToCommunityCafe}
+          onPublishAsNew={handlePublishAsNewCafe}
+          onSavePrivateOnly={handleSavePrivateCafeOnly}
+          onBackToEdit={() => {
+            setIsDuplicateModalOpen(false);
+            setPendingCafeToSave(null);
+          }}
+        />
       </div>
     </div>
   );

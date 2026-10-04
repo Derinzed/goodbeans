@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { populateItemOnline } from './src/server/aiPopulate.ts';
+import { matchItemAgainstCatalog } from './src/server/aiCatalogMatcher.ts';
+import { AuthStore } from './src/server/authStore.ts';
 import { handleAuthRoutes } from './src/server/authHandler.ts';
 
 dotenv.config();
@@ -53,6 +55,40 @@ app.post('/api/ai/populate', async (req, res) => {
     return res.status(500).json({
       error: 'Failed to auto-populate item from online information.',
       details: error?.message || String(error),
+    });
+  }
+});
+
+// Endpoint: AI-assisted catalog deduplication & similarity matcher
+app.post('/api/ai/match-catalog', async (req, res) => {
+  try {
+    const { itemType, candidateItem, catalogItems } = req.body;
+
+    if (!itemType || !candidateItem || !candidateItem.name) {
+      return res.status(400).json({ error: 'itemType and candidateItem are required' });
+    }
+
+    // Determine catalog items pool: use provided or query AuthStore
+    let pool = Array.isArray(catalogItems) && catalogItems.length > 0 ? catalogItems : [];
+    if (pool.length === 0) {
+      if (itemType === 'coffee') pool = AuthStore.getRegisteredCoffees();
+      else if (itemType === 'equipment') pool = AuthStore.getRegisteredEquipment();
+      else if (itemType === 'cafe') pool = AuthStore.getRegisteredCafes();
+    }
+
+    const matchResult = await matchItemAgainstCatalog(itemType, candidateItem, pool);
+    return res.json({
+      success: true,
+      ...matchResult,
+    });
+  } catch (error: any) {
+    console.error('AI Catalog Matcher Error:', error);
+    return res.status(500).json({
+      error: 'Failed to perform AI catalog similarity check.',
+      hasCloseMatch: false,
+      confidence: 'low',
+      explanation: '',
+      matches: [],
     });
   }
 });

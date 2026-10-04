@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, Wrench, Sparkles, Search, Check, Info, Loader2, Globe, Users } from 'lucide-react';
 import { Equipment, EquipmentCategory, RegisteredEquipment } from '../types/coffee';
 import { StarRatingInput, StarRatingDisplay } from './StarRating';
+import { authApi } from '../services/authApi';
+import { CatalogDuplicateMatchModal, CatalogMatchItem } from './CatalogDuplicateMatchModal';
 
 interface EquipmentModalProps {
   initialEquipment?: Equipment | null;
@@ -53,6 +55,13 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [autoFillError, setAutoFillError] = useState<string | null>(null);
   const [registerToCommunity, setRegisterToCommunity] = useState(true);
+
+  // AI Catalog similarity check states
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateMatches, setDuplicateMatches] = useState<CatalogMatchItem[]>([]);
+  const [duplicateExplanation, setDuplicateExplanation] = useState<string>('');
+  const [pendingEquipmentToSave, setPendingEquipmentToSave] = useState<Equipment | null>(null);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
 
   const handleAutoFillSpecs = async () => {
     if (!name.trim()) return;
@@ -109,7 +118,7 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
     if (re.generalNotes) setGeneralNotes(re.generalNotes);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const data: Equipment = {
       id: initialEquipment?.id || `eq-${Date.now()}`,
@@ -123,7 +132,61 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
       generalNotes: generalNotes.trim(),
       rating,
     };
+
+    // If adding new gear with Community Registration enabled, perform AI similarity check
+    if (!isEditing && isRegisteredUser && registerToCommunity && registeredEquipment.length > 0) {
+      setIsCheckingDuplicates(true);
+      try {
+        const matchRes = await authApi.checkCatalogMatch('equipment', data, registeredEquipment);
+        if (matchRes && matchRes.hasCloseMatch && Array.isArray(matchRes.matches) && matchRes.matches.length > 0) {
+          setPendingEquipmentToSave(data);
+          setDuplicateMatches(matchRes.matches);
+          setDuplicateExplanation(matchRes.explanation);
+          setIsDuplicateModalOpen(true);
+          setIsCheckingDuplicates(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('AI catalog similarity check bypassed on error:', err);
+      } finally {
+        setIsCheckingDuplicates(false);
+      }
+    }
+
     onSave(data, isRegisteredUser && !matchingRegistered && registerToCommunity);
+  };
+
+  const handleSwapToCommunityEquipment = (match: CatalogMatchItem) => {
+    const catItem = match.catalogItem || registeredEquipment.find((re) => re.id === match.id);
+    if (!pendingEquipmentToSave) return;
+    const swapped: Equipment = {
+      ...pendingEquipmentToSave,
+      name: catItem?.name || match.name,
+      brand: catItem?.brand || match.secondary || pendingEquipmentToSave.brand,
+      category: catItem?.category || pendingEquipmentToSave.category,
+      settingsNotes: catItem?.settingsNotes || pendingEquipmentToSave.settingsNotes,
+      maintenanceNotes: catItem?.maintenanceNotes || pendingEquipmentToSave.maintenanceNotes,
+      generalNotes: catItem?.generalNotes || pendingEquipmentToSave.generalNotes,
+    };
+    setIsDuplicateModalOpen(false);
+    setPendingEquipmentToSave(null);
+    onSave(swapped, false);
+  };
+
+  const handlePublishAsNewEquipment = () => {
+    if (!pendingEquipmentToSave) return;
+    const item = pendingEquipmentToSave;
+    setIsDuplicateModalOpen(false);
+    setPendingEquipmentToSave(null);
+    onSave(item, true);
+  };
+
+  const handleSavePrivateEquipmentOnly = () => {
+    if (!pendingEquipmentToSave) return;
+    const item = pendingEquipmentToSave;
+    setIsDuplicateModalOpen(false);
+    setPendingEquipmentToSave(null);
+    onSave(item, false);
   };
 
   const recommendedItems = registeredEquipment.filter((re) => re.isRecommended || re.generalRating >= 4.5);
@@ -466,13 +529,39 @@ export const EquipmentModal: React.FC<EquipmentModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5"
+              disabled={isCheckingDuplicates}
+              className="px-6 py-2.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
             >
-              <Sparkles className="w-4 h-4" />
-              {isEditing ? 'Save Equipment' : 'Add to Equipment Shelf'}
+              {isCheckingDuplicates ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Checking Catalog with AI...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isEditing ? 'Save Equipment' : 'Add to Equipment Shelf'}</span>
+                </>
+              )}
             </button>
           </div>
         </form>
+
+        {/* AI Duplicate / Similarity Detection Modal */}
+        <CatalogDuplicateMatchModal
+          isOpen={isDuplicateModalOpen}
+          itemType="equipment"
+          candidateItem={pendingEquipmentToSave}
+          matches={duplicateMatches}
+          explanation={duplicateExplanation}
+          onSwapToCommunityItem={handleSwapToCommunityEquipment}
+          onPublishAsNew={handlePublishAsNewEquipment}
+          onSavePrivateOnly={handleSavePrivateEquipmentOnly}
+          onBackToEdit={() => {
+            setIsDuplicateModalOpen(false);
+            setPendingEquipmentToSave(null);
+          }}
+        />
       </div>
     </div>
   );

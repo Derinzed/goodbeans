@@ -3,6 +3,8 @@ import { X, Sparkles, Plus, Search, Check, Info, Loader2 } from 'lucide-react';
 import { Coffee, ProcessType, RoastLevel, Shelf, RegisteredCoffee } from '../types/coffee';
 import { StarRatingInput, StarRatingDisplay } from './StarRating';
 import { COMMON_FLAVORS } from '../data/initialData';
+import { authApi } from '../services/authApi';
+import { CatalogDuplicateMatchModal, CatalogMatchItem } from './CatalogDuplicateMatchModal';
 
 interface CoffeeModalProps {
   initialCoffee?: Coffee | null;
@@ -87,6 +89,13 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
   const [showAllRegistered, setShowAllRegistered] = useState(false);
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [autoFillError, setAutoFillError] = useState<string | null>(null);
+
+  // AI Catalog similarity check states
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateMatches, setDuplicateMatches] = useState<CatalogMatchItem[]>([]);
+  const [duplicateExplanation, setDuplicateExplanation] = useState<string>('');
+  const [pendingCoffeeToSave, setPendingCoffeeToSave] = useState<Coffee | null>(null);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
 
   const handleAutoFillSpecs = async () => {
     if (!name.trim()) return;
@@ -180,7 +189,7 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const coffeeData: Coffee = {
       id: initialCoffee?.id || `coffee-${Date.now()}`,
@@ -209,7 +218,65 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
       isFavorite: initialCoffee?.isFavorite || false,
     };
 
+    // If adding a new coffee with Community Registration enabled, perform AI similarity check
+    if (!isEditing && registerToCommunity && registeredCoffees.length > 0) {
+      setIsCheckingDuplicates(true);
+      try {
+        const matchRes = await authApi.checkCatalogMatch('coffee', coffeeData, registeredCoffees);
+        if (matchRes && matchRes.hasCloseMatch && Array.isArray(matchRes.matches) && matchRes.matches.length > 0) {
+          setPendingCoffeeToSave(coffeeData);
+          setDuplicateMatches(matchRes.matches);
+          setDuplicateExplanation(matchRes.explanation);
+          setIsDuplicateModalOpen(true);
+          setIsCheckingDuplicates(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('AI catalog similarity check bypassed on error:', err);
+      } finally {
+        setIsCheckingDuplicates(false);
+      }
+    }
+
     onSave(coffeeData, !isEditing && !matchingRegistered && registerToCommunity);
+  };
+
+  const handleSwapToCommunityCoffee = (match: CatalogMatchItem) => {
+    const catItem = match.catalogItem || registeredCoffees.find((rc) => rc.id === match.id);
+    if (!pendingCoffeeToSave) return;
+    const swapped: Coffee = {
+      ...pendingCoffeeToSave,
+      name: catItem?.name || match.name,
+      roaster: catItem?.roaster || match.secondary || pendingCoffeeToSave.roaster,
+      origin: catItem?.origin || pendingCoffeeToSave.origin,
+      variety: catItem?.variety || pendingCoffeeToSave.variety,
+      process: catItem?.process || pendingCoffeeToSave.process,
+      roastLevel: catItem?.roastLevel || pendingCoffeeToSave.roastLevel,
+      coverColor: catItem?.coverColor || pendingCoffeeToSave.coverColor,
+      description: catItem?.description || pendingCoffeeToSave.description,
+      tastingNotesSummary: Array.isArray(catItem?.tastingNotesSummary) && catItem.tastingNotesSummary.length > 0
+        ? catItem.tastingNotesSummary
+        : pendingCoffeeToSave.tastingNotesSummary,
+    };
+    setIsDuplicateModalOpen(false);
+    setPendingCoffeeToSave(null);
+    onSave(swapped, false);
+  };
+
+  const handlePublishAsNewCoffee = () => {
+    if (!pendingCoffeeToSave) return;
+    const item = pendingCoffeeToSave;
+    setIsDuplicateModalOpen(false);
+    setPendingCoffeeToSave(null);
+    onSave(item, true);
+  };
+
+  const handleSavePrivateCoffeeOnly = () => {
+    if (!pendingCoffeeToSave) return;
+    const item = pendingCoffeeToSave;
+    setIsDuplicateModalOpen(false);
+    setPendingCoffeeToSave(null);
+    onSave(item, false);
   };
 
   // Filter registered coffees for recommendations display
@@ -712,13 +779,39 @@ export const CoffeeModal: React.FC<CoffeeModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5"
+              disabled={isCheckingDuplicates}
+              className="px-6 py-2.5 bg-[#C87D32] hover:bg-[#B06B26] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
             >
-              <Sparkles className="w-4 h-4" />
-              {isEditing ? 'Save Coffee Changes' : 'Add Coffee'}
+              {isCheckingDuplicates ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Checking Catalog with AI...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isEditing ? 'Save Coffee Changes' : 'Add Coffee'}</span>
+                </>
+              )}
             </button>
           </div>
         </form>
+
+        {/* AI Duplicate / Similarity Detection Modal */}
+        <CatalogDuplicateMatchModal
+          isOpen={isDuplicateModalOpen}
+          itemType="coffee"
+          candidateItem={pendingCoffeeToSave}
+          matches={duplicateMatches}
+          explanation={duplicateExplanation}
+          onSwapToCommunityItem={handleSwapToCommunityCoffee}
+          onPublishAsNew={handlePublishAsNewCoffee}
+          onSavePrivateOnly={handleSavePrivateCoffeeOnly}
+          onBackToEdit={() => {
+            setIsDuplicateModalOpen(false);
+            setPendingCoffeeToSave(null);
+          }}
+        />
       </div>
     </div>
   );
