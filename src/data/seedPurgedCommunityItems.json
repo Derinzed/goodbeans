@@ -1,0 +1,23 @@
+[
+  {
+    "id": "coffee-ai-1791002946015",
+    "name": "Sirocco de Sol Geisha",
+    "secondary": "Onyx Coffee Lab",
+    "type": "coffee",
+    "purgedAt": "2026-10-04T03:03:30.941Z"
+  },
+  {
+    "id": "coffee-ai-1790982066778",
+    "name": "Apollo",
+    "secondary": "Counter Culture Coffee",
+    "type": "coffee",
+    "purgedAt": "2026-10-04T03:03:13.830Z"
+  },
+  {
+    "id": "coffee-ai-1790653949931",
+    "name": "Companion Blend",
+    "secondary": "Little Wolf Coffee",
+    "type": "coffee",
+    "purgedAt": "2026-10-04T03:02:59.895Z"
+  }
+]

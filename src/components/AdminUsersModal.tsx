@@ -40,6 +40,15 @@ import {
 } from 'lucide-react';
 import { authApi, AdminUserSummary } from '../services/authApi';
 
+interface ConfirmDialogState {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  isDestructive?: boolean;
+  onConfirm: () => Promise<void> | void;
+}
+
 interface AdminUsersModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -65,6 +74,9 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // In-app Confirmation Dialog (replaces window.confirm)
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+
   // Emergency System Purge state
   const [isResetSystemOpen, setIsResetSystemOpen] = useState(false);
   const [resetSystemConfirmText, setResetSystemConfirmText] = useState('');
@@ -83,7 +95,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
 
   // Raw Database state
   const [rawDbData, setRawDbData] = useState<any | null>(null);
-  const [rawTableTab, setRawTableTab] = useState<'community' | 'users' | 'sessions' | 'guests'>('community');
+  const [rawTableTab, setRawTableTab] = useState<'community' | 'purged' | 'users' | 'sessions' | 'guests'>('community');
   const [rawSearchQuery, setRawSearchQuery] = useState('');
   const [copiedRaw, setCopiedRaw] = useState(false);
 
@@ -270,27 +282,32 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const handleToggleRole = async (user: AdminUserSummary) => {
     if (!token) return;
     if (user.id === currentUserId && user.role === 'admin') {
-      alert('You cannot change your own admin account role.');
+      setError('You cannot change your own admin account role.');
       return;
     }
     const targetRole = user.role === 'admin' ? 'user' : 'admin';
-    const confirmChange = window.confirm(`Change ${user.username}'s role to ${targetRole}?`);
-    if (!confirmChange) return;
-
-    try {
-      const res = await authApi.updateAdminUserRole(token, user.id, targetRole);
-      if (res.success) {
-        setUsers((prev) =>
-          prev.map((u) => (u.id === user.id ? { ...u, role: targetRole } : u))
-        );
-        setActionSuccess(`Updated ${user.username} role to ${targetRole}.`);
-        setTimeout(() => setActionSuccess(null), 3000);
-      } else {
-        setError(res.error || 'Failed to update role.');
-      }
-    } catch {
-      setError('Network error updating role.');
-    }
+    setConfirmDialog({
+      title: 'Change User Role',
+      message: `Change @${user.username}'s role to "${targetRole}"?`,
+      confirmLabel: `Change to ${targetRole}`,
+      isDestructive: false,
+      onConfirm: async () => {
+        try {
+          const res = await authApi.updateAdminUserRole(token, user.id, targetRole);
+          if (res.success) {
+            setUsers((prev) =>
+              prev.map((u) => (u.id === user.id ? { ...u, role: targetRole } : u))
+            );
+            setActionSuccess(`Updated @${user.username} role to ${targetRole}.`);
+            setTimeout(() => setActionSuccess(null), 3000);
+          } else {
+            setError(res.error || 'Failed to update role.');
+          }
+        } catch {
+          setError('Network error updating role.');
+        }
+      },
+    });
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -322,34 +339,37 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const handleDeleteUser = async (userId: string, username: string) => {
     if (!token) return;
     if (userId === currentUserId) {
-      alert('You cannot delete your own active admin account.');
+      setError('You cannot delete your own active admin account.');
       return;
     }
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to permanently delete user "${username}" and all their coffees, equipment, cafes, notes, and shelves? This action cannot be undone.`
-    );
-    if (!confirmDelete) return;
-
-    setDeletingId(userId);
-    try {
-      const res = await authApi.deleteAdminUser(token, userId);
-      if (res.success) {
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
-        if (inspectUser?.id === userId) {
-          setInspectUser(null);
-          setInspectUserData(null);
+    setConfirmDialog({
+      title: 'Delete User Account',
+      message: `Are you sure you want to permanently delete user "@${username}" and all their coffees, equipment, cafes, notes, and shelves? This action cannot be undone.`,
+      confirmLabel: 'Delete Account',
+      isDestructive: true,
+      onConfirm: async () => {
+        setDeletingId(userId);
+        try {
+          const res = await authApi.deleteAdminUser(token, userId);
+          if (res.success) {
+            setUsers((prev) => prev.filter((u) => u.id !== userId));
+            if (inspectUser?.id === userId) {
+              setInspectUser(null);
+              setInspectUserData(null);
+            }
+            setActionSuccess(`User "@${username}" and all associated data have been permanently purged.`);
+            setTimeout(() => setActionSuccess(null), 3000);
+          } else {
+            setError(res.error || 'Failed to delete user.');
+          }
+        } catch (err: any) {
+          setError(err?.message || 'Error deleting user.');
+        } finally {
+          setDeletingId(null);
         }
-        setActionSuccess(`User "${username}" and all associated data have been permanently purged.`);
-        setTimeout(() => setActionSuccess(null), 3000);
-      } else {
-        setError(res.error || 'Failed to delete user.');
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Error deleting user.');
-    } finally {
-      setDeletingId(null);
-    }
+      },
+    });
   };
 
   const handleExportUser = async (userId: string, username: string) => {
@@ -400,57 +420,65 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
     itemName: string
   ) => {
     if (!token) return;
-    const confirmDelete = window.confirm(`Remove "${itemName}" from this user's ${category}?`);
-    if (!confirmDelete) return;
-
-    try {
-      const res = await authApi.deleteUserItemAdmin(token, userId, category, itemId);
-      if (res.success) {
-        setActionSuccess(`Deleted "${itemName}" from user's ${category}.`);
-        // Refresh local inspect data
-        setInspectUserData((prev: any) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            [category]: (prev[category] || []).filter((i: any) => i.id !== itemId),
-          };
-        });
-        fetchUsers();
-        setTimeout(() => setActionSuccess(null), 3000);
-      } else {
-        setError(res.error || 'Failed to delete item.');
-      }
-    } catch {
-      setError('Error deleting item from user library.');
-    }
+    setConfirmDialog({
+      title: 'Remove User Item',
+      message: `Remove "${itemName}" from this user's ${category}?`,
+      confirmLabel: 'Remove Item',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await authApi.deleteUserItemAdmin(token, userId, category, itemId);
+          if (res.success) {
+            setActionSuccess(`Deleted "${itemName}" from user's ${category}.`);
+            // Refresh local inspect data
+            setInspectUserData((prev: any) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                [category]: (prev[category] || []).filter((i: any) => i.id !== itemId),
+              };
+            });
+            fetchUsers();
+            setTimeout(() => setActionSuccess(null), 3000);
+          } else {
+            setError(res.error || 'Failed to delete item.');
+          }
+        } catch {
+          setError('Error deleting item from user library.');
+        }
+      },
+    });
   };
 
   const handleWipeUserLibrary = async (userId: string, username: string) => {
     if (!token) return;
-    const confirmWipe = window.confirm(
-      `Clear all saved beans, gear, cafes, and custom notes for user "${username}"? Their login account will remain active, but all saved data will be wiped.`
-    );
-    if (!confirmWipe) return;
-
-    try {
-      const res = await authApi.clearUserDataAdmin(token, userId);
-      if (res.success) {
-        setActionSuccess(`Cleared library for ${username}.`);
-        setInspectUserData({
-          coffees: [],
-          equipment: [],
-          cafes: [],
-          customNotes: [],
-          customShelves: [],
-        });
-        fetchUsers();
-        setTimeout(() => setActionSuccess(null), 3000);
-      } else {
-        setError(res.error || 'Failed to clear user library.');
-      }
-    } catch {
-      setError('Error clearing user library.');
-    }
+    setConfirmDialog({
+      title: 'Wipe User Library',
+      message: `Clear all saved beans, gear, cafes, and custom notes for user "@${username}"? Their login account will remain active, but all saved data will be wiped.`,
+      confirmLabel: 'Wipe All Data',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await authApi.clearUserDataAdmin(token, userId);
+          if (res.success) {
+            setActionSuccess(`Cleared library for @${username}.`);
+            setInspectUserData({
+              coffees: [],
+              equipment: [],
+              cafes: [],
+              customNotes: [],
+              customShelves: [],
+            });
+            fetchUsers();
+            setTimeout(() => setActionSuccess(null), 3000);
+          } else {
+            setError(res.error || 'Failed to clear user library.');
+          }
+        } catch {
+          setError('Error clearing user library.');
+        }
+      },
+    });
   };
 
   const handleInjectItemSubmit = async (e: React.FormEvent) => {
@@ -541,6 +569,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
         setNewEntryOriginOrCat('');
         setNewEntryDescription('');
         fetchRatingsBreakdown();
+        if (onRefreshCatalog) onRefreshCatalog();
         setTimeout(() => setActionSuccess(null), 3000);
       } else {
         setError(res.error || 'Failed to create community item.');
@@ -578,6 +607,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
         setIsEditCommunityItemOpen(false);
         setEditingItem(null);
         fetchRatingsBreakdown();
+        if (onRefreshCatalog) onRefreshCatalog();
         setTimeout(() => setActionSuccess(null), 3000);
       } else {
         setError(res.error || 'Failed to update item.');
@@ -591,87 +621,105 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
 
   const handleDeleteCommunityItem = async (itemId: string, name: string) => {
     if (!token) return;
-    const confirmDelete = window.confirm(
-      `Delete "${name}" from the community catalog and purge all associated user ratings?`
-    );
-    if (!confirmDelete) return;
-
-    try {
-      const res = await authApi.deleteAdminCommunityItem(token, itemId);
-      if (res.success) {
-        setActionSuccess(`Removed "${name}" from community catalog.`);
-        fetchRatingsBreakdown();
-        setTimeout(() => setActionSuccess(null), 3000);
-      } else {
-        setError(res.error || 'Failed to delete item.');
-      }
-    } catch {
-      setError('Error deleting community item.');
-    }
+    setConfirmDialog({
+      title: 'Purge Community Catalog Entry',
+      message: `Permanently purge "${name}" from the community registry and seed data? This will remove all associated user ratings and prevent the item from being re-seeded upon reboot.`,
+      confirmLabel: 'Purge Item',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await authApi.deleteAdminCommunityItem(token, itemId);
+          if (res.success) {
+            setActionSuccess(`Permanently purged "${name}" from community registry and seed data.`);
+            fetchRatingsBreakdown();
+            if (onRefreshCatalog) onRefreshCatalog();
+            setTimeout(() => setActionSuccess(null), 3000);
+          } else {
+            setError(res.error || 'Failed to delete item.');
+          }
+        } catch {
+          setError('Error deleting community item.');
+        }
+      },
+    });
   };
 
   const handleDeleteRating = async (itemId: string, raterKey: string, raterLabel: string) => {
     if (!token) return;
-    const confirmDelete = window.confirm(`Remove rating from ${raterLabel}? General rating will be immediately recalculated.`);
-    if (!confirmDelete) return;
-
-    try {
-      const res = await authApi.deleteAdminItemRating(token, itemId, raterKey);
-      if (res.success) {
-        setActionSuccess(`Removed rating from ${raterLabel}. General rating recalculated.`);
-        fetchRatingsBreakdown();
-        setTimeout(() => setActionSuccess(null), 3000);
-      } else {
-        setError(res.error || 'Failed to delete rating.');
-      }
-    } catch {
-      setError('Error deleting rating.');
-    }
+    setConfirmDialog({
+      title: 'Remove User Rating',
+      message: `Remove rating from ${raterLabel}? General rating will be immediately recalculated.`,
+      confirmLabel: 'Remove Rating',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await authApi.deleteAdminItemRating(token, itemId, raterKey);
+          if (res.success) {
+            setActionSuccess(`Removed rating from ${raterLabel}. General rating recalculated.`);
+            fetchRatingsBreakdown();
+            if (onRefreshCatalog) onRefreshCatalog();
+            setTimeout(() => setActionSuccess(null), 3000);
+          } else {
+            setError(res.error || 'Failed to delete rating.');
+          }
+        } catch {
+          setError('Error deleting rating.');
+        }
+      },
+    });
   };
 
   const handleResetAllRatings = async (itemId: string, name: string) => {
     if (!token) return;
-    const confirmReset = window.confirm(
-      `Reset all user ratings for "${name}" back to 0? The item will revert to its baseline rating.`
-    );
-    if (!confirmReset) return;
-
-    try {
-      const res = await authApi.resetAdminItemRatings(token, itemId);
-      if (res.success) {
-        setActionSuccess(`Reset all ratings for "${name}".`);
-        fetchRatingsBreakdown();
-        setTimeout(() => setActionSuccess(null), 3000);
-      } else {
-        setError(res.error || 'Failed to reset ratings.');
-      }
-    } catch {
-      setError('Error resetting ratings.');
-    }
+    setConfirmDialog({
+      title: 'Reset Ratings to Baseline',
+      message: `Reset all user ratings for "${name}" back to 0? The item will revert to its baseline rating.`,
+      confirmLabel: 'Reset Ratings',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await authApi.resetAdminItemRatings(token, itemId);
+          if (res.success) {
+            setActionSuccess(`Reset all ratings for "${name}".`);
+            fetchRatingsBreakdown();
+            if (onRefreshCatalog) onRefreshCatalog();
+            setTimeout(() => setActionSuccess(null), 3000);
+          } else {
+            setError(res.error || 'Failed to reset ratings.');
+          }
+        } catch {
+          setError('Error resetting ratings.');
+        }
+      },
+    });
   };
 
   const handleRecalculateAllRatings = async () => {
     if (!token) return;
-    const confirmRecalc = window.confirm(
-      'Re-aggregate and recalculate General Ratings across all coffees, equipment, and cafes on the server?'
-    );
-    if (!confirmRecalc) return;
-
-    setIsLoading(true);
-    try {
-      const res = await authApi.recalculateAllRatings(token);
-      if (res.success) {
-        setActionSuccess(res.message || 'Recalculated all ratings successfully.');
-        fetchRatingsBreakdown();
-        setTimeout(() => setActionSuccess(null), 4000);
-      } else {
-        setError(res.error || 'Failed to recalculate ratings.');
-      }
-    } catch {
-      setError('Error requesting ratings recalculation.');
-    } finally {
-      setIsLoading(false);
-    }
+    setConfirmDialog({
+      title: 'Recalculate All Ratings',
+      message: 'Re-aggregate and recalculate General Ratings across all coffees, equipment, and cafes on the server?',
+      confirmLabel: 'Recalculate',
+      isDestructive: false,
+      onConfirm: async () => {
+        setIsLoading(true);
+        try {
+          const res = await authApi.recalculateAllRatings(token);
+          if (res.success) {
+            setActionSuccess(res.message || 'Recalculated all ratings successfully.');
+            fetchRatingsBreakdown();
+            if (onRefreshCatalog) onRefreshCatalog();
+            setTimeout(() => setActionSuccess(null), 4000);
+          } else {
+            setError(res.error || 'Failed to recalculate ratings.');
+          }
+        } catch {
+          setError('Network error recalculating ratings.');
+        } finally {
+          setIsLoading(false);
+        }
+      },
+    });
   };
 
   // --- Raw Data Handlers ---
@@ -1550,6 +1598,16 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     Community Ratings (community_items.json)
                   </button>
                   <button
+                    onClick={() => setRawTableTab('purged')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      rawTableTab === 'purged'
+                        ? 'bg-[#3A291E] text-white shadow-2xs'
+                        : 'bg-white text-[#6D5A4E] hover:bg-[#F2E8DC] border border-[#E0D5C7]'
+                    }`}
+                  >
+                    Purged Registry (purged_community_items.json)
+                  </button>
+                  <button
                     onClick={() => setRawTableTab('users')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       rawTableTab === 'users'
@@ -1597,6 +1655,8 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                         const content = JSON.stringify(
                           rawTableTab === 'community'
                             ? rawDbData.tables?.communityItems?.records
+                            : rawTableTab === 'purged'
+                            ? rawDbData.tables?.purgedCommunityItems?.records
                             : rawTableTab === 'users'
                             ? rawDbData.tables?.users?.records
                             : rawTableTab === 'sessions'
@@ -1625,6 +1685,8 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                       /data/
                       {rawTableTab === 'community'
                         ? 'community_items.json'
+                        : rawTableTab === 'purged'
+                        ? 'purged_community_items.json'
                         : rawTableTab === 'users'
                         ? 'users.json'
                         : rawTableTab === 'sessions'
@@ -1644,6 +1706,8 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                         const targetObj =
                           rawTableTab === 'community'
                             ? rawDbData?.tables?.communityItems?.records || {}
+                            : rawTableTab === 'purged'
+                            ? rawDbData?.tables?.purgedCommunityItems?.records || []
                             : rawTableTab === 'users'
                             ? rawDbData?.tables?.users?.records || []
                             : rawTableTab === 'sessions'
@@ -2293,6 +2357,58 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
                     <span>Execute Reset to 0</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Confirmation Modal Dialog (Safe replacement for window.confirm) */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+          <div className="bg-[#FAF7F2] border border-[#D5C7B8] text-[#2B1D14] w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col gap-4 animate-scale-in">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-2xs ${
+                  confirmDialog.isDestructive ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-serif text-base font-bold text-[#2B1D14]">
+                  {confirmDialog.title}
+                </h4>
+                <p className="text-[11px] text-[#8C7A6D]">Confirmation Required</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#6D5A4E] leading-relaxed whitespace-pre-wrap bg-white/70 p-3 rounded-xl border border-[#E5DACD]">
+              {confirmDialog.message}
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#E5DACD]">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 text-xs font-semibold text-[#6D5A4E] bg-white border border-[#D5C7B8] hover:bg-[#F2E8DC] rounded-xl transition-colors cursor-pointer"
+              >
+                {confirmDialog.cancelLabel || 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const action = confirmDialog.onConfirm;
+                  setConfirmDialog(null);
+                  await action();
+                }}
+                className={`px-4 py-2 text-xs font-semibold text-white rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  confirmDialog.isDestructive
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : 'bg-[#C87D32] hover:bg-[#B06B26]'
+                }`}
+              >
+                {confirmDialog.confirmLabel || 'Confirm Action'}
               </button>
             </div>
           </div>

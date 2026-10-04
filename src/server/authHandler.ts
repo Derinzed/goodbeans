@@ -47,7 +47,8 @@ export async function handleAuthRoutes(
   res: ServerResponse,
   next?: () => void
 ): Promise<boolean> {
-  const url = req.url || '';
+  const rawUrl = req.url || '';
+  const url = rawUrl.split('?')[0];
   const method = req.method || 'GET';
 
   // 1. POST /api/auth/register
@@ -629,7 +630,7 @@ export async function handleAuthRoutes(
   }
 
   // 7h. PUT /api/admin/community/items/:itemId (Admin updates community entry)
-  if (url.match(/^\/api\/admin\/community\/items\/[^/]+$/) && method === 'PUT') {
+  if (url.startsWith('/api/admin/community/items/') && !url.includes('/ratings/') && !url.includes('/reset-ratings') && method === 'PUT') {
     const token = getBearerToken(req);
     const user = token ? AuthStore.getUserByToken(token) : null;
     if (!user || user.role !== 'admin') {
@@ -637,7 +638,8 @@ export async function handleAuthRoutes(
       return true;
     }
 
-    const itemId = url.split('/')[5];
+    const parts = url.split('/');
+    const itemId = decodeURIComponent(parts[5] || parts[parts.length - 1] || '');
     try {
       const body = await readJsonBody(req);
       const updated = AuthStore.updateCommunityItem(itemId, body);
@@ -654,26 +656,7 @@ export async function handleAuthRoutes(
   }
 
   // 7i. DELETE /api/admin/community/items/:itemId (Admin deletes community entry)
-  if (url.match(/^\/api\/admin\/community\/items\/[^/]+$/) && method === 'DELETE') {
-    const token = getBearerToken(req);
-    const user = token ? AuthStore.getUserByToken(token) : null;
-    if (!user || user.role !== 'admin') {
-      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
-      return true;
-    }
-
-    const itemId = url.split('/')[5];
-    const deleted = AuthStore.deleteCommunityItem(itemId);
-    if (deleted) {
-      sendJson(res, 200, { success: true, message: 'Item deleted from community catalog.' });
-    } else {
-      sendJson(res, 404, { error: 'Community item not found' });
-    }
-    return true;
-  }
-
-  // 7j. DELETE /api/admin/community/items/:itemId/ratings/:raterUserId (Admin deletes specific user rating)
-  if (url.match(/^\/api\/admin\/community\/items\/[^/]+\/ratings\/[^/]+/) && method === 'DELETE') {
+  if (url.startsWith('/api/admin/community/items/') && !url.includes('/ratings/') && !url.includes('/reset-ratings') && method === 'DELETE') {
     const token = getBearerToken(req);
     const user = token ? AuthStore.getUserByToken(token) : null;
     if (!user || user.role !== 'admin') {
@@ -682,8 +665,28 @@ export async function handleAuthRoutes(
     }
 
     const parts = url.split('/');
-    const itemId = parts[5];
-    const raterKey = parts[7];
+    const itemId = decodeURIComponent(parts[5] || parts[parts.length - 1] || '');
+    const deleted = AuthStore.deleteCommunityItem(itemId);
+    if (deleted) {
+      sendJson(res, 200, { success: true, message: 'Item permanently purged from community catalog and seed registry.' });
+    } else {
+      sendJson(res, 404, { error: 'Community item not found' });
+    }
+    return true;
+  }
+
+  // 7j. DELETE /api/admin/community/items/:itemId/ratings/:raterUserId (Admin deletes specific user rating)
+  if (url.includes('/api/admin/community/items/') && url.includes('/ratings/') && method === 'DELETE') {
+    const token = getBearerToken(req);
+    const user = token ? AuthStore.getUserByToken(token) : null;
+    if (!user || user.role !== 'admin') {
+      sendJson(res, 403, { error: 'Access denied. Administrator privileges required.' });
+      return true;
+    }
+
+    const parts = url.split('/');
+    const itemId = decodeURIComponent(parts[5] || '');
+    const raterKey = decodeURIComponent(parts[7] || '');
     const deleted = AuthStore.deleteCommunityItemRating(itemId, raterKey);
     if (deleted) {
       sendJson(res, 200, { success: true, message: 'Rating deleted successfully.' });
@@ -694,7 +697,7 @@ export async function handleAuthRoutes(
   }
 
   // 7k. POST /api/admin/community/items/:itemId/reset-ratings (Admin resets all ratings on an item)
-  if (url.match(/^\/api\/admin\/community\/items\/[^/]+\/reset-ratings/) && method === 'POST') {
+  if (url.includes('/api/admin/community/items/') && url.includes('/reset-ratings') && method === 'POST') {
     const token = getBearerToken(req);
     const user = token ? AuthStore.getUserByToken(token) : null;
     if (!user || user.role !== 'admin') {
@@ -702,7 +705,8 @@ export async function handleAuthRoutes(
       return true;
     }
 
-    const itemId = url.split('/')[5];
+    const parts = url.split('/');
+    const itemId = decodeURIComponent(parts[5] || '');
     const reset = AuthStore.resetCommunityItemRatings(itemId);
     if (reset) {
       sendJson(res, 200, { success: true, message: 'All user ratings for this item have been reset.' });
