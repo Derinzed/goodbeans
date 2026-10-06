@@ -844,8 +844,22 @@ export class AuthStore {
   }
 
   public static findByUsername(username: string): StoredUser | null {
+    if (!username || typeof username !== 'string') return null;
+    const clean = username.trim().toLowerCase();
     const users = this.getUsers();
-    return users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase()) || null;
+    let match = users.find((u) => u.username.toLowerCase() === clean) || null;
+    if (!match && fs.existsSync(BACKUP_USERS_FILE)) {
+      try {
+        const backupUsers: StoredUser[] = JSON.parse(fs.readFileSync(BACKUP_USERS_FILE, 'utf-8'));
+        const backupMatch = backupUsers.find((u) => u.username.toLowerCase() === clean);
+        if (backupMatch) {
+          match = backupMatch;
+          users.push(backupMatch);
+          this.saveUsers(users);
+        }
+      } catch {}
+    }
+    return match;
   }
 
   public static findById(id: string): StoredUser | null {

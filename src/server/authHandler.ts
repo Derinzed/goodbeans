@@ -299,7 +299,7 @@ export async function handleAuthRoutes(
   // 4d. GET /api/auth/profile/:username or /api/auth/profile?username=... (Public Profile Showcase)
   if (url.startsWith('/api/auth/profile') && method === 'GET') {
     try {
-      const parsedUrl = new URL(url, 'http://localhost');
+      const parsedUrl = new URL(rawUrl, 'http://localhost');
       let targetUsername = parsedUrl.searchParams.get('username');
       if (!targetUsername) {
         // Path extraction: /api/auth/profile/:username
@@ -379,7 +379,7 @@ export async function handleAuthRoutes(
   // 6b. GET /api/guest/data (Retrieve persistent data for anonymous/guest session)
   if (url.startsWith('/api/guest/data') && method === 'GET') {
     try {
-      const parsedUrl = new URL(url, 'http://localhost');
+      const parsedUrl = new URL(rawUrl, 'http://localhost');
       const guestId = parsedUrl.searchParams.get('guestId') || (req.headers['x-guest-id'] as string);
       if (!guestId) {
         sendJson(res, 400, { error: 'guestId is required' });

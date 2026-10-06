@@ -232,9 +232,6 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
           : [],
       };
       onAddCoffee(coffeeObj);
-      if (isUnified) {
-        authApi.registerCommunityItem('coffee', coffeeObj, undefined, undefined, true).catch(() => {});
-      }
     } else if (itemType === 'equipment') {
       const finalBrand = isUnified && unificationMatch?.brand ? unificationMatch.brand : (generatedResult.brand || 'Gear Brand');
       const finalGeneralRating = isUnified && unificationMatch && unificationMatch.ratingsCount > 0 && typeof unificationMatch.generalRating === 'number' ? unificationMatch.generalRating : 0;
@@ -256,9 +253,6 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
         dateAcquired: new Date().toISOString().split('T')[0],
       };
       onAddEquipment(eqObj);
-      if (isUnified) {
-        authApi.registerCommunityItem('equipment', eqObj, 0, undefined, true).catch(() => {});
-      }
     } else if (itemType === 'cafe') {
       const finalCity = isUnified && unificationMatch?.city ? unificationMatch.city : (generatedResult.city || 'City');
       const finalGeneralRating = isUnified && unificationMatch && unificationMatch.ratingsCount > 0 && typeof unificationMatch.generalRating === 'number' ? unificationMatch.generalRating : 0;
@@ -284,9 +278,6 @@ export const AutoPopulateShelfWidget: React.FC<AutoPopulateShelfWidgetProps> = (
         isRegistered: isUnified,
       };
       onAddCafe(cafeObj);
-      if (isUnified) {
-        authApi.registerCommunityItem('cafe', cafeObj, 0, undefined, true).catch(() => {});
-      }
     } else {
       const noteObj: CustomNote = {
         id: `note-ai-${idSuffix}`,

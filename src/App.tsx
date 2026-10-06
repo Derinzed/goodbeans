@@ -793,11 +793,12 @@ export default function App() {
   };
 
   const handleSaveCoffee = async (coffeeData: Coffee, registerToCommunity?: boolean) => {
+    const isEdit = Boolean(editingCoffee);
     const cleanCoffee = {
       ...stripGeneralCoffeeFields(coffeeData),
       updatedAt: new Date().toISOString(),
     };
-    if (editingCoffee) {
+    if (isEdit) {
       setCoffees((prev) =>
         prev.map((c) => (c.id === cleanCoffee.id ? { ...c, ...cleanCoffee } : c))
       );
@@ -807,33 +808,21 @@ export default function App() {
     setIsCoffeeModalOpen(false);
     setEditingCoffee(null);
 
-    if (authToken && currentUser) {
+    // Only register to community catalog if explicitly requested during new item creation
+    if (!isEdit && registerToCommunity && authToken && currentUser) {
       try {
-        if (registerToCommunity) {
-          const res = await authApi.registerCommunityItem(
-            'coffee',
-            cleanCoffee,
-            typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0 ? cleanCoffee.userRating : undefined,
-            Array.isArray(cleanCoffee.tastingNotesSummary) ? cleanCoffee.tastingNotesSummary : undefined,
-            false
-          );
-          if (res && res.error) {
-            setToastMessage(res.error);
-            return;
-          }
-          setToastMessage(`"${cleanCoffee.name}" registered to community coffee catalog!`);
-        } else if (
-          (typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0) ||
-          (Array.isArray(cleanCoffee.tastingNotesSummary) && cleanCoffee.tastingNotesSummary.length > 0)
-        ) {
-          await authApi.registerCommunityItem(
-            'coffee',
-            cleanCoffee,
-            typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0 ? cleanCoffee.userRating : undefined,
-            Array.isArray(cleanCoffee.tastingNotesSummary) ? cleanCoffee.tastingNotesSummary : undefined,
-            true
-          );
+        const res = await authApi.registerCommunityItem(
+          'coffee',
+          cleanCoffee,
+          typeof cleanCoffee.userRating === 'number' && cleanCoffee.userRating > 0 ? cleanCoffee.userRating : undefined,
+          Array.isArray(cleanCoffee.tastingNotesSummary) ? cleanCoffee.tastingNotesSummary : undefined,
+          false
+        );
+        if (res && res.error) {
+          setToastMessage(res.error);
+          return;
         }
+        setToastMessage(`"${cleanCoffee.name}" registered to community coffee catalog!`);
         await fetchCommunityCatalog();
       } catch {}
     }
@@ -870,30 +859,16 @@ export default function App() {
   };
 
   const handleQuickRate = async (coffeeId: string, rating: number) => {
-    let updatedTarget: Coffee | null = null;
     const now = new Date().toISOString();
     setCoffees((prev) =>
       prev.map((c): Coffee => {
         if (c.id === coffeeId) {
           const updated: Coffee = { ...c, userRating: rating, updatedAt: now };
-          updatedTarget = updated;
           return updated;
         }
         return c;
       })
     );
-    if (updatedTarget && authToken && currentUser) {
-      try {
-        await authApi.registerCommunityItem(
-          'coffee',
-          updatedTarget,
-          rating,
-          (updatedTarget as Coffee).tastingNotesSummary,
-          true
-        );
-        await fetchCommunityCatalog();
-      } catch {}
-    }
   };
 
   const handleQuickChangeShelf = (coffeeId: string, shelfId: string) => {
@@ -1032,19 +1007,6 @@ export default function App() {
     );
     setIsTastingModalOpen(false);
     setTastingModalCoffee(null);
-
-    if (updatedTarget && authToken && currentUser) {
-      try {
-        await authApi.registerCommunityItem(
-          'coffee',
-          updatedTarget,
-          entry.rating,
-          entry.flavorTags.length > 0 ? entry.flavorTags : (updatedTarget as Coffee).tastingNotesSummary,
-          true
-        );
-        await fetchCommunityCatalog();
-      } catch {}
-    }
   };
 
   const handleDeleteTasting = (tastingId: string) => {
@@ -1065,8 +1027,12 @@ export default function App() {
 
   // Handlers for Equipment
   const handleSaveEquipment = async (equipmentData: Equipment, registerToCommunity?: boolean) => {
-    const cleanEquipment = stripGeneralEquipmentFields(equipmentData);
-    if (editingEquipment) {
+    const isEdit = Boolean(editingEquipment);
+    const cleanEquipment = {
+      ...stripGeneralEquipmentFields(equipmentData),
+      updatedAt: new Date().toISOString(),
+    };
+    if (isEdit) {
       setEquipment((prev) =>
         prev.map((eq) => (eq.id === cleanEquipment.id ? cleanEquipment : eq))
       );
@@ -1076,24 +1042,21 @@ export default function App() {
     setIsEquipmentModalOpen(false);
     setEditingEquipment(null);
 
-    if (authToken && currentUser) {
+    // Only register to community catalog if explicitly requested during new item creation
+    if (!isEdit && registerToCommunity && authToken && currentUser) {
       try {
-        if (registerToCommunity) {
-          const res = await authApi.registerCommunityItem(
-            'equipment',
-            cleanEquipment,
-            typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0 ? cleanEquipment.rating : undefined,
-            undefined,
-            false
-          );
-          if (res && res.error) {
-            setToastMessage(res.error);
-            return;
-          }
-          setToastMessage(`"${cleanEquipment.name}" registered to community equipment catalog!`);
-        } else if (typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0) {
-          await authApi.registerCommunityItem('equipment', cleanEquipment, cleanEquipment.rating, undefined, true);
+        const res = await authApi.registerCommunityItem(
+          'equipment',
+          cleanEquipment,
+          typeof cleanEquipment.rating === 'number' && cleanEquipment.rating > 0 ? cleanEquipment.rating : undefined,
+          undefined,
+          false
+        );
+        if (res && res.error) {
+          setToastMessage(res.error);
+          return;
         }
+        setToastMessage(`"${cleanEquipment.name}" registered to community equipment catalog!`);
         await fetchCommunityCatalog();
       } catch {}
     }
@@ -1125,22 +1088,15 @@ export default function App() {
   };
 
   const handleQuickRateEquipment = async (equipmentId: string, rating: number) => {
-    let updatedTarget: Equipment | null = null;
+    const now = new Date().toISOString();
     setEquipment((prev) =>
       prev.map((eq) => {
         if (eq.id === equipmentId) {
-          updatedTarget = { ...eq, rating };
-          return updatedTarget;
+          return { ...eq, rating, updatedAt: now };
         }
         return eq;
       })
     );
-    if (updatedTarget && authToken && currentUser) {
-      try {
-        await authApi.registerCommunityItem('equipment', updatedTarget, rating, undefined, true);
-        await fetchCommunityCatalog();
-      } catch {}
-    }
   };
 
   const handleDeleteEquipment = (id: string) => {
@@ -1152,8 +1108,12 @@ export default function App() {
 
   // Handlers for Cafes
   const handleSaveCafe = async (cafeData: Cafe, registerToCommunity?: boolean) => {
-    const cleanCafe = stripGeneralCafeFields(cafeData);
-    if (editingCafe) {
+    const isEdit = Boolean(editingCafe);
+    const cleanCafe = {
+      ...stripGeneralCafeFields(cafeData),
+      updatedAt: new Date().toISOString(),
+    };
+    if (isEdit) {
       setCafes((prev) =>
         prev.map((c) => (c.id === cleanCafe.id ? cleanCafe : c))
       );
@@ -1163,24 +1123,21 @@ export default function App() {
     setIsCafeModalOpen(false);
     setEditingCafe(null);
 
-    if (authToken && currentUser) {
+    // Only register to community catalog if explicitly requested during new item creation
+    if (!isEdit && registerToCommunity && authToken && currentUser) {
       try {
-        if (registerToCommunity) {
-          const res = await authApi.registerCommunityItem(
-            'cafe',
-            cleanCafe,
-            typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0 ? cleanCafe.rating : undefined,
-            undefined,
-            false
-          );
-          if (res && res.error) {
-            setToastMessage(res.error);
-            return;
-          }
-          setToastMessage(`"${cleanCafe.name}" registered to community cafe catalog!`);
-        } else if (typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0) {
-          await authApi.registerCommunityItem('cafe', cleanCafe, cleanCafe.rating, undefined, true);
+        const res = await authApi.registerCommunityItem(
+          'cafe',
+          cleanCafe,
+          typeof cleanCafe.rating === 'number' && cleanCafe.rating > 0 ? cleanCafe.rating : undefined,
+          undefined,
+          false
+        );
+        if (res && res.error) {
+          setToastMessage(res.error);
+          return;
         }
+        setToastMessage(`"${cleanCafe.name}" registered to community cafe catalog!`);
         await fetchCommunityCatalog();
       } catch {}
     }
@@ -1225,22 +1182,15 @@ export default function App() {
   };
 
   const handleQuickRateCafe = async (cafeId: string, rating: number) => {
-    let updatedTarget: Cafe | null = null;
+    const now = new Date().toISOString();
     setCafes((prev) =>
       prev.map((c) => {
         if (c.id === cafeId) {
-          updatedTarget = { ...c, rating };
-          return updatedTarget;
+          return { ...c, rating, updatedAt: now };
         }
         return c;
       })
     );
-    if (updatedTarget && authToken && currentUser) {
-      try {
-        await authApi.registerCommunityItem('cafe', updatedTarget, rating, undefined, true);
-        await fetchCommunityCatalog();
-      } catch {}
-    }
   };
 
   // Handlers for Custom Notes
@@ -1786,18 +1736,6 @@ export default function App() {
               setCoffees((prev) =>
                 prev.map((c) => (c.id === updated.id ? itemWithTimestamp : c))
               );
-              if (authToken && currentUser) {
-                try {
-                  await authApi.registerCommunityItem(
-                    'coffee',
-                    itemWithTimestamp,
-                    typeof itemWithTimestamp.userRating === 'number' && itemWithTimestamp.userRating > 0 ? itemWithTimestamp.userRating : undefined,
-                    Array.isArray(itemWithTimestamp.tastingNotesSummary) ? itemWithTimestamp.tastingNotesSummary : undefined,
-                    true
-                  );
-                  await fetchCommunityCatalog();
-                } catch {}
-              }
             }}
             onOpenAddRecipe={handleOpenAddRecipe}
             onOpenEditRecipe={handleOpenEditRecipe}
