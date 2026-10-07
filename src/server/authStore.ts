@@ -2391,9 +2391,42 @@ export class AuthStore {
           rating,
         }));
 
+        let userTastingNotes = item.userTastingNotes || {};
+        if (item.type === 'coffee') {
+          const cleanName = (item.name || '').trim().toLowerCase();
+          const cleanSec = (item.secondary || '').trim().toLowerCase();
+          const mergedNotes: Record<string, string[]> = { ...(item.userTastingNotes || {}) };
+          users.forEach((u) => {
+            const userCoffees = u.data?.coffees;
+            if (Array.isArray(userCoffees)) {
+              userCoffees.forEach((uc) => {
+                if (!uc || !uc.name) return;
+                const ucName = (uc.name || '').trim().toLowerCase();
+                const ucRoaster = (uc.roaster || '').trim().toLowerCase();
+                if (
+                  ucName === cleanName &&
+                  (!cleanSec || !ucRoaster || ucRoaster === cleanSec || ucRoaster.includes(cleanSec) || cleanSec.includes(ucRoaster))
+                ) {
+                  const userNotes: string[] = [];
+                  if (Array.isArray(uc.tastingNotesSummary)) userNotes.push(...uc.tastingNotesSummary);
+                  if (Array.isArray(uc.tastingLogs)) {
+                    uc.tastingLogs.forEach((l: any) => {
+                      if (Array.isArray(l.flavorTags)) userNotes.push(...l.flavorTags);
+                    });
+                  }
+                  if (userNotes.length > 0) {
+                    mergedNotes[u.id] = Array.from(new Set([...(mergedNotes[u.id] || []), ...userNotes]));
+                  }
+                }
+              });
+            }
+          });
+          userTastingNotes = mergedNotes;
+        }
+
         const aggTasting =
           item.type === 'coffee'
-            ? this.calculateAggregateTastingNotes(item.userTastingNotes || {})
+            ? this.calculateAggregateTastingNotes(userTastingNotes)
             : undefined;
 
         const liveOwnerCount = this.countCurrentItemOwners(item.type, item.name, item.secondary);
@@ -2409,7 +2442,13 @@ export class AuthStore {
           userRatings: ratingEntries,
           generalTastingNotes: aggTasting?.generalTastingNotes || item.generalTastingNotes || [],
           tastingNotesBreakdown: aggTasting?.tastingNotesBreakdown || item.tastingNotesBreakdown || [],
-          itemData: item.itemData || {},
+          itemData: {
+            ...(item.itemData || {}),
+            tastingNotesSummary:
+              aggTasting?.generalTastingNotes && aggTasting.generalTastingNotes.length > 0
+                ? aggTasting.generalTastingNotes
+                : item.itemData?.tastingNotesSummary || [],
+          },
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
         };
@@ -2521,7 +2560,9 @@ export class AuthStore {
             existing.userRatings[u.id] = userRating;
           }
           if (userNotes.length > 0) {
-            existing.userTastingNotes[u.id] = userNotes;
+            existing.userTastingNotes[u.id] = Array.from(
+              new Set([...(existing.userTastingNotes[u.id] || []), ...userNotes])
+            );
           }
         });
       }
@@ -2533,6 +2574,11 @@ export class AuthStore {
       const aggTasting = this.calculateAggregateTastingNotes(item.userTastingNotes);
       const userCount = item.currentOwners.size > 0 ? item.currentOwners.size : agg.ratingsCount;
 
+      const top5TastingNotes =
+        aggTasting.generalTastingNotes.length > 0
+          ? aggTasting.generalTastingNotes
+          : item.baseNotes;
+
       return {
         id: item.id,
         name: item.name,
@@ -2543,7 +2589,7 @@ export class AuthStore {
         roastLevel: item.roastLevel,
         coverColor: item.coverColor,
         description: item.description,
-        tastingNotesSummary: item.tastingNotesSummary,
+        tastingNotesSummary: top5TastingNotes,
         generalTastingNotes: aggTasting.generalTastingNotes,
         tastingNotesBreakdown: aggTasting.tastingNotesBreakdown,
         generalRating: agg.generalRating,

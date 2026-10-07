@@ -41,13 +41,28 @@ export function getGeneralCoffeeInfo(
     const ratingsCount = typeof match.ratingsCount === 'number' ? match.ratingsCount : 0;
     const generalRating = ratingsCount > 0 && typeof match.generalRating === 'number' ? match.generalRating : 0;
 
+    // Calculate on-demand from the member tasting notes breakdown
+    let generalTastingNotes: string[] = [];
+    let tastingNotesBreakdown: Array<{ note: string; count: number }> = [];
+
+    if (Array.isArray(match.tastingNotesBreakdown) && match.tastingNotesBreakdown.length > 0) {
+      tastingNotesBreakdown = [...match.tastingNotesBreakdown].sort((a, b) => (b.count || 0) - (a.count || 0));
+      generalTastingNotes = tastingNotesBreakdown.slice(0, 5).map((x) => x.note);
+    } else if (Array.isArray(match.generalTastingNotes) && match.generalTastingNotes.length > 0) {
+      generalTastingNotes = match.generalTastingNotes.slice(0, 5);
+      tastingNotesBreakdown = generalTastingNotes.map((note) => ({ note, count: ratingsCount || 1 }));
+    } else if (Array.isArray(match.tastingNotesSummary) && match.tastingNotesSummary.length > 0) {
+      generalTastingNotes = match.tastingNotesSummary.slice(0, 5);
+      tastingNotesBreakdown = generalTastingNotes.map((note) => ({ note, count: ratingsCount || 1 }));
+    }
+
     return {
       isRegistered: true,
       generalRating,
       ratingsCount,
       userCount: typeof match.userCount === 'number' ? match.userCount : ratingsCount,
-      generalTastingNotes: Array.isArray(match.generalTastingNotes) ? match.generalTastingNotes : [],
-      tastingNotesBreakdown: Array.isArray(match.tastingNotesBreakdown) ? match.tastingNotesBreakdown : [],
+      generalTastingNotes,
+      tastingNotesBreakdown,
     };
   }
 

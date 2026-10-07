@@ -789,8 +789,15 @@ export default function App() {
   const handleSelectCoffee = (coffeeId: string) => {
     setSelectedCoffeeId(coffeeId);
     setCurrentView('coffee-detail');
+    fetchCommunityCatalog();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    if (currentView === 'coffee-detail' && selectedCoffeeId) {
+      fetchCommunityCatalog();
+    }
+  }, [currentView, selectedCoffeeId]);
 
   const handleSaveCoffee = async (coffeeData: Coffee, registerToCommunity?: boolean) => {
     const isEdit = Boolean(editingCoffee);
